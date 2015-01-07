@@ -1,0 +1,75 @@
+4
+1: @39:1 bound from 0
+   @39:1 bind
+   @40:1 internal inc
+   @41:1 internal inc
+   @42:1 internal inc
+   @43:1 internal inc
+   @44:1 internal val
+   @45:6 input 4
+   @46:1 tail-bind
+   @46:10 tail-bind
+   @47:1 tail-bind
+   @48:1 internal dealloc
+   @49:1 wait
+   @50:1 close
+2: @31:1 bound from 1
+   @31:1 external inc
+   @32:10 bind
+   @33:10 tail-bind
+   @12:1 external inc
+   @13:11 tail-bind
+   @14:22 internal inc
+   @15:22 tail-bind
+   @12:1 external inc
+   @13:11 tail-bind
+   @16:23 tail-bind
+   @12:1 external inc
+   @13:11 tail-bind
+   @14:22 internal inc
+   @15:22 tail-bind
+   @12:1 external val
+   @17:10 internal val
+   @18:16 input 2
+   @19:11 output 4
+   @20:11 tail-bind
+   @12:1 external dealloc
+   @21:14 internal dealloc
+   @22:14 wait
+   @23:14 close
+3: @31:1 bound from 2
+   @31:1 external inc
+   @32:10 bind
+   @33:10 tail-bind
+   @12:1 external inc
+   @13:11 tail-bind
+   @14:22 internal inc
+   @15:22 tail-bind
+   @12:1 external val
+   @17:10 internal val
+   @18:16 input 1
+   @19:11 output 2
+   @20:11 tail-bind
+   @12:1 external dealloc
+   @21:14 internal dealloc
+   @22:14 wait
+   @23:14 close
+4: @31:1 bound from 3
+   @31:1 external inc
+   @32:10 bind
+   @33:10 tail-bind
+   @12:1 external val
+   @17:10 internal val
+   @18:16 input 0
+   @19:11 output 1
+   @20:11 tail-bind
+   @12:1 external dealloc
+   @21:14 internal dealloc
+   @22:14 wait
+   @23:14 close
+5: @31:1 bound from 4
+   @31:1 external val
+   @34:10 output 0
+   @35:10 tail-bind
+   @31:1 external dealloc
+   @36:14 close

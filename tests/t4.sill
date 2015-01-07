@@ -1,0 +1,14 @@
+nats: Int -> {mu $x.&{stop: 1; next: Int/\$x}};;
+'c <- nats n =
+  case 'c of
+  | stop -> close 'c
+  | next -> send 'c n;
+           'c <- nats (n+1)
+;;
+
+'c <- 'd <- nats 0; 
+       'd.next; 
+       x <- recv 'd; 
+       'd.stop; 
+       wait 'd; 
+       close 'c;;

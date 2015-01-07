@@ -1,0 +1,9 @@
+'c <- nil =
+send 'c Nil;
+close 'c;;
+
+'c <- cons v -< 'l =
+send 'c Cons;
+send 'c v;
+send 'c ('d <- 'd <- 'l);
+close 'c;;

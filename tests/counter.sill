@@ -1,0 +1,50 @@
+(* Binary counter, with increment command and value query *)
+(* Author: Frank Pfenning *)
+
+ltype Counter = &{inc: Counter; val: Int /\ Counter; dealloc: 1};;
+
+(* 'c <- bit b -< 'd
+   represents a bit in a binary number with
+   lower bits at 'c and higher bits at 'd
+ *)
+bit : Bool -> {Counter <- Counter};;
+'c <- bit b -< 'd =
+case 'c of
+| inc -> (case b of
+           | True -> 'd.inc;  (* send carry bit *)
+                     'c <- bit False -< 'd
+           | False -> 'c <- bit True -< 'd)
+| val -> 'd.val;
+          n <- recv 'd;
+          send 'c (2*n+(if b then 1 else 0));
+          'c <- bit b -< 'd
+| dealloc -> 'd.dealloc;
+             wait 'd;
+             close 'c;;
+
+(* 'c <- eps
+   represents the empty bit string (of value 0)
+   Initialize the counter with 'c <- eps
+ *)
+eps : {Counter};;
+'c <- eps =
+case 'c of
+| inc -> 'd <- eps;
+         'c <- bit True -< 'd
+| val -> send 'c 0;
+         'c <- eps
+| dealloc -> close 'c;;
+
+'top <-
+'c <- eps;
+'c.inc;
+'c.inc;
+'c.inc;
+'c.inc;
+'c.val;
+n <- recv 'c;
+print n; print_str "\n";
+assert (n = 4);
+'c.dealloc;
+wait 'c;
+close 'top;;

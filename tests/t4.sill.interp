@@ -1,0 +1,13 @@
+1: @9:7 bound from 0
+   @9:7 bind
+   @10:8 internal next
+   @11:13 input 0
+   @12:8 internal stop
+   @13:8 wait
+   @14:8 close
+2: @3:3 bound from 1
+   @3:3 external next
+   @5:13 output 0
+   @6:12 tail-bind
+   @3:3 external stop
+   @4:13 close

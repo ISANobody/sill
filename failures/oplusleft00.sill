@@ -1,0 +1,5 @@
+'c <- let f : {+{a:1; b:1}} = 'd <-{ 'd.a; close 'd }; 'd <- f;
+      case 'd of
+      | a -> wait 'd;
+             close 'c
+      | b -> close 'c;;

@@ -1,0 +1,6 @@
+ltype Foo a = a /\ 1;;
+
+x : {Foo};;
+x = 4;;
+
+'c <- close 'c;;

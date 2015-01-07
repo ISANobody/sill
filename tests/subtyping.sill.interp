@@ -1,0 +1,32 @@
+1: @25:7 bound from 0
+   @25:7 bind
+   @26:7 bind
+   @27:7 bind
+   @28:7 bind
+   @29:7 bind
+   @30:7 bind
+   @31:7 wait
+   @32:7 wait
+   @33:7 wait
+   @34:7 close
+2: @3:3 bound from 1
+   @3:3 external red
+   @4:12 close
+3: @3:3 bound from 1
+   @3:3 external blue
+   @5:13 close
+4: @9:3 bound from 1
+   @9:3 external red
+   @10:12 close
+5: @15:4 bound from 1
+   @15:4 internal red
+   @16:4 wait
+   @17:4 close
+6: @21:4 bound from 1
+   @21:4 internal blue
+   @22:4 wait
+   @23:4 close
+7: @15:4 bound from 1
+   @15:4 internal red
+   @16:4 wait
+   @17:4 close

@@ -1,0 +1,20 @@
+foo : { a =) 1 <- a =) 1; a =) 1 };;
+'c <- foo -< 'd 'e =
+x <- recv 'c;
+send 'd x;
+send 'e x;
+wait 'd;
+wait 'e;
+close 'c;;
+
+bar : { a =) 1 };;
+'c <- bar =
+_ <- recv 'c;
+close 'c;;
+
+'f <- 'd <- bar;
+      'e <- bar;
+       'c <- foo -< 'd 'e;
+       send 'c [5:Int];
+       wait 'c;
+       close 'f;;

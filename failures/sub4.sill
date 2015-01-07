@@ -1,0 +1,5 @@
+foo : {1<-+{a:1; b:1}};;
+'c <- foo -< 'd =
+  case 'd of
+  | a -> wait 'd;
+         close 'c;;

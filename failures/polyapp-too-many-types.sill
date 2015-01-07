@@ -1,0 +1,5 @@
+my_eq : forall <a>. a -> a -> Bool;;
+my_eq x y = x = y;;
+
+boom : Bool;;
+boom = my_eq<Float,Int> 6 8;;

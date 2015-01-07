@@ -1,0 +1,4 @@
+boom : {1<-&{foo:1}};;
+'c <- boom -< 'd =
+  'd.foo;
+  close 'c;;

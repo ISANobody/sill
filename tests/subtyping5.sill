@@ -1,0 +1,33 @@
+server1:{1 <- +{red: 1; blue: 1}};;
+'c <- server1 -< 'd =
+  case 'd of
+  | red -> wait 'd; close 'c
+  | blue -> wait 'd; close 'c;;
+
+client1:{+{red: 1}};;
+'c <- client1 =
+   'c.red;
+   close 'c;;
+
+server2:{1 <- +{red: 1; green: 1}};;
+'c <- server2 -< 'd =
+  case 'd of
+  | red -> wait 'd; close 'c
+  | green -> wait 'd; close 'c;;
+
+
+client2:{+{blue:1}};;
+'c <- client2 =
+   'c.blue;
+   close 'c;;
+
+'c <- 'e <- client1;
+      'd <- server1 -< 'e;
+      wait 'd;
+      'e <- client1;
+      'd <- server2 -< 'e;
+      wait 'd;
+      'e <- client2;
+      'd <- server1 -< 'e;
+      wait 'd;
+      close 'c;;

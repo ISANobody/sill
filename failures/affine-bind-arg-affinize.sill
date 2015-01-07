@@ -1,0 +1,14 @@
+bar : {1};;
+'c <- bar =
+  close 'c;;
+
+quux : { 1 <- @1 };;
+'c <- quux -< @d =
+  close 'c;;
+
+(* Error: passing linear channel as into affine argument *)
+'top <- 'c <- bar;
+        'd <- quux -< 'c;
+        wait 'd;
+        close 'top;;
+

@@ -1,0 +1,188 @@
+type List a = Nil | Cons a (List a);;
+type One a = The a;;
+
+(* Since we cannot write mutually recursive left/right
+ * functions, use a "side" argument *)
+type Side = L | R;;
+
+ltype Cell = +{someR: Int /\ &{someL: Int => Cell; head: Cell};
+               tail: Cell;
+               doneR: List Int /\ 1};;
+
+(*
+ltype Zero = (+){ };;
+
+abort : {Zero};;
+'c <- abort =
+'c <- abort;;
+
+('a <- abort; case 'a of)
+*)
+
+elem : Side -> Int -> Int -> {Cell <- Cell};;
+
+'c <- elem s i m -< 'd =
+case s of
+| L ->
+(
+if (i = 0) then
+(case 'd of
+     | someR -> abort
+     | tail -> abort
+     | doneR -> l <- recv 'd;
+                wait 'd;
+                'c.doneR;
+                send 'c (Cons m l);
+                close 'c
+     )
+else (case 'd of
+     | someR -> n <- recv 'd;
+                'd.someL;
+                send 'd m;
+                (case m > n of
+                | True -> 'c <- elem R (i-1) n -< 'd
+                | False -> 'c <- elem R (i-1) m -< 'd)
+     | tail -> 'c <- elem R (i-1) m -< 'd
+     | doneR -> abort
+     )
+)
+| R ->
+(
+if i = 0 then
+(case 'd of
+     | someR -> abort
+     | tail -> abort
+     | doneR -> l <- recv 'd;
+                wait 'd;
+                'c.doneR;
+                send 'c (Cons m l);
+                close 'c)
+else 'c.someR;
+     send 'c m;
+     (case 'c of
+     | someL -> n <- recv 'c;
+                (case n > m of
+                | True -> 'c <- elem L (i-1) n -< 'd
+                | False -> 'c <- elem L (i-1) m -< 'd)
+     | head -> 'c <- elem L (i-1) m -< 'd)
+)
+;;
+
+hd : Int -> {List Int /\ 1 <- Cell};;
+
+'c <- hd i -< 'd =
+if (i > 1)
+then (case 'd of
+     | someR -> n <- recv 'd;
+                'd.head;
+                'c <- hd (i-2) -< 'd
+     | tail -> 'c <- hd (i-2) -< 'd
+     | doneR -> abort
+     )
+else  (if (i = 1) 
+       then (case 'd of
+     | someR -> n <- recv 'd;
+                'd.head;
+                'c <- hd 0 -< 'd
+     | tail -> 'c <- hd 0 -< 'd
+     | doneR -> abort
+     )
+     else (* i = 0 *)
+     (case 'd of
+     | someR -> abort
+     | tail -> abort
+     | doneR -> 'c <- 'd))
+;;
+
+tl : Int -> {Cell};;
+
+'c <- tl i =
+if (i > 1) 
+then 'c.tail;
+     'c <- tl (i-2)
+else (if (i = 1)
+      then 'c.tail;
+           'c <- tl 0
+      else (* i = 0 *)
+          'c.doneR;
+          send 'c Nil;
+          close 'c)
+;;
+
+(*
+from [n1,...,nk]
+create
+'c <- hd i -<<- elem L i n1 -<<- elem R i n2 -<<- elem L i n3 -<<- ... -<<- tl i
+where "I" is the bound on the number of exchanges
+at each element and L/R alternate
+*)
+
+swap : Side -> Side;;
+swap s = case s of
+| L -> R
+| R -> L
+;;
+
+length : List a -> Int;;
+length l = case l of
+| Nil -> 0
+| Cons x k -> 1 + length k 
+;;
+
+load : Side -> Int -> List Int -> {List Int /\ 1 <- Cell};;
+
+'c <- load s i l -< 'd =
+case l of
+| Nil -> 'c <- hd i -< 'd
+| Cons m k -> 'e <- elem s i m -< 'd;
+              'c <- load (swap s) i k -< 'e
+;;
+
+sort : List Int -> {List Int /\ 1};;
+'c <- sort l =
+case The (length l) of (* no let allowed here *)
+| The n ->
+'t <- tl (n+1); (* n doesn't seem to be enough for odd-length lists *)
+'d <- load L (n+1) l -< 't;
+'c <- 'd
+;;
+
+ppl : List Int -> {1};;
+'c <- ppl l =
+case l of
+| Nil -> print_str "\n";
+         close 'c
+| Cons x k -> print x;
+              print_str " ";
+              'c <- ppl k
+;;
+
+is_sorted : List Int -> Bool;;
+is_sorted l = case l of
+| Nil -> True
+| Cons x l -> (case l of
+  | Nil -> True
+  | Cons y k -> x <= y && is_sorted (Cons y k))
+;;
+
+test : List Int -> {1};;
+'u <- test l =
+'c <- sort l;
+k <- recv 'c;
+'p <- ppl k;
+wait 'p;
+assert (is_sorted k);
+assert (length l = length k);
+wait 'c;
+close 'u
+;;
+
+(* testing note: list will be reversed while loading data structure *)
+(* to test testing, allow only length l steps and the last case should fail *)
+'top <-
+'u <- test (Cons 1 (Cons 2 (Cons 4 (Cons 8 (Cons 7 (Cons 11 Nil)))))); wait 'u;
+'u <- test (Cons 3 (Cons 2 (Cons 4 (Cons 1 (Cons 17 (Cons 1 Nil)))))); wait 'u;
+'u <- test (Cons 11 (Cons 7 (Cons 8 (Cons 4 (Cons 2 (Cons 1 Nil)))))); wait 'u;
+'u <- test (Cons 1 (Cons 2 (Cons 4 (Cons 8 (Cons 7 (Cons 11 (Cons 12 Nil))))))); wait 'u;
+close 'top
+;;

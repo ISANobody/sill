@@ -1,0 +1,7 @@
+(* { }I *)
+(* No linear arguments when providing affine *)
+atype Foo = 1;;
+foo : {Foo <- 1};;
+foo =
+  @c <-{ wait 'd;
+         close @c }-< 'd;;

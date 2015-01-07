@@ -1,0 +1,6 @@
+  (* Can't affinize *)
+  foo : {1 <- 1*1};;
+  'c <- foo -< 'd =
+    @e <- recv 'd;
+    wait 'd;
+    close 'c;;

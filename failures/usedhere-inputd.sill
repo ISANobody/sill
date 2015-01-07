@@ -1,0 +1,4 @@
+boom : {1<-Int/\1};;
+'c <- boom -< 'd =
+  _ <- recv 'd;
+  close 'c;;

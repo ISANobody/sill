@@ -1,0 +1,52 @@
+foo : {#a} -> {#b <- #a} -> {#b};;
+'c <- foo a f = 
+    'd <- a;
+    'c <- f -< 'd;;
+
+prod1 : {Int/\ 1};;
+'c <- prod1 =
+   send 'c 4;
+   close 'c;;
+
+prod2 : {String /\ 1};;
+'c <- prod2 =
+   send 'c "4.9";
+   close 'c;;
+
+
+trans1 : {String/\1 <- Int /\ 1};;
+'c <- trans1 -< 'd =
+  x <- recv 'd;
+  send 'c "asdf";
+  wait 'd;
+  close 'c;;
+
+trans2 : {Float /\ 1 <- String /\ 1};;
+'c <- trans2 -< 'd =
+  x <- recv 'd;
+  send 'c 2.0;
+  wait 'd;
+  close 'c;;
+
+consume : {1 <- a /\ 1};;
+'c <- consume -< 'd =
+  x <- recv 'd;
+  print_str (sexp2s x);
+  wait 'd;
+  close 'c;;
+
+'top <- 'a <- prod1;
+        'b <- trans1 -< 'a;
+        'c <- consume -< 'b;
+        wait 'c;
+        'a <- prod2;
+        'b <- trans2 -< 'a;
+        'c <- consume -< 'b;
+        wait 'c;
+        'a <- foo prod1 trans1;
+        'b <- consume -< 'a;
+        wait 'b;
+        'a <- foo prod2 trans2;
+        'b <- consume -< 'a;
+        wait 'b;
+        close 'top;;

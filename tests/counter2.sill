@@ -1,0 +1,109 @@
+(* Binary counter *)
+(* With an "increment process" *)
+(* Author: Henry DeYoung *)
+
+type Singleton a = The a;;
+
+ltype Counter = +{eps: 1; bit: Bool /\ Counter};;
+
+eps : {Counter};;
+'c <- eps =
+'c.eps;
+close 'c
+;;
+
+bit : Bool -> {Counter <- Counter};;
+'c <- bit b -< 'd =
+'c.bit;
+send 'c b;
+'c <- 'd
+;;
+
+inc : {Counter <- Counter};;
+'c <- inc -< 'd =
+case 'd of
+| eps -> wait 'd;
+         'e <- eps;
+         'c <- bit True -< 'e
+| bit -> b <- recv 'd;
+         (case b of
+          | True -> 'e <- inc -< 'd ;
+                    'c <- bit False -< 'e
+          | False -> 'c <- bit True -< 'd
+         )
+;;
+
+val : {Int /\ Counter <- Counter};;
+'c <- val -< 'd =
+case 'd of
+| eps -> wait 'd;
+         send 'c 0;
+         'c <- eps
+| bit -> b <- recv 'd;
+         'e <- val -< 'd;
+         n <- recv 'e;
+         send 'c (2*n+(if b then 1 else 0));
+         'c <- bit b -< 'e
+;;
+
+plus : {Counter <- Counter; Counter};;
+'c <- plus -< 'd 'e =
+case 'd of
+| eps -> wait 'd;
+         'c <- 'e
+| bit -> b1 <- recv 'd;
+(case 'e of
+| eps -> wait 'e;
+         'c.bit;
+         send 'c b1;
+         'c <- 'd
+| bit -> b2 <- recv 'e;
+         'c.bit;
+         case b1 of | True ->
+         (case b2 of | True -> send 'c False;
+                               'f <- inc -< 'd;
+                               'c <- plus -< 'f 'e
+                     | False -> send 'c True;
+                               'c <- plus -< 'd 'e)
+                    | False -> send 'c b2;
+                               'c <- plus -< 'd 'e)
+;;
+ 
+dealloc : {1 <- Counter};;
+'c <- dealloc -< 'd =
+case 'd of
+| eps -> wait 'd;
+         close 'c
+| bit -> b <- recv 'd;
+         'c <- dealloc -< 'd
+;;
+
+'top <-
+'e <- eps;
+'b1 <- bit True -< 'e;
+'b0 <- bit False -< 'b1;
+'c0 <- inc -< 'b0;
+'c1 <- inc -< 'c0;
+'c2 <- val -< 'c1;
+n <- recv 'c2;
+print n; print_str "\n";
+assert (n = 4);
+'c3 <- dealloc -< 'c2;
+wait 'c3;
+
+'eps1 <- eps;
+'d1 <- bit True -< 'eps1;
+'d2 <- bit False -< 'd1;
+'eps2 <- eps;
+'e1 <- bit True -< 'eps2;
+'e2 <- bit True -< 'e1;
+'e3 <- bit False -< 'e2;
+'c1 <- plus -< 'd2 'e3;
+'v12 <- val -< 'c1;
+n1 <- recv 'v12;
+print n1; print_str "\n";
+assert (n1 = 8);
+'u <- dealloc -< 'v12;
+wait 'u;
+close 'top
+;;

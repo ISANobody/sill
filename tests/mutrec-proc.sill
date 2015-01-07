@@ -1,0 +1,29 @@
+even : [Int] -> {Bool/\1};;
+'c <- even l =
+  case l of
+  | [] -> send 'c True;
+          close 'c
+  | _::xs -> 'd <- odd xs;
+             b <- recv 'd;
+             send 'c b;
+             wait 'd;
+             close 'c
+
+and
+
+odd : [Int] -> {Bool/\1};;
+'c <- odd l = 
+  case l of
+  | [] -> send 'c False;
+          close 'c
+  | _::xs -> 'd <- even xs;
+             b <- recv 'd;
+             send 'c b;
+             wait 'd;
+             close 'c;;
+
+'top <- 'c <- even [1;2;3];
+        x <- recv 'c;
+        wait 'c;
+        print_str (sexp2s x); 
+        close 'top;;

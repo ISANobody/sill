@@ -1,0 +1,16 @@
+stype Stream a = &{`Stop: 1; `Next: a /\ Stream};;
+
+(*nats: {mu $x.&{`Stop: 1; `Next: Int/\$x}};;*)
+nats: {Stream Int};;
+nats =
+  let go n = 
+ 'c <-{case 'c of
+       | `Stop -> close 'c
+       | `Next -> send 'c n;
+                'c <- go (n+1)}
+  in go 0;;
+
+'c <- 'd <- nats; 
+       send 'd `Next; x <- recv 'd; 
+       send 'd `Next; x <- recv 'd;
+       send 'd `Stop; wait 'd; close 'c;;

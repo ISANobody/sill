@@ -1,0 +1,7 @@
+baz : {1};;
+'c <- baz =
+    close 'c;;
+
+(* Error: binding linear monad to affine channel *)
+'top <- @c <- baz;
+        close 'top;;

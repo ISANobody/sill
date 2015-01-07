@@ -1,0 +1,13 @@
+foo : { 1 <- !1; ?1; 1 };;
+'c <- foo -< !d ?e 'f =
+   wait 'f;
+   close 'c;;
+
+bar : {1};;
+'c <- bar =
+  close 'c;;
+
+'top <- 'a <- bar;
+        'b <- bar;
+        'c <- bar;
+        'top <- foo -< 'a 'b 'c;;

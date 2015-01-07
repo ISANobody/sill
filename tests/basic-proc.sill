@@ -1,0 +1,127 @@
+ltype Foo a = a /\1;;
+
+t2 : a -> {Int/\1};; 
+'c <- t2 x = send 'c 4; 
+close 'c;;
+
+t3 : a -> {b=>1};; 'c <- t3 x = y <- recv 'c; close 'c;;
+
+t4 : () -> {mu $x. Int/\Float /\ $x};;
+ 'c <- t4 x = send 'c  4; 
+                  send 'c 0.0;
+                  'd <- t4 (); 
+                  'c <- 'd;;
+
+t5 : {mu $x. Int /\ Float /\$x};;
+ 'c <- t5 = send 'c  4; 
+                send 'c 0.0;
+                'd <- t5; 
+                'c <- 'd;;
+
+t6: (a -> Bool) -> {mu $x. a /\ $x <- mu $x. a /\ $x};;
+ 'c <- t6 q -< 'd = 
+ x <- recv 'd;
+ case q x of
+ | True -> send 'c x;
+           'c <- t6 q -< 'd
+ | False -> 'c <- t6 q -< 'd;;
+
+t7 : {1*1};;
+'c <- t7 =
+ send 'c ('d <- close 'd); close 'c;;
+
+t8 : {(Int/\1)*1};;
+'c <- t8 =
+ send 'c ('d <- send 'd 5; close 'd); close 'c;;
+
+t9 : {(Int/\1)*1};;
+'c <- t9 =
+ send 'c ('d <- send 'd 5; close 'd); close 'c;;
+ 
+t10 : {1};;
+'c <- t10 =
+'d <- t9; 'e <- recv 'd; _ <- recv 'e; wait 'e; wait 'd; close 'c;;
+
+t11 : {1-o1};;
+'c <- t11 =
+'d <- recv 'c; wait 'd; close 'c;;
+
+t12 : {(x/\1)-o1};;
+'c <- t12 =
+'d <- recv 'c; 
+ _ <- recv 'd; 
+ wait 'd; 
+ close 'c;;
+ 
+t13 : {1};;
+'c <- t13 =
+     'd <- t12; 
+      send 'd ('e <- send 'e 4; 
+                       close 'e); 
+      wait 'd; 
+      close 'c;;
+
+t14 : {+{done: 1}};;
+'c <- t14 =
+ 'c.done; close 'c;;
+
+t15 : {mu $x . +{done:Int/\$x}};;
+'c <- t15 =
+ 'c.done; send 'c 5; 'c <- t15;;
+
+t16 : {1 <- &{done: 1}};;
+'c <- t16 -< 'd =
+ 'd.done; wait 'd; close 'c;;
+
+t17 : {&{done: 1}};;
+'c <- t17 =
+ case 'c of | done -> close 'c;;
+
+t18 : {1 <- +{}};;
+'c <- t18 -< 'd =
+ case 'd of | done -> wait 'd; close 'c;;
+
+t19 : {1};;
+'c <- t19 =
+'d <- t14; case 'd of | done -> wait 'd; close 'c;;
+
+t20 : {1};;
+'c <- t20 =
+'d <- t14; case 'd of | done -> wait 'd; close 'c | asdf -> wait 'd; close 'c;;
+
+t21 : {1};;
+'c <- t21 =
+'d <- t17; 'd.done; wait 'd; close 'c;;
+
+t26 : {1};;
+'c <- t26 =
+  let x : Int = 5;
+  close 'c;;
+
+t27 : {1*1 <- 1};;
+'c <- t27 -< 'e =
+  send 'c ('d <- print 1; wait 'e; close 'd);
+  print 2;
+  close 'c;;
+
+(* confirm that boundhere is used where needed *)
+
+t31 : {&{a:1-o1; b:1}};;
+'c <- t31 =
+  case 'c of
+  | a -> 'd <- recv 'c;
+         wait 'd;
+         close 'c
+  | b -> close 'c;;
+
+t32 : {&{a:1; b:1} <- 1*1};;
+'c <- t32 -< 'd =
+  case 'c of
+  | a -> 'e <- recv 'd;
+         wait 'e;
+         wait 'd;
+         close 'c
+  | b -> 'f <- recv 'd;
+         wait 'f;
+         wait 'd;
+         close 'c;;

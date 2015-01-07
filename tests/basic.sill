@@ -1,0 +1,145 @@
+f : a -> a;; f = fun x -> x;;
+x : Int;; x = 1*1;;
+x : Int;; x = (1*1);;
+x1 : (Int);; x1 = 4;;
+x2 : [Int];; x2 = [4];;
+x3 : (Int,Float);; x3 = (4,5.0);;
+type Maybe a = Just a | Nothing;; 
+x4 : Maybe Int;; x4 = Just 4;;
+type Either a b = Left a | Right b;;
+x5 : Either Int a;; x5 = Left 4;;
+x6 : ();; x6 = ();;
+type MyList a = Cons a (MyList a) | End;;
+x7 : MyList ();; x7 = Cons x6 End;;
+x8 : MyList Int;; x8 = Cons 4 End;;
+x9 : ();; x9 = print_str (i2s 7);;
+x10 : ();; x10 = print_str (sexp2s 7);;
+f : a -> a;; f x = x;;
+f : a -> b -> a;; f x y = x;;
+fac : Int -> Int;; fac n = 1 + n;;
+fac : Int -> Int;; 
+fac n = if n = 0
+        then 1
+        else n*(fac (n-1));;
+fix : (a->a) -> a -> a;; 
+fix f z = if f z = z
+          then z
+          else fix f (f z);;
+foo : Int;;
+foo = let x a : a -> Float = 0.0
+      in 43;;
+
+(* Parser tests *)
+
+(* These are wrapped in parens to force toplevel expression parsing. *)
+(* The cryptic comments denote which non-terminal is being tested. *)
+
+i : Int;;
+i = 5;;
+
+b : Bool;;
+b = True;;
+
+bl : [Bool];;
+bl = [];;
+
+f : Float;;
+f = 5.0;;
+
+s : String;;
+s = "test";;
+
+
+bool_list_parser_tests : [Bool];;
+bool_list_parser_tests =
+  [True
+  (* pure_or_exp *)
+  ;(b)  || (b)
+  (* pure_and_exp *)
+  ;(b)  && (b)
+  (* pure_rel_exp_lt BUG *)
+  (* rel_exp_equals *)
+  ; (i)  = (i)
+  (* pure_rel_exp_gt *)
+  ; (i) > (i)
+  (* pure_rel_exp_leq *)
+  ; (i) <= (i)
+  (* pure_rel_exp_geq *)
+  ; (i) >= (i)
+  ; (i) >= i
+  ; i   >= (i)
+  ; i   >= i
+];;
+
+(* cons_exp *)
+cons_parser_tests : [[Bool]];;
+cons_parser_tests =
+  [ (b)::(bl)
+  ; (b)::bl
+  ; b  ::(bl)
+  ; b  ::bl
+  ; True :: (bl)
+  ; True :: bl
+  (* List reduce/reduce conflict tests *)
+  ; []
+  ; [True]
+  ; [b]
+  ; [b;b]
+  ; [True;b]
+  ; [b;True]
+  ; [True;True]
+  ; [(b);(b)]
+  ; [b;(b)]
+  ; [(b);b]
+  ; [True;(b)]
+  ; [(b);True]
+];;
+
+nested_sing_test : [[Bool]];;
+nested_sing_test = [[b]];;
+
+int_list_parser_tests : [Int];;
+int_list_parser_tests =
+  [0
+  ;i
+  ;(i)
+  ;1*1*1
+  (* add_exp_plus *)
+  ;(i)+(i)
+  (* add_exp_minus *)
+  ;(i)-(i)
+  (* mult_exp_times *)
+  ;1*1
+  ;(i)*(i)
+  (* mult_exp_div *)
+  ;(i)/(i)
+];;
+
+float_list_parser_tests : [Float];;
+float_list_parser_tests =
+  [0.0
+  ;(f)
+  ;f
+  (* add_exp_dplus *)
+  ;(f) +. (f)
+  (* add_exp_dminus *)
+  ;(f) -. (f)
+  (* mult_exp_dtimes *)
+  ;(f) *. (f)
+  (* mult_exp_ddiv *)
+  ;(f) /. (f)
+  (* expo_exp *)
+  ;(f) ** (f)
+];;
+
+string_list_parser_tests : [String];;
+string_list_parser_tests =
+  ["asdf"
+  ;(s)
+  ;s
+  (* add_exp_carat *)
+  ;(s) ^ (s)
+  ;s   ^ (s)
+  ;(s) ^ s
+  ;s   ^ s
+];;

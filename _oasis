@@ -1,0 +1,28 @@
+OASISFormat:  0.3
+Name:         sill
+Version:      1.0
+Synopsis:     Implementation of Linear Session Types
+Description:  A prototype language focused on organizing concurrent programs via
+              communication along substructurally channels between processes.
+Authors:      Dennis Griffith <isanobody@gmail.com>, Frank Pfenning <fp@cs.cmu.edu>
+Maintainers:  Dennis Griffith <isanobody@gmail.com>
+License:      GPL-3 with OCaml linking exception
+OCamlVersion: >= 4.0
+Plugins:      StdFiles (0.3), DevFiles (0.3), META (0.3)
+BuildDepends: unix, threads, core, sexplib, bin_prot, sexplib.syntax, bin_prot.syntax
+BuildTools:   ocamlbuild, camlp4, camlp4o
+
+Executable sill
+  Path:         .
+  Build:        true
+  MainIs:       sill.ml
+  Install:      true
+
+Executable sshstub
+  Path:         .
+  Build:        false
+  MainIs:       sshstub.ml
+  Install:      false
+
+Test main
+  Command: ./tester.sh

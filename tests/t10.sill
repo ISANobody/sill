@@ -1,0 +1,18 @@
+msg : ([Int],[a]);;
+msg = ([4],[]);;
+
+foo : {Key/\<>([Int],[a])/\([Int],[a])=>1};;
+foo =
+  case newkey () of
+  | (public,private) -> 'c <-{ send 'c private;
+                               send 'c (encrypt public <msg:([Int],[a])>);
+                               r <- recv 'c;
+                               assert (<r:([Int],[a])> = <msg:([Int],[a])>);
+                               close 'c};;
+
+'d <- 'c <- <foo:{Key/\<>([Int],[a])/\([Int],[a])=>1}>;
+       k <- recv 'c; 
+       m <- recv 'c; 
+       send 'c (decrypt k m); 
+       wait 'c; 
+       close 'd;;

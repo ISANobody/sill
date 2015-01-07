@@ -1,0 +1,106 @@
+65551: @15:9 bound from 0
+   @15:9 bind
+   @16:9 free @c
+   @16:9 close
+2: @6:3 bound from 1
+   @6:3 internal stop
+   killed
+3: @36:9 bound from 0
+   @36:9 bind
+   @37:9 bind
+   @38:9 tail-bind
+   @30:4 tail-bind
+   @32:14 input 6
+   @33:9 tail-bind
+   @34:9 tail-bind
+   @30:4 tail-bind
+   @32:14 input 5
+   @33:9 tail-bind
+   @34:9 tail-bind
+   @30:4 tail-bind
+   @32:14 input 5
+   @33:9 tail-bind
+   @34:9 tail-bind
+   @30:4 tail-bind
+   @32:14 input 5
+   @33:9 tail-bind
+   @34:9 tail-bind
+   @30:4 tail-bind
+   @31:9 close
+4: @20:3 bound from 3
+   @20:3 output 5
+   @21:3 tail-bind
+   @20:3 output 5
+   @21:3 tail-bind
+   @20:3 output 5
+   @21:3 tail-bind
+   @20:3 output 5
+5: @25:3 bound from 3
+   @25:3 output 6
+   @26:3 forward
+6: @50:9 bound from 0
+   @50:9 bind
+   @51:9 bind
+   @52:9 wait
+   @53:9 close
+7: @47:3 bound from 6
+   @47:3 close
+8: @42:3 bound from 6
+   @42:3 wait
+   @43:3 close
+9: @60:9 bound from 0
+   @60:9 bind
+   @61:9 bind
+   @62:9 wait
+   @63:9 close
+10: @47:3 bound from 9
+    @47:3 close
+11: @42:3 bound from 9
+    @42:3 wait
+    @43:3 close
+12: @295:10 bound from 0
+    @295:10 bind
+    @296:10 free @c
+    @296:10 close
+13: @292:3 bound from 12
+    @292:3 output 5
+    killed
+14: @298:9 bound from 0
+    @298:9 bind
+    @299:14 input 5
+    @300:9 free @c
+    @300:9 close
+15: @292:3 bound from 14
+    @292:3 output 5
+    @293:3 tail-bind
+    @292:3 output 5
+    killed
+16: @305:9 bound from 0
+    @305:9 bind
+    @306:9 free @c
+    @306:9 bind
+    @307:9 external blue
+    @309:19 wait
+    @309:28 close
+17: @292:3 bound from 16
+    @292:3 output 5
+    killed
+18: @303:16 bound from 16
+    @303:16 internal blue
+    @303:25 close
+19: @312:9 bound from 0
+    @312:9 bind
+    @313:9 bind
+    @314:9 external blue
+    @316:19 free @c
+    @316:19 wait
+    @316:28 close
+20: @292:3 bound from 19
+    @292:3 output 5
+    killed
+21: @303:16 bound from 19
+    @303:16 internal blue
+    @303:25 close
+22: @321:9 bound from 0
+    @321:9 tail-bind
+    @321:18 close

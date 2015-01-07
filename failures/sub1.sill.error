@@ -1,0 +1,1 @@
+@24:26 Subtyping failure in { }E failed solving mu m5.&{next: Int/\m5; stop: 1} <<< mu m4.&{next: Int/\m4; skip: m4; stop: 1}: when solving mu m5.&{next: Int/\m5; stop: 1} <<< mu m4.&{next: Int/\m4; skip: m4; stop: 1} found label skip only on the right

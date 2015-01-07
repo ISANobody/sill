@@ -1,0 +1,12 @@
+ltype Stream a = +{stop: 1; next: a => Stream a};;
+ltype SkipStream a = +{stop: 1; next: a => SkipStream a; skip: SkipStream a};;
+
+nats: Int -> {1 <- Stream Int};;
+'c <- nats n -< 'd =
+case 'd of
+| stop -> wait 'd; close 'c
+| next -> send 'd n;
+          'e <- nats (n+1) -< 'd;
+          'c <- 'e;;
+
+'c <- close 'c;;

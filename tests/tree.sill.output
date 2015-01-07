@@ -1,0 +1,14 @@
+Max: 7
+Min: 1
+Member 11? False
+Member 7? True
+ReplaceValue 7 11
+Max: 11
+Min: 1
+Member 11? True
+Member 7? False
+ReplaceValue 1 0
+Max: 11
+Min: 0
+Member 11? True
+Member 7? False

@@ -1,0 +1,7 @@
+foo : {1 <- 1};;
+'c <- foo -< 'd = wait 'd; close 'c;;
+
+boom : {1<-1};;
+'c <- boom -< 'd =
+  'f <- foo -< 'd;
+  close 'c;;

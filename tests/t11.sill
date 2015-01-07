@@ -1,0 +1,12 @@
+bar : {mu $x. &{stop: 1; next: Int/\ $x }};;
+'c <- bar =
+  case 'c of
+  | stop -> close 'c
+  | next -> send 'c 0;
+            'c <- bar;;
+
+foo : {(mu $x. &{stop: 1; next: Int/\ $x })*1};;
+'c <- foo =
+send 'c ('d <- 'd <- bar); close 'c;;
+
+'c <- 'd <- foo; 'e <- recv 'd; wait 'd; 'e.stop; wait 'e; close 'c;;

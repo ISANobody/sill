@@ -1,0 +1,4 @@
+'c <- 'd <- ('d <- {close 'd} );
+      'h <- (let x = 'i <- { 'j <- x; 'i <- 'j }
+             in x);
+       case 'h of ;;

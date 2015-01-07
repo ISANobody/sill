@@ -1,0 +1,21 @@
+opam-version: "1.2"
+name: "sill"
+version: "1.0"
+maintainer: "isanobody@gmail.com"
+authors: [ "Dennis Griffith <isanobody@gmail.com>"
+           "Frank Pfenning <fp@cs.cmu.edu>" ]
+license: "GPL-3 with OCaml linking exception"
+build: [
+  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-build"]
+  ["ocaml" "setup.ml" "-install"]
+]
+depends: [
+  "base-threads"
+  "base-unix"
+  "bin_prot"
+  "core"
+  "ocamlfind"
+  "sexplib"
+]
+ocaml-version: [ >= "4.0" ]

@@ -1,0 +1,5 @@
+foo : {1(x)1 <- 1};;
+'c <- foo -< 'e =
+  send 'c ('d <- print 1; wait 'e; close 'd);
+  print 2;
+  close 'c;;

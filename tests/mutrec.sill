@@ -1,0 +1,13 @@
+even : [Int] -> Bool;;
+even l = case l of
+         | [] -> True
+         | _::xs -> not (odd xs)
+
+and
+
+odd : [Int] -> Bool;;
+odd l = case l of
+        | [] -> False
+        | _::xs -> not (even xs);;
+
+'top <- print_str (sexp2s (even [1;2;3])); close 'top;;

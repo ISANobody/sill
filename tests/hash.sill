@@ -1,0 +1,181 @@
+(* Simple hash table where each process handles look-ups for a
+   particular hash bucket. *)
+(* Joseph Tassarotti *)
+(* October 1, 2013 *)
+
+type List a = Nil | Cons a (List a);;
+type Prod a b = Pair a b;;
+type Option a = Some a | None;;
+ltype Table a b = &{insert: a => b => Table a b; 
+                    lookup: List a => List (Prod a (Option b)) /\ Table a b; 
+                    stop: 1};;
+
+fst: Prod a b -> a;;
+fst p = 
+  case p of
+  | Pair x y -> x;;
+
+snd: Prod a b -> b;;
+snd p = 
+  case p of
+  | Pair x y -> y;;
+
+append: List a -> List a -> List a;;
+append l1 l2 =
+  case l1 of 
+  | Nil -> l2
+  | Cons hd tl -> Cons hd (append tl l2);;
+
+partition_aux: (a -> Bool) -> List a -> Prod (List a) (List a)  -> Prod (List a) (List a);;
+partition_aux f l ls = 
+  case l of 
+  | Nil -> ls
+  | Cons hd tl -> 
+    case (f hd) of
+    | True -> partition_aux f tl (Pair (Cons hd (fst ls)) (snd ls))
+    | False -> partition_aux f tl (Pair (fst ls) (Cons hd (snd ls)));;
+
+(* Takes in a predicate and an recv list and splits it into two
+   lists, one where each element satisfies the predicate and one where
+   each element falsifies the predicate *)
+
+partition: (a -> Bool) -> List a -> Prod (List a) (List a);;
+partition f l = partition_aux f l (Pair Nil Nil);;
+
+find_list: a -> List (Prod a b) -> Option b;;
+find_list x l =
+  case l of
+  | Nil -> None
+  | Cons hd tl ->
+    case (fst hd = x) of
+    | True -> Some (snd hd)
+    | False -> find_list x tl;;
+
+multi_find_list: List a -> List (Prod a b) -> List (Option b);;
+multi_find_list keys table =
+  case keys of 
+  | Nil -> Nil
+  | Cons hd tl -> Cons (find_list hd table) (multi_find_list tl table);;
+
+zip: List a -> List b -> List (Prod a b);;
+zip l1 l2 =
+  case l1 of 
+  | Nil -> Nil
+  | Cons hd1 tl1 ->
+    case l2 of 
+    | Nil -> Nil
+    | Cons hd2 tl2 -> Cons (Pair hd1 hd2) (zip tl1 tl2);;
+
+(* Just a simple linear lookup table, no hashing *)
+basic: List (Prod a b) -> {Table a b};;
+'o <- basic tbl =
+  case 'o of 
+  | insert -> a <- recv 'o;
+              b <- recv 'o;
+              'o <- basic (Cons (Pair a b) tbl)
+  | lookup -> l <- recv 'o;
+              send 'o (zip l (multi_find_list l tbl));
+              'o <- basic tbl
+  | stop -> close 'o;;
+
+
+(* Assumes x, y > 0 *)
+mod: Int -> Int -> Int;;
+mod x y = 
+  case x <= y of
+  | True -> y - x
+  | False -> x - y * (x / y);;
+
+is_even: Int -> Bool;;
+is_even x = (mod x 2 = 0);;
+
+(* Simple mod 2 hash table. 2 buckets, 2 processes that handle lookups
+   for those buckets *)
+double: {Table Int b <- Table Int b ; Table Int b};;
+'o <- double -< 'i1 'i2 =
+  case 'o of 
+  | insert -> a <- recv 'o;
+              b <- recv 'o;
+              (case (mod a 2 = 0) of
+              | True -> 'i1.insert;
+                     send 'i1 a;
+                     send 'i1 b;
+                     'o <- double -< 'i1 'i2
+              | False -> 'i2.insert;
+                     send 'i2 a;
+                     send 'i2 b;
+                     'o <- double -< 'i1 'i2)
+  | stop -> 'i1.stop; 'i2.stop;
+            wait 'i1; wait 'i2;
+            close 'o
+  | lookup -> l <- recv 'o;
+              let lsp : Prod (List Int) (List Int) = partition is_even l;
+              'i1.lookup;
+              send 'i1 (fst lsp);
+              'i2.lookup;
+              send 'i2 (snd lsp);
+              results1 <- recv 'i1;
+              results2 <- recv 'i2;
+              send 'o (append results1 results2);
+              'o <- double -< 'i1 'i2;;
+
+'top <-
+
+(* Testing the simple lookup table *)
+'b <- basic Nil;
+'b.insert;
+send 'b 1;
+send 'b "Dog"; 
+
+'b.insert;
+send 'b 2;
+send 'b "Cat"; 
+
+'b.insert;
+send 'b 3;
+send 'b "Cow"; 
+
+'b.lookup;
+send 'b (Cons 4 (Cons 1 Nil));
+r <- recv 'b;
+assert (r = (Cons (Pair 4 None) (Cons (Pair 1 (Some "Dog")) Nil)));
+
+'b.lookup;
+send 'b (Cons 2 (Cons 3 Nil));
+r <- recv 'b;
+assert (r = (Cons (Pair 2 (Some "Cat")) (Cons (Pair 3 (Some "Cow")) Nil)));
+
+'b.stop;
+wait 'b;
+
+(* Testing the simple hash table *)
+'b1 <- basic Nil;
+'b2 <- basic Nil;
+'t <- double -< 'b1 'b2;
+'t.insert;
+send 't 1;
+send 't "Dog"; 
+
+'t.insert;
+send 't 2;
+send 't "Cat"; 
+
+'t.insert;
+send 't 3;
+send 't "Cow"; 
+
+'t.lookup;
+send 't (Cons 4 (Cons 1 Nil));
+r <- recv 't;
+assert (r = (Cons (Pair 4 None) (Cons (Pair 1 (Some "Dog")) Nil)));
+
+'t.lookup;
+send 't (Cons 2 (Cons 3 Nil));
+r <- recv 't;
+assert (r = (Cons (Pair 2 (Some "Cat")) (Cons (Pair 3 (Some "Cow")) Nil)));
+
+'t.stop;
+wait 't;
+
+close 'top
+;;

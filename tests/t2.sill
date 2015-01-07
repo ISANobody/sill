@@ -1,0 +1,4 @@
+foo : {Int/\1};;
+'c <- foo = send 'c 4; 
+              close 'c;;
+'d <- 'c <- foo; x <- recv 'c; wait 'c; close 'd;;

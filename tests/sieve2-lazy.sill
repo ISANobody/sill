@@ -1,0 +1,158 @@
+(* Lazy Sieve of Eratosthenes *)
+(* Henry DeYoung *)
+(* August 3, 2013 *)
+
+(* First, the program in ESOP syntax. *)
+(*
+
+ltype Sieve = Choice { mult: nat => nat => Sieve ,
+                       prime?: nat /\ Sieve ,
+                       halt: 1 }
+
+mult : nat -> nat -> {c:Sieve <- d:Sieve}
+c <- mult m i <- d =
+{ _ <- d.mult
+  _ <- send d m
+  _ <- send d i
+  c <- d }
+
+mults : nat list -> {c:Sieve <- d:Sieve}
+c <- mults ms <- d =
+{ case ms of
+    [] => c <- d
+  | (m::ms_) => e <- mult m (m-1) <- d
+                c <- mults ms_ <- e }
+
+nat : nat -> nat list -> {c:Sieve <- d:Sieve}
+c <- nat n fs <- d =
+{ case c of
+    mult => m <- recv c
+            i <- recv c
+            if i = 0
+            then
+              c <- nat n (m::fs) <- d
+            else
+              e <- mult m (i-1) <- d
+              c <- nat n fs <- e
+  | prime? => case fs of
+                [] => _ <- send c n
+                      c <- mults [n] <- d
+              | (_::_) => e <- mults fs <- d
+                          _ <- e.prime?
+                          c <- e
+  | halt => _ <- d.halt
+            _ <- wait d
+            close c }
+
+nats : nat -> {c:Sieve}
+c <- nats n =
+{ case c of
+    mult => m <- recv c
+            i <- recv c
+            e <- nats (n+1)
+            d <- nat n <- e
+            c <- mult m i <- d
+  | prime? => abort
+  | halt => close c }
+
+primes : nat -> {c:1 <- d:Sieve}
+c <- primes N <- d =
+{ _ <- d.prime?
+  p <- recv d
+  if p <= N
+  then
+    _ <- print p
+    c <- primes N <- d
+  else
+    _ <- d.halt
+    _ <- wait d
+    close c }
+
+c <- top N =
+{ e <- nats 3
+  d <- nat 2 [] <- e
+  c <- primes 33 <- d }
+
+*)
+
+
+(* Next, the program in syntax for the interpreter. *)
+
+type List a = Nil | Cons a (List a);;
+
+ltype Sieve =&{ mult: Int => Int => Sieve ;
+                primeQ: Int /\ Sieve ;
+                halt: 1 };;
+
+mult : Int -> Int -> {Sieve <- Sieve};;
+'c <- mult m i -< 'd =
+  'd.mult;
+  send 'd m;
+  send 'd i;
+  'c <- 'd
+;;
+
+mults : List Int -> {Sieve <- Sieve};;
+'c <- mults ms -< 'd =
+  case ms of
+  | Nil -> 'c <- 'd
+  | Cons m ms_ -> 'e <- mult m (m-1) -< 'd;
+                  'c <- mults ms_ -< 'e
+;;
+
+nat : Int -> List Int -> {Sieve <- Sieve};;
+'c <- nat n fs -< 'd =
+  case 'c of
+  | mult -> m <- recv 'c;
+            i <- recv 'c;
+            if i = 0
+            then
+              'c <- nat n (Cons m fs) -< 'd
+            else
+              'e <- mult m (i-1) -< 'd;
+              'c <- nat n fs -< 'e
+  | primeQ -> (case fs of
+               | Nil -> send 'c n;
+                        'c <- mults (Cons n Nil) -< 'd
+               | Cons _ _ -> 'e <- mults fs -< 'd;
+                             'e.primeQ;
+                             'c <- 'e)
+  | halt -> 'd.halt;
+            wait 'd;
+            close 'c
+;;
+
+nats : Int -> {Sieve};;
+'c <- nats n =
+  case 'c of
+  | mult -> m <- recv 'c;
+            i <- recv 'c;
+            'e <- nats (n+1);
+            'd <- nat n Nil -< 'e; (* guessing Nil -fp *)
+            'c <- mult m i -< 'd
+  | primeQ -> abort
+  | halt -> close 'c
+;;
+
+primes : Int -> {1 <- Sieve};;
+'c <- primes n -< 'd =
+  'd.primeQ;
+  p <- recv 'd;
+  if p <= n
+  then
+    print p; print_str " ";
+    'c <- primes n -< 'd
+  else
+    'd.halt;
+    wait 'd;
+    print_str "\n";
+    close 'c
+;;
+
+'top <-
+  'e <- nats 3;
+  'd <- nat 2 Nil -< 'e;
+  'c <- primes 100 -< 'd;
+  wait 'c;
+close 'top
+;;

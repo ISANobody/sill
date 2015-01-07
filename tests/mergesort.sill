@@ -1,0 +1,169 @@
+(* Mergesort *)
+(* Henry DeYoung *)
+(* August 2, 2013 *)
+
+type List a = Nil | Cons a (List a);;
+
+ltype PList a = +{ pcons: a /\ PList a; pnil: 1 };;
+
+ltype Forest a = +{fcons: Int /\ (PList a * Forest a) ; fnil: 1};;
+
+pnil : {PList a};;
+'c <- pnil =
+  'c.pnil;
+  close 'c
+;;
+
+pcons : a -> {PList a <- PList a};;
+'c <- pcons x -< 'l =
+  'c.pcons;
+  send 'c x;
+  'c <- 'l
+;;
+
+collect : {List a /\ 1 <- PList a};;
+'c <- collect -< 'l =
+  case 'l of
+  | pnil -> wait 'l;
+            send 'c Nil;
+            close 'c
+  | pcons -> x <- recv 'l;
+             'd <- collect -< 'l;
+             xs <- recv 'd;
+             wait 'd;
+             send 'c (Cons x xs);
+             close 'c
+;;
+
+
+merge : (a -> a -> Bool) -> {PList a <- PList a ; PList a};;
+'c <- merge leq -< 'l 'r =
+  case 'l of
+  | pcons -> x <- recv 'l;
+             (case 'r of
+             | pcons -> y <- recv 'r;
+                        if leq x y
+                        then
+                          'r_ <- pcons y -< 'r;
+                          'd <- merge leq -< 'l 'r_;
+                          'c <- pcons x -< 'd
+                        else
+                          'l_ <- pcons x -< 'l;
+                          'd <- merge leq -< 'l_ 'r;
+                          'c <- pcons y -< 'd
+             | pnil -> wait 'r;
+                       'c <- pcons x -< 'l)
+  | pnil -> wait 'l;
+            'c <- 'r
+;;
+
+
+fnil : {Forest a};;
+'c <- fnil =
+  'c.fnil;
+  close 'c
+;;
+
+fcons : Int -> {Forest a <- PList a ; Forest a};;
+'c <- fcons nl -< 'l 'f =
+  'c.fcons;
+  send 'c nl;
+  send 'c ('l_ <- ('l_ <- 'l));
+  'c <- 'f
+;;
+
+join : (a -> a -> Bool) -> Int -> {Forest a <- PList a; Forest a};;
+'c <- join leq nl -< 'l 'f =
+  case 'f of
+  | fcons -> nr <- recv 'f;
+             'r <- recv 'f;
+             if nl >= nr then
+               'm <- merge leq -< 'l 'r;
+               'c <- join leq (nl+nr) -< 'm 'f
+             else
+               'f_ <- fcons nr -< 'r 'f;
+               'c <- fcons nl -< 'l 'f_
+  | fnil -> wait 'f;
+            'f_ <- fnil;
+            'c <- fcons nl -< 'l 'f_
+;;
+
+compress : (a -> a -> Bool) -> {PList a <- Forest a};;
+'c <- compress leq -< 'f =
+  case 'f of
+  | fcons -> nl <- recv 'f;
+             'l <- recv 'f;
+             'r <- compress leq -< 'f;
+             'c <- merge leq -< 'l 'r
+  | fnil -> wait 'f;
+            'c <- pnil
+;;
+
+load : (a -> a -> Bool) -> List a -> {Forest a};;
+'c <- load leq xs =
+  case xs of
+  | Nil -> 'c <- fnil
+  | Cons x xs_ -> 'f <- load leq xs_;
+                    'l <- pnil;
+                    'l_ <- pcons x -< 'l;
+                    'c <- join leq 1 -< 'l_ 'f
+;;
+
+sort : (a -> a -> Bool) -> List a -> {List a /\ 1};;
+'c <- sort leq xs =
+  'f <- load leq xs;
+  'l <- compress leq -< 'f;
+  'c <- collect -< 'l
+;;
+
+sortint : List Int -> {List Int /\ 1};;
+'c <- sortint xs =
+  'c <- sort (fun x y -> x <= y) xs
+;;
+
+ppl : List Int -> {1};;
+'c <- ppl l =
+case l of
+| Nil -> print_str "\n";
+         close 'c
+| Cons x k -> print x;
+              print_str " ";
+              'c <- ppl k
+;;
+
+is_sorted : List Int -> Bool;;
+is_sorted l = case l of
+| Nil -> True
+| Cons x l -> (case l of
+  | Nil -> True
+  | Cons y k -> x <= y && is_sorted (Cons y k))
+;;
+
+length : List a -> Int;;
+length l = case l of
+| Nil -> 0
+| Cons x k -> 1 + length k 
+;;
+
+test : List Int -> {1};;
+'u <- test l =
+'c <- sortint l;
+k <- recv 'c;
+'p <- ppl k;
+wait 'p;
+assert (is_sorted k);
+assert (length l = length k);
+wait 'c;
+close 'u
+;;
+
+'top <-
+'u <- test (Cons 1 Nil); wait 'u;
+'u <- test (Cons 1 (Cons 2 Nil)); wait 'u;
+'u <- test (Cons 2 (Cons 1 Nil)); wait 'u;
+'u <- test (Cons 1 (Cons 2 (Cons 4 (Cons 8 (Cons 7 (Cons 11 Nil)))))); wait 'u;
+'u <- test (Cons 3 (Cons 2 (Cons 4 (Cons 1 (Cons 17 (Cons 1 Nil)))))); wait 'u;
+'u <- test (Cons 11 (Cons 7 (Cons 8 (Cons 4 (Cons 2 (Cons 1 Nil)))))); wait 'u;
+'u <- test (Cons 1 (Cons 2 (Cons 4 (Cons 8 (Cons 7 (Cons 11 (Cons 12 Nil))))))); wait 'u;
+close 'top
+;;

@@ -1,0 +1,145 @@
+type Foo = ;;
+type Foo = Foo;;
+type Foo = Foo (Int Int);;
+type Foo = Foo (Int -> Int);;
+type Foo = Foo {};;
+type Foo = Foo {} {};;
+type Foo = Foo {} Int {};;
+type Foo a = ;;
+type Foo a = Foo {} a {};;
+type Foo a b = ;;
+
+ltype Foo a = 1;;
+ltype Foo a = Int /\ 1;;
+ltype Foo a = Int => 1;;
+ltype Foo a = Int * 1;;
+ltype Foo a = Int -o 1;;
+ltype Foo a = +{red:1; blue:1};;
+ltype Foo a = &{red:1; blue:1};;
+ltype Foo a = Int * 1 * 1;;
+ltype Foo a = Int -o 1 -o 1;;
+
+foo : ();;
+foo = [a; 4; ()];;
+
+foo : ();;
+foo = ();;
+
+foo : { 1 };;
+'c <- foo = close 'c;;
+
+foo : { 1 };;
+_ <- foo = close 'c;;
+
+foo : { 1 };;
+'c <- foo -< 'd = close 'c;;
+
+foo : { 1 };;
+_ <- foo -< 'd = close 'c;;
+
+foo : Int;; foo = 1 || 1;;
+foo : Int;; foo = 1 && 1;;
+(* foo : Int;; foo = 1 < 1;; BUG *)
+foo : Int;; foo = 1 = 1;;
+foo : Int;; foo = 1 > 1;;
+foo : Int;; foo = 1 <= 1;;
+(* foo : Int;; foo = 1 => 1;; BUG *)
+foo : Int;; foo = 1 :: 1;;
+foo : Int;; foo = 1 + 1;;
+foo : Int;; foo = 1 - 1;;
+foo : Int;; foo = 1 +. 1;;
+foo : Int;; foo = 1 -. 1;;
+foo : Int;; foo = 1 * 1;;
+foo : Int;; foo = 1 / 1;;
+foo : Int;; foo = 1 *. 1;;
+foo : Int;; foo = 1 /. 1;;
+foo : Int;; foo = 1 ^ 1;;
+foo : Int;; foo = 1 ** 1;;
+foo : Int;; foo = if 1 then 1 else 1;;
+foo : Int;; foo = let x : Int = 1 in 1;;
+foo : Int;; foo = fun x -> 1;;
+foo : Int;; foo = case 1 of | [] -> 1
+                            | Foo -> 1
+                            | (x,y) -> 1
+                            | h :: t -> 1;;
+
+foo : Int;; foo = 1 || fun x -> x;;
+foo : Int;; foo = 1 && fun x -> x;;
+(* foo : Int;; foo = 1 < fun x -> x;; BUG *)
+foo : Int;; foo = 1 = fun x -> x;;
+foo : Int;; foo = 1 > fun x -> x;;
+foo : Int;; foo = 1 <= fun x -> x;;
+(* foo : Int;; foo = 1 => 1;; BUG *)
+foo : Int;; foo = 1 :: fun x -> x;;
+foo : Int;; foo = 1 + fun x -> x;;
+foo : Int;; foo = 1 - fun x -> x;;
+foo : Int;; foo = 1 +. fun x -> x;;
+foo : Int;; foo = 1 -. fun x -> x;;
+(* foo : Int;; foo = 1 * fun x -> x;; BUG *)
+foo : Int;; foo = 1 / fun x -> x;;
+foo : Int;; foo = 1 *. fun x -> x;;
+foo : Int;; foo = 1 /. fun x -> x;;
+foo : Int;; foo = 1 ^ fun x -> x;;
+foo : Int;; foo = 1 ** fun x -> x;;
+foo : Int;; foo = if 1 then 1 else fun x -> x;;
+foo : Int;; foo = if 1 then fun x -> x else 1;;
+foo : Int;; foo = if 1 then fun x -> x else fun x -> x;;
+foo : Int;; foo = if fun x -> x then 1 else 1;;
+foo : Int;; foo = if fun x -> x then 1 else fun x -> x;;
+foo : Int;; foo = if fun x -> x then fun x -> x else 1;;
+foo : Int;; foo = if fun x -> x then fun x -> x else fun x -> x;;
+foo : Int;; foo = let x : Int = 1 in 1;;
+foo : Int;; foo = fun x -> 1;;
+foo : Int;; foo = case fun x -> x of 
+                  | [] -> fun x -> x
+                  | Foo _ -> fun x -> x
+                  | Foo -> fun x -> x
+                  | (x,y) -> fun x -> x
+                  | h :: t -> fun x -> x;;
+
+foo : Int;; foo = (1,fun x -> x);;
+foo : Int;; foo = (fun x -> x,1);;
+foo : Int;; foo = (fun x -> x,fun x -> x);;
+foo : Int;; foo = <fun x -> x:Int>;;
+foo : Int;; foo = <1:Int>;;
+foo : Int;; foo = [fun x -> x];;
+foo : Int;; foo = [1];;
+foo : Int;; foo = [fun x -> x; fun x -> x];;
+foo : Int;; foo = [1; fun x -> x];;
+foo : Int;; foo = [fun x -> x; 1];;
+foo : Int;; foo = [1; 1];;
+foo : Int;; foo = [1.4; 1];;
+
+foo : Int;; 'c <- foo = send 'c 5.6; close 'c;;
+foo : Int;; 'c <- foo = send 'c 1; close 'c;;
+foo : Int;; 'c <- foo = 'd <- 5.6; close 'c;;
+foo : Int;; 'c <- foo = 'd <- 1; close 'c;;
+foo : Int;; 'c <- foo = !d <- 5.6; close 'c;;
+foo : Int;; 'c <- foo = !d <- 1; close 'c;;
+foo : Int;; 'c <- foo = 'd <- 5.6 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = 'd <- 1 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = !d <- 5.6 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = !d <- 1 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = 'd <- 5.6;;
+foo : Int;; 'c <- foo = 'd <- 1;;
+foo : Int;; 'c <- foo = 'd <- 5.6 -< 'c;;
+foo : Int;; 'c <- foo = 'd <- 1 -< 'c;;
+foo : Int;; 'c <- foo = _ <- 5.6; close 'c;;
+foo : Int;; 'c <- foo = _ <- 1; close 'c;;
+foo : Int;; 'c <- foo = _ <- 5.6 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = _ <- 1 -< 'c; close 'c;;
+foo : Int;; 'c <- foo = case 5.6 of | [] -> 'c <- 'c;;
+foo : Int;; 'c <- foo = case 1 of | [] -> 'c <- 'c;;
+foo : Int;; 'c <- foo = 5.6; 'c <- 'c;;
+foo : Int;; 'c <- foo = 1; 'c <- 'c;;
+foo : Int;; 'c <- foo = let x : Int = 5.6; 'c <- 'c;;
+foo : Int;; 'c <- foo = let x : Int = 1; 'c <- 'c;;
+
+foo : {1};; foo = ();;
+foo : {@1};; foo = ();;
+foo : {!1};; foo = ();;
+(* foo : {mu $x. 1};; foo = ();;
+foo : {@mu $x. 1};; foo = ();;
+foo : {!mu $x. 1};; foo = ();; BUG *)
+foo : {1 -o 1};; foo = ();;
+foo : {1 * 1};; foo = ();;

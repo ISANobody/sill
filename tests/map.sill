@@ -1,0 +1,84 @@
+(* mapping a transducer process over a stream *)
+(* Author: Henry DeYoung, transcribed by Frank Pfenning *)
+
+stype Nat = +{ succ: Nat; zero: 1};;
+stype Stream = &{ next: Nat * Stream; halt: 1};;
+
+map : {Nat <- Nat} -> {Stream <- Stream};;
+'c <- map p -< 'd =
+case 'c of
+| next -> 'd.next;
+          'x <- recv 'd;
+          send 'c ('y <- ('y <- p -< 'x));
+          'c <- map p -< 'd
+| halt -> 'd.halt;
+          wait 'd;
+          close 'c
+;;
+
+(* example follows *)
+
+succ : {Nat <- Nat};;
+'c <- succ -< 'd =
+'c.succ;
+'c <- 'd
+;;
+
+zero : {Nat};;
+'c <- zero =
+'c.zero;
+close 'c
+;;
+
+plus1 : {Nat} -> {Nat};;
+'c <- plus1 p =
+'c.succ;
+'e <- p;
+'c <- 'e
+;;
+
+nats : {Nat} -> {Stream};;
+'c <- nats p =
+case 'c of
+| next -> send 'c ('y <- ('y <- p));
+          'c <- nats (plus1 p)
+| halt -> close 'c
+;;
+
+printnat : {1 <- Nat};;
+'u <- printnat -< 'd =
+case 'd of
+| zero -> print_str "\n";
+          wait 'd;
+          close 'u
+| succ -> print_str ".";
+          'u <- printnat -< 'd
+;;
+
+printstream : Int -> {1 <- Stream};;
+'u <- printstream n -< 'd =
+if n = 0
+then 'd.halt;
+     wait 'd;
+     close 'u
+else 'd.next;
+     'e <- recv 'd;
+     'w <- printnat -< 'e;
+     wait 'w;
+     'u <- printstream (n-1) -< 'd
+;;
+
+test : Int -> {1};;
+'c <- test n =
+'d <- nats zero;      (* 'd starts at 0 *)
+'e <- map succ -< 'd; (* 'e starts at 1 *)
+'u <- printstream n -< 'e;
+wait 'u;
+close 'c
+;;
+
+'top <-
+'u <- test 17;
+wait 'u;
+close 'top
+;;

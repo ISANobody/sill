@@ -1,0 +1,38 @@
+(* A program that merges two streams by Anna G. *)
+
+stype Stream a = +{stop: 1; next: a /\ Stream a};;
+
+(* Merges two streams *)  
+merge_stream: {Stream a <- Stream a; Stream a};;
+'c <- merge_stream -< 'a 'b = 
+	case 'a of 
+	| stop -> wait 'a; 
+		'c <- 'b
+	| next -> x <- recv 'a; 
+		'c.next;
+		'd <- merge_stream -< 'b 'a;
+		send 'c x;
+		'c <- 'd;; 
+
+(* Creates a stream counting down from an integer *) 
+count_down: Int -> {Stream Int};;
+count_down n = 
+	if (n = 0) then 'c <- {'c.stop; close 'c}
+	else 'c <- {'c.next; send 'c n; 'd <- count_down (n-1); 'c <- 'd};;
+
+(* Top level process to test things *)
+'top <- 'd <- count_down 2; 
+	'e <- count_down 2; 
+	'c <- merge_stream -< 'd 'e; 	
+	case 'c of 
+	| stop -> abort
+	| next -> x <- recv 'c;
+		print x; 
+		case 'c of 
+		| stop -> abort
+		| next -> x <- recv 'c;
+			print x;   
+		abort;; 
+
+
+

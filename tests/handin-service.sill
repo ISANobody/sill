@@ -1,0 +1,120 @@
+type Cred = Cred String;;
+type HWSel = HWSel Int;;
+type FileName = FileName String;;
+type Tarball = Tarball String;;
+type Maybe a = Just a | None;;
+type InfoRes = InfoBadHW | Submitted | InfoNotSubmitted | Closed;;
+type GetRes = GetBadHW | GetNotSubmitted | Grade Int;;
+
+service Handin = &{`List: [HWSel] /\ Handin;
+                          `Info: Cred => HWSel => InfoRes /\ Handin;
+                          `Submit: Cred => HWSel => (+){`Found: [FileName] /\ Tarball => Handin;
+                                                      `NotFound: Handin};
+                          `Get: Cred => HWSel => GetRes /\ Handin};;
+
+stype Server = &{`List: [HWSel] /\ Server;
+                          `Info: Cred => HWSel => InfoRes /\ Server;
+                          `Submit: Cred => HWSel => (+){`Found: [FileName] /\ Tarball => Server;
+                                                      `NotFound: Server};
+                          `Get: Cred => HWSel => GetRes /\ Server};;
+
+client : String -> {1};;
+'c <- client u =
+'s <- service Handin;
+send 's `Submit;
+send 's (Cred u);
+send 's (HWSel 10);
+case 's of
+| `NotFound -> register Handin 's; close 'c
+| `Found -> _ <- recv 's;
+            send 's (Tarball "asdf");
+            send 's `Get;
+            send 's (Cred u);
+            send 's (HWSel 10);
+            g <- recv 's;
+            print_str (sexp2s g);
+            flush ();
+            register Handin 's;
+            close 'c;;
+
+fst : (a,b) -> a;;
+fst p = case p of | (a,b) -> a;;
+
+snd : (a,b) -> b;;
+snd p = case p of | (a,b) -> b;;
+
+lookup : [(a,b)] -> a -> Maybe b;;
+lookup m e =
+  case m of
+  | [] -> None
+  | x::xs -> if fst x = e
+             then Just (snd x)
+             else lookup xs e
+;;
+
+add : [(a,b)] -> a -> b -> [(a,b)];;
+add m a b  = 
+  case m of
+  | [] -> [(a,b)]
+  | x::xs -> if fst x = a
+             then (a,b)::xs
+             else x::add xs a b;;
+
+add2 : [(a,[(b,c)])] -> a -> b -> c -> [(a,[(b,c)])];;
+add2 m a b c =
+  case lookup m a of
+  | None -> add m a [(b,c)]
+  | Just m' -> add m a (add m' b c);;
+
+keys : [(a,b)] -> [a];;
+keys m =
+  case m of
+  | [] -> []
+  | x::xs -> fst x::keys xs;;
+
+grade : HWSel -> Cred -> Tarball -> Int;;
+grade _ cred _ = if cred = (Cred "Bob")
+                 then 45
+                 else 90;;
+
+server : [(HWSel,[(Cred,Int)])] -> {Server};;
+'s <- server data =
+  case 's of
+  | `List -> send 's (keys data); 
+             's <- server data
+  | `Info -> cred <- recv 's;
+             hw   <- recv 's;
+             send 's (case lookup data hw of
+                       | None -> InfoBadHW
+                       | Just m -> case lookup m cred of
+                                   | None -> InfoNotSubmitted
+                                   | Just _ -> Submitted);
+             's <- server data
+  | `Submit -> cred <- recv 's;
+               hw   <- recv 's;
+               (case lookup data hw of
+               | None -> send 's `NotFound;
+                         's <- server data
+               | Just _ -> 
+               send 's `Found;
+               send 's [FileName (case hw of
+                                   | HWSel i -> "mp"^i2s i^".ml")];
+               tar <- recv 's;
+               's <- server (add2 data hw cred (grade hw cred tar)))
+  | `Get -> cred <- recv 's;
+            hw   <- recv 's;
+            send 's (case lookup data hw of
+                      | None -> GetBadHW
+                      | Just m -> case lookup m cred of
+                                  | None -> GetNotSubmitted
+                                  | Just g -> Grade g);
+            's <- server data
+;;
+
+'top <- 's <- server [(HWSel 10,[])];
+        register Handin 's;
+        'c1 <- client "Alice";
+        'c2 <- client "Bob";
+        wait 'c1;
+        wait 'c2;
+        close 'top;;

@@ -1,0 +1,10 @@
+foo : { !1 };;
+'c <- foo =
+ close 'c;;
+
+'top <- !u <- foo;
+        'c <- copy !u;
+        'd <- copy !u;
+        wait 'c;
+        wait 'd;
+        close 'top;;

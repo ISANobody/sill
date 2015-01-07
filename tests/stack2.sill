@@ -1,0 +1,51 @@
+(* Stacks *)
+(* Author: Frank Pfenning *)
+
+ltype Stack a = &{push: a => Stack a;
+                  pop: +{nothing: Stack a; just: a /\ Stack a};
+                  dealloc: 1};;
+
+elem : a -> {Stack a <- Stack a};;
+'c <- elem x -< 'd =
+case 'c of
+| push -> y <- recv 'c;
+          'e <- elem x -< 'd;
+          'c <- elem y -< 'e
+| pop -> 'c.just;
+         send 'c x;
+         'c <- 'd
+| dealloc -> 'd.dealloc;
+             wait 'd;
+             close 'c
+;;
+
+top : {Stack a};;
+'c <- top =
+case 'c of
+| push -> x <- recv 'c;
+          'd <- top;
+          'c <- elem x -< 'd
+| pop -> 'c.nothing;
+         'c <- top
+| dealloc -> close 'c
+;;
+
+'a <-
+'c <- top;
+'c.push;
+send 'c 3;
+'c.push;
+send 'c 4;
+'c.pop;
+case 'c of
+| nothing -> assert(False);
+          'c.dealloc;
+          wait 'c;
+          close 'a
+| just -> n <- recv 'c;
+          print n; print_str "\n";
+          assert(n = 4);
+          'c.dealloc;
+          wait 'c;
+          close 'a
+;;

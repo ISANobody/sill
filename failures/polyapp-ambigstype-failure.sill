@@ -1,0 +1,7 @@
+foo : forall <#a>. {1};;
+'c <- foo =
+  close 'c;;
+
+'top <- 'c <- foo<Bool -> Bool>;
+        wait 'c;
+        close 'top;;

@@ -1,0 +1,54 @@
+server1: {1 <- +{red: +{fish: 1; dog: 1}; blue: +{fish: 1; cat: 1}}};;
+'c <- server1 -< 'd =
+  case 'd of
+  | red -> (case 'd of 
+           | fish -> wait 'd; close 'c
+           | dog -> wait 'd; close 'c)
+  | blue -> (case 'd of 
+            | fish -> wait 'd; close 'c
+            | cat -> wait 'd; close 'c);;
+
+server2: {1 <- +{red: +{fish: 1; goat: 1}; blue: +{fish: 1; cat: 1}}};;
+'c <- server2 -< 'd =
+  case 'd of
+  | red -> (case 'd of 
+           | fish -> wait 'd; close 'c
+           | goat -> wait 'd; close 'c)
+  | blue -> (case 'd of 
+            | fish -> wait 'd; close 'c
+            | cat -> wait 'd; close 'c);;
+
+client1: {+{red: +{fish: 1}}};;
+'c <- client1 =
+  'c.red;
+  'c.fish;
+  close 'c;;
+
+go: {+{fish: 1}};;
+go = 'f <-{ 'f.fish; close 'f};;
+
+
+client2: {+{red: +{fish: 1}; blue: +{fish: 1}}};;
+client2 =
+'c <- {case True of
+     | True -> 'c.red;
+               'c <- go
+  | False -> 'c.blue;
+             'c <- go};;
+
+
+
+'c <- 
+      'e <- client1;
+      'd <- server1 -< 'e;
+       wait 'd;
+      'e <- client2;
+      'd <- server1 -< 'e;
+       wait 'd;
+      'e <- client1;
+      'd <- server2 -< 'e;
+       wait 'd;
+      'e <- client2;
+      'd <- server2 -< 'e;
+       wait 'd;
+      close 'c;;

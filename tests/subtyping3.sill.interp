@@ -1,0 +1,54 @@
+1: @44:7 bound from 0
+   @44:7 bind
+   @45:7 bind
+   @46:7 wait
+   @47:7 bind
+   @48:7 bind
+   @49:7 wait
+   @50:7 bind
+   @51:7 bind
+   @52:7 wait
+   @53:7 bind
+   @54:7 bind
+   @55:7 wait
+   @56:7 close
+2: @3:3 bound from 1
+   @3:3 external red
+   @4:13 external fish
+   @5:22 close
+3: @23:3 bound from 1
+   @23:3 internal red
+   @24:3 internal fish
+   @25:3 wait
+   @26:3 close
+4: @13:3 bound from 1
+   @13:3 external red
+   @14:13 external fish
+   @15:22 close
+5: @23:3 bound from 1
+   @23:3 internal red
+   @24:3 internal fish
+   @25:3 wait
+   @26:3 close
+6: @3:3 bound from 1
+   @3:3 external red
+   @4:13 external fish
+   @5:22 close
+7: @36:10 bound from 1
+   @36:10 tail-bind
+   @37:16 internal red
+   @38:16 tail-bind
+   @30:3 internal fish
+   @31:3 wait
+   @32:3 close
+8: @13:3 bound from 1
+   @13:3 external red
+   @14:13 external fish
+   @15:22 close
+9: @36:10 bound from 1
+   @36:10 tail-bind
+   @37:16 internal red
+   @38:16 tail-bind
+   @30:3 internal fish
+   @31:3 wait
+   @32:3 close

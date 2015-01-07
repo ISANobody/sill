@@ -1,0 +1,5 @@
+foo : {1*1};;
+'c <- foo =
+send 'c ('d <- close 'd); close 'c;;
+
+'c <- 'd <- foo; 'e <- recv 'd; wait 'd; wait 'e; close 'c;;

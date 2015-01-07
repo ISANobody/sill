@@ -1,0 +1,30 @@
+ltype Stream a = mu $x. +{stop: 1; next: a => $x};;
+ltype SkipStream a = mu $x. +{stop: 1; next: a => $x; skip: $x};;
+
+countFrom: Int -> {1 <- Stream Int};;
+'c <- countFrom n -< 'd =
+  case 'd of
+  | stop -> wait 'd; close 'c
+  | next -> send 'd n; 'c <- countFrom (n+1) -< 'd;;
+
+nats:{1 <- Stream Int};;
+nats = countFrom 0;;
+
+bigclient: {SkipStream Int};;
+'c <- bigclient=
+  'c.next;
+  _ <- recv 'c;
+  'c.skip;
+  'c.stop;
+  close 'c;;
+
+foo: {1 <- SkipStream a} -> {SkipStream a} -> {1};;
+'c <- foo s c =
+       'd <- c;
+       'e <- s -< 'd;
+       wait 'e;
+       close 'c;;
+
+'c <- 'f <- foo nats bigclient;
+      wait 'f;
+      close 'c;;

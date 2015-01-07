@@ -1,0 +1,90 @@
+I suggest installing ocaml and opam (and maybe the zlib headers) from macports/apt-get.
+From there initialize opam and install core and cyptokit. Questions/difficulties should be
+directed to <dgriffi3@illinois.edu>.  On a fresh Ubuntu VM the following commands
+successfully installed SILL (the last step is optional): 
+
+   tar xzpf sill.tar.gz
+   cd sill-ocaml
+   sudo apt-get install oasis opam m4 zlib1g-dev
+   opam init
+   <follow opam init instructions>
+   oasis setup
+   ocaml setup.ml -configure
+   ocaml setup.ml -build
+   ./tester.sh
+
+After this "./interp.byte [options] <file>.sill"  should be usable for your programs.
+
+Options are passed to interp.byte via the following flags:
+
+-help    prints out a short usage description
+-?       prints out a short usage description
+
+-backend      selects which backend to use. Currently supported are (Default: thread):
+	      thread       Use OCaml's Thread module to support concurrency. This is
+			   currently the only backend that is full featured and well
+			   tested. This should be used unless you have a good reason to
+                           use the others.
+	      thread_async The asynchronous version of the threaded implementation.  Since
+			   these semantics are fundamentally different than for -backend
+			   thread, this is most likely alternative backend to try.
+                           -interpstats is unsupported for this backend.
+	      fork         Uses Unix.fork to handle concurrency. It communicates
+			   via fifos in a temporary directory. This doesn't clean up after
+			   itself. The temporary directory should be safe to remove after
+			   the program finishes executing. Correct execution should be
+			   identical to -backend thread, so other than demonstrating our
+			   backend flexibility, this may not be helpful (it does evade
+			   OCaml's cap on the number of simultaneous concurrently
+			   executing threads).  The dynamic logging options -evaltrace and
+                           -interpstats will not work with this backend.
+	      ssh          A truly distributed backend that uses ssh encrypted channels to
+                           connect processes. It is truly broken.
+
+-gkind        select a global way to treat unconsumed linear channels (Default: linear):
+              linear       linear channels must be fully consumed via a wait statement
+              one_weaken   channels that are only missing their wait statement are allowed
+              affine       linear channels are treated as affine
+
+-dynchecks    enable dynamic type checks. In theory, this confirms that executing processes
+	      dynamically conform to their static types. Currently, this is broken and
+              should not be used.
+
+-evaltrace    prints out a trace of the execution. Each process receives a number and
+              information is tracked on a per process basis. Line/character numbers of the
+              form @line:char proceed a short record of what occurred at each step in the
+              process execution.
+
+-subtypetrace prints out information on the subtyping problems solved
+              during typechecking. This is a bit messy, and, ideally, the default error
+              messages should be informative enough to make this unneeded.
+
+-typetrace    prints out rules that the type checker uses to typecheck the program.  This
+	      is a bit messy, and, ideally, the default error messages should be
+              informative enough to make this unneeded.
+
+-interpstats  Gather statistics and print them after the end of execution. While,
+	      theoretically, this is backend dependent, but only 'thread' supports
+              this flag so its output will be described here.
+                 Threads Created:    The number of threads created during program execution
+		 Logical Threads:    The number of threads that would have been created
+                                     without the tail-bind optimization.
+                 Peak Exec Threads:  The peak number of simultaneous threads.
+
+To add your own tests to the automatic test suite, add a program to either the 'tests' or
+'failures' directories, with 'tests' for expected successes and 'failures' for expected
+failures. Next, for <filename>.sill, add either <filename>.sill.interp or
+<filename>.output to 'tests' to have either the programs evaluation trace or just its
+stdout diffed against its associated reference. For programs in 'failures' add
+<filename>.sill.error instead. WARNING: while the complete trace (i.e.,
+<filename>.sill.interp) is probably "better" as a test, the trace can be sensitive to
+thread creation order, thus some "more concurrent" tests will need to arrange some
+deterministic output and rely only on <filename>.sill.output.
+
+To add your own backend, look in eval_functor.ml and the examples of eval_thread.ml etc.
+Since it's somewhat poorly documented, you should harass <dgriffi3@illinois.edu> about
+anything that is unclear.
+
+If, during use, you see a message that contains "BUG", please report it to
+<dgriffi3@illinois.edu>, these are internal errors and indicate something went
+seriously wrong. If you hate the worthless parsing errors, sorry. 

@@ -1,0 +1,178 @@
+(* Creates a tree where leaf nodes store integers. Queries about
+min/max and update can be sent to the root node which will collect
+answers from its children. *)
+(* Joseph Tassarotti *)
+(* September 30, 2013 *)
+
+ltype Node = &{stop: 1;
+               min: Int /\ Node; 
+               max: Int /\ Node; 
+               replaceValue: Int => Int => Node; 
+               member: Int => Bool /\ Node};;
+
+ltype TestNode = &{stop: 1;
+                   min: TestNode; 
+                   max: TestNode; 
+                   replaceValue: Int => Int => TestNode; 
+                   member: Int => TestNode};;
+
+print_bool: Bool -> ();;
+print_bool b =
+  case b of
+  | True -> print_str "True"
+  | False -> print_str "False";;
+
+leaf: Int -> {Node};;
+'c <- leaf x =
+  case 'c of
+  | stop -> close 'c
+  | min -> send 'c x;
+           'c <- leaf x
+  | max -> send 'c x;
+           'c <- leaf x
+  | replaceValue -> old <- recv 'c;
+                    n <- recv 'c;
+                    (case (old = x) of
+                     | True -> 'c <- leaf n
+                     | False -> 'c <- leaf x)
+  | member -> val <- recv 'c;
+              send 'c (val = x);
+              'c <- leaf x;;
+
+max: Int -> Int -> Int;;
+max a b =
+  case (a <= b) of 
+  | True -> b
+  | False -> a;;
+
+min: Int -> Int -> Int;;
+min a b =
+  case (a <= b) of 
+  | True -> a
+  | False -> b;;
+
+parent: {Node <- Node; Node};;
+'o <- parent -< 'i1 'i2 =
+  case 'o of
+  | stop -> 'i1.stop;
+            'i2.stop;
+            wait 'i1;
+            wait 'i2;
+            close 'o
+  | min ->  'i1.min;
+            'i2.min;
+            v1 <- recv 'i1;
+            v2 <- recv 'i2;
+            send 'o (min v1 v2);
+            'o <- parent -< 'i1 'i2
+  | max ->  'i1.max;
+            'i2.max;
+            v1 <- recv 'i1;
+            v2 <- recv 'i2;
+            send 'o (max v1 v2);
+            'o <- parent -< 'i1 'i2
+  | replaceValue -> old <- recv 'o;
+                    new <- recv 'o;
+                    'i1.replaceValue;
+                    send 'i1 old;
+                    send 'i1 new;
+                    'i2.replaceValue;
+                    send 'i2 old;
+                    send 'i2 new;
+                    'o <- parent -< 'i1 'i2
+  | member -> val <- recv 'o;
+              'i1.member;
+              send 'i1 val;
+              'i2.member;
+              send 'i2 val;
+              b1 <- recv 'i1;
+              b2 <- recv 'i2;
+              send 'o (b1 || b2);
+	       'o <- parent -< 'i1 'i2;;
+
+
+(* This is just to sit inbetween a node and 'top.  It echoes the
+   messages it receives and the responses from the node. *)
+
+test : {TestNode <- Node};;
+'o <- test -< 'n =
+  case 'o of
+  | stop -> 'n.stop;
+            wait 'n;
+            close 'o
+  | min ->  'n.min;
+            v1 <- recv 'n;
+            print_str "Min: "; print v1; print_str "\n";
+            'o <- test -< 'n
+  | max ->  'n.max;
+            v1 <- recv 'n;
+            print_str "Max: "; print v1; print_str "\n";
+            'o <- test -< 'n
+  | replaceValue -> old <- recv 'o;
+                    new <- recv 'o;
+                    'n.replaceValue;
+                    send 'n old;
+                    send 'n new;
+                    print_str "ReplaceValue ";
+                    print old; print_str " "; 
+                    print new; print_str "\n";
+                    'o <- test -< 'n
+  | member -> val <- recv 'o;
+              'n.member;
+              send 'n val;
+              b <- recv 'n;
+              print_str "Member "; print val; 
+              print_str "? "; print_bool b; print_str "\n";
+	       'o <- test -< 'n;;
+
+'top <- 
+
+(* Leaf nodes *)
+'e1 <- leaf 1;
+'e2 <- leaf 5;
+'e3 <- leaf 2;
+'e4 <- leaf 7;
+
+(* Second layer *)
+'c1 <- parent -< 'e1 'e2;
+'c2 <- parent -< 'e3 'e4;
+
+(* Root *)
+'root <- parent -< 'c1 'c2;
+
+'t <- test -< 'root;
+
+'t.max;
+'t.min;
+'t.member;
+send 't 11;
+'t.member;
+send 't 7;
+
+'t.replaceValue;
+send 't 7;
+send 't 11;
+
+'t.max;
+'t.min;
+'t.member;
+send 't 11;
+'t.member;
+send 't 7;
+
+'t.replaceValue;
+send 't 1;
+send 't 0;
+
+'t.max;
+'t.min;
+'t.member;
+send 't 11;
+'t.member;
+send 't 7;
+
+'t.stop;
+wait 't;
+close 'top
+;;
+

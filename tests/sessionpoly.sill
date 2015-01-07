@@ -1,0 +1,115 @@
+t1 : { forall #a. #a -o #a };;
+'c <- t1 =
+  #a <- recv 'c;
+  'd <- recv 'c;
+  'c <- 'd;;
+
+t2 : { 1 <- forall #a. #a -o #a };;
+'c <- t2 -< 'd =
+  send 'd <1>;
+  send 'd ('e <- close 'e);
+  wait 'd;
+  close 'c;;
+
+'top <- 'c <- t1;
+        'd <- t2 -< 'c;
+        wait 'd;
+        close 'top;;
+
+t3 : { forall #a. #a -o #a*1 };;
+'c <- t3 =
+  #a <- recv 'c;
+  'd <- recv 'c;
+  send 'c 'd;
+  close 'c;;
+
+'top <- 'c <- t3;
+        send 'c <Float /\ 1>;
+        send 'c ('d <- send 'd 93.4; close 'd);
+        'e <- recv 'c;
+        _ <- recv 'e;
+        wait 'e;
+        wait 'c;
+        close 'top;;
+
+tensor_commutes : { forall #a. forall #b. (#a * #b) -o (#b * #a)  };;
+'c <- tensor_commutes =
+  #a <- recv 'c;
+  #b <- recv 'c;
+  'd <- recv 'c;
+  'e <- recv 'd;
+  send 'c 'd;
+  'c <- 'e;;
+
+foo : {(Float /\ 1) * (Int /\ 1)};;
+'c <- foo =
+  send 'c ('d <- send 'd 5.8; close 'd);
+  send 'c 83;
+  close 'c;;
+
+'top <- 'c <- tensor_commutes;
+        'f <- foo;
+        send 'c <Float/\1>;
+        send 'c <Int/\1>;
+        send 'c 'f;
+        'd <- recv 'c;
+        _ <- recv 'd;
+        _ <- recv 'c;
+        wait 'd;
+        wait 'c;
+        close 'top;;
+
+t4 : { exists #x. Int /\ #x };;
+'c <- t4 =
+  send 'c <1>;
+  send 'c 5;
+  close 'c;;
+
+t5 : { exists #x. 1 };;
+'c <- t5 =
+  send 'c <1>;
+  close 'c;;
+
+t6 : { 1 <- exists #x. 1 };;
+'c <- t6 -< 'd =
+  #x <- recv 'd;
+  wait 'd;
+  close 'c;;
+
+'top <- 'c <- t5;
+        'd <- t6 -< 'c;
+        wait 'd;
+        close 'top;;
+
+t7 : forall <#a,#b>. { #a <- '!#a };;
+'c <- t7 -< 'd =
+  !u <- recv 'd;
+  'e <- send !u;
+  'c <- 'e;;
+
+t8 : { '!1 };;
+'c <- t8 = send 'c (!u <- 'd <- recv !u; close 'd);;
+
+t9 : { '!Int/\1 };;
+'c <- t9 = send 'c (!u <- 'd <- recv !u; send 'd 5; close 'd);;
+
+'top <- 'a <- t8;
+        'b <- t9;
+        'c <- t7<1,1> -< 'a;
+        wait 'c;
+        'd <- t7<Int/\1,'!1> -< 'b;
+        _ <- recv 'd;
+        wait 'd;
+        close 'top;;
+
+t10 : forall <a,#b> . { a => #b <- #b };;
+'c <- t10 -< 'd =
+  _ <- recv 'c;
+  'c <- 'd;;
+
+'top <- 'a <- t8;
+        'c <- t10<Int,'!1> -< 'a;
+        send 'c 4;
+        'd <- t7<1,1> -< 'c;
+        wait 'd;
+        close 'top;;

@@ -1,0 +1,55 @@
+ltype Stream a = &{stop: 1; next: a /\ Stream a};;
+ltype SkipStream a = &{stop: 1; next: a /\ SkipStream a; skip: SkipStream a};;
+
+countFrom : Int -> {Stream Int};;
+'c <- countFrom n =
+  case 'c of
+  | stop -> close 'c
+  | next -> send 'c n;
+            'c <- countFrom (n+1);;
+
+nats : {Stream Int};;
+nats = countFrom 0;;
+
+countFromSkip : Int -> {SkipStream Int};;
+'c <- countFromSkip n =
+  case 'c of
+  | stop -> close 'c
+  | skip -> 'c <- countFromSkip (n+1)
+  | next -> send 'c n;
+            'c <- countFromSkip (n+1);;
+
+skipnats : {SkipStream Int};;
+skipnats = countFromSkip 0;;
+
+client: {1<- Stream Int};;
+'c <- client -< 'd =
+  'd.next;
+  _ <- recv 'd;
+  'd.stop;
+  wait 'd;
+  close 'c;;
+
+bigclient: {1<- SkipStream Int};;
+'c <- bigclient -< 'd =
+  'd.next;
+  _ <- recv 'd;
+  'd.skip;
+  'd.stop;
+  wait 'd;
+  close 'c;;
+
+foo: {Stream a} -> {1<-Stream a} -> {1};;
+'c <- foo s c =
+       'd <- s;
+        'd.next;
+        _ <- recv 'd;
+       'e <- c -< 'd;
+       wait 'e;
+       close 'c;;
+
+'c <- 'e <- foo nats client;
+      wait 'e;
+      'f <- foo <skipnats:{Stream Int}> client;
+      wait 'f;
+      close 'c;;

@@ -1,0 +1,4 @@
+(* check for unconsumed *)
+'c <- let f : {1} = 'e <-{close 'e}; 'e <- f;
+      let g : {1<-1} = 'd <-{close 'd} -< 'e; 'd <- g -< 'e;
+      close 'c;;

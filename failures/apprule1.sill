@@ -1,0 +1,7 @@
+f : Int -> Int;;
+f x = x + 4;;
+
+y : Float;;
+y = 4 0.0;;
+
+'c <- close 'c;;

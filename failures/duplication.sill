@@ -1,0 +1,5 @@
+boom : {1*1<-1};;
+'c <- boom -< 'd =
+  send 'c ('e <- wait 'd; close 'e);
+  wait 'd;
+  close 'c;;

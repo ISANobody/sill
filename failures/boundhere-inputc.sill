@@ -1,0 +1,5 @@
+boom : {1<-1*1};;
+'c <- boom -< 'd =
+  'f <- recv 'd;
+  wait 'd;
+  close 'c;;
