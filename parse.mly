@@ -31,9 +31,9 @@ let namecheck tysig (body:fvar) : unit =
 /* Define the tokens of the language: */
 %token <Base.srcloc*int> INT
 %token <Base.srcloc*float> FLOAT
-%token <Base.srcloc*string> LINCHAN SHRCHAN AFFCHAN FUNNAME STRING TYNAME MUNAME SVNAME POLY
+%token <Base.srcloc*string> LINCHAN SHRCHAN AFFCHAN FUNNAME STRING TYNAME SVNAME POLY
 %token <(int*int)> OPCOM CLCOM SCLCOM
-%token <Base.srcloc> RBRAC UNDERSCORE MU CLOSE AWAIT WAIT CASE INPUT OUTPUT FUN EQUALS LET OR IF NEG ABORT UNIT LBRAC
+%token <Base.srcloc> RBRAC UNDERSCORE CLOSE AWAIT WAIT CASE INPUT OUTPUT FUN EQUALS LET OR IF NEG ABORT UNIT LBRAC
                      SERVICE REGISTER
 %token DBLSEMI PLUS MINUS TIMES DIV DPLUS DMINUS DTIMES DDIV CARAT EXP LT GEQ LEQ GT
        AND PIPE ARROW DCOLON SEMI IN THEN ELSE TYPE LIST
@@ -642,7 +642,6 @@ sessiontype:
   | BANG sessiontype { Bang $2 }
   | BANG ambig { Bang (ambigstype $2) }
   | BANG addtail { Bang ($2 Linear) } /* mode */
-  | MU MUNAME DOT sessiontype { Mu ((Linear,snd $2),$4)  } /* mode */
   | FORALL SVNAME DOT sessiontype { Forall (Linear,(Linear,snd $2),$4) } /* mode */
   | FORALL SVNAME DOT ambig { Forall (Linear,(Linear,snd $2),ambigstype $4) } /* mode */
   | FORALL SVNAME DOT addtail { Forall (Linear,(Linear,snd $2),$4 Linear ) } /* mode */
@@ -683,7 +682,6 @@ stype_atom: /* TODO modes */
   | LPAREN timestail RPAREN { Parens ($2 Linear) }
   | OPLUS choices RBRACE { Intern (Linear,$2) }
   | AMPR choices RBRACE { Extern (Linear,$2) }
-  | MUNAME { SVar (fst $1,(Linear,snd $1)) } /* mode */
   | SVNAME { SVar (fst $1,(Linear,snd $1)) } /* mode */
 
 choices:

@@ -11,6 +11,7 @@ let main =
            +> flag "liveeval" ~doc:" enable forceful interpretation tracing" no_arg
            +> flag "typetrace" ~doc:" enable type tracing" no_arg
            +> flag "subtypetrace" ~doc:" enable subtyping tracing" no_arg
+           +> flag "unifytrace"   ~doc:" enable unification tracing" no_arg
            +> flag "interpstats" ~doc:" enable statistics gathering" no_arg
            +> flag "dynchecks" ~doc:" enable dynamic type checking" no_arg
            +> flag "parseonly" ~doc:" stop after parsing" no_arg
@@ -18,11 +19,13 @@ let main =
                                 (optional_with_default "linear" string)
            +> (anon ("<program>" %: file)))
   and realMain (backend:string) (eval_trace:bool) (live_trace:bool) (infer_trace:bool) (sub_trace:bool) 
-               (stats:bool) (dyncheck:bool) (parseonly:bool) (gkind:string) (prog:string)  () = 
+               (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool) (gkind:string)
+               (prog:string)  () = 
       eval_trace_flag := eval_trace;
       live_trace_flag := live_trace;
       infer_trace_flag := infer_trace;
       subtype_trace_flag := sub_trace;
+      unify_trace_flag := unif_trace;
       stats_flag := stats;
       dynchecks_flag := dyncheck;
       backend_choice := backend;

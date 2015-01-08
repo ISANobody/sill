@@ -1,5 +1,5 @@
-ltype Stream a = mu $x. +{stop: 1; next: a => $x};;
-ltype SkipStream a = mu $x. +{stop: 1; next: a => $x; skip: $x};;
+ltype Stream a = +{stop: 1; next: a => Stream a};;
+ltype SkipStream a = +{stop: 1; next: a => SkipStream a; skip: SkipStream a};;
 
 countFrom: Int -> {1 <- Stream Int};;
 'c <- countFrom n -< 'd =

@@ -38,7 +38,6 @@ rule token = parse
   | eof             { EOF } 
 
 (* your rules go here *)
-  | "mu"        { cinc 2; MU (mkloc 2) }
   | ":"         { cinc 1; COLON }
   | ";;" 	{ cinc 2; DBLSEMI  }
   | "+" 	{ cinc 1; PLUS  }
@@ -114,7 +113,6 @@ rule token = parse
   | '\'' (lowercase (id_char*) as s)    { LINCHAN (mkloc (1+String.length s),s) }
   | '!' (lowercase (id_char*) as s)   { SHRCHAN (mkloc (1+String.length s),s) }
   | '@' (lowercase (id_char*) as s)   { AFFCHAN (mkloc (1+String.length s),s) }
-  | '$' (lowercase (id_char*) as s)   { MUNAME (mkloc (1+String.length s),s) }
   | '#' (lowercase (id_char*) as s)   { SVNAME (mkloc (1+String.length s),s) }
   | ((lowercase (id_char*)) as s) '<' { POLY (mkloc (1+String.length s),s) }
 

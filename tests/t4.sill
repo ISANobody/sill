@@ -1,4 +1,5 @@
-nats: Int -> {mu $x.&{stop: 1; next: Int/\$x}};;
+ltype Test = &{stop: 1; next: Int/\Test};;
+nats: Int -> {Test};;
 'c <- nats n =
   case 'c of
   | stop -> close 'c

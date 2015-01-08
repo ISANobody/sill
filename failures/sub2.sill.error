@@ -1,1 +1,1 @@
-@28:17 Unification failure in var failed solving {1 <- mu m12.+{next: Int=>m12; stop: 1}} === {1 <- mu m11.+{next: ?x10=>m11; skip: m11; stop: 1}}
+@28:17 Unification failure in var failed solving {1 <- +{next: Int=>Stream Int; stop: 1}} === {1 <- +{next: ?x10=>SkipStream ?x10; skip: SkipStream ?x10; stop: 1}}

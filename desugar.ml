@@ -276,7 +276,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
        To ensure regularity we enforce that recursive calls cannot have arguments.
        Like with pretty printing we use a reference to denote we actually did something. *)
     let this : (string*(srcloc * Pure.mtype list) list) option ref = ref None in
-    let getThis (l:srcloc) (params : Pure.mtype list) = (match !this with 
+    let getThis (l:srcloc) (params : Pure.mtype list) : string = (match !this with 
                      | Some (s,argss) -> this := Some (s,((l,params) :: argss)); s 
                      | None -> let tmp = priv_name() in this := Some (tmp,[(l,params)]); tmp)
     in let rec goS min sin =
@@ -285,7 +285,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
            | Pure.SComp (l,n,args) -> Pure.SComp (l,n,List.map args goM)
            | Pure.SVar (x,y) -> Pure.SVar (x,y)
            | Pure.Stop _ -> Pure.Stop min
-           | Pure.Mu (x,s) -> Pure.Mu (x,goS min s)
+           | Pure.Mu (x,s,name,ms) -> Pure.Mu (x,goS min s,name,List.map ms goM)
            | Pure.InD (_,m,s) -> Pure.InD(min,goM m,goS min s)
            | Pure.OutD (_,m,s) -> Pure.OutD(min,goM m,goS min s)
            | Pure.InC (_,s1,s2) -> Pure.InC(min,goS min s1,goS min s2)
@@ -318,10 +318,10 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                (* Search for mismatched paramters *)
                List.iter argss ~f:(fun (l,args) ->
                  if not (List.length fs = List.length args)
-                 then errr l "Recursive calls much have identical paramters";
+                 then errr l "Recursive calls must have identical parameters";
                  List.iter2_exn fs args ~f:(fun x mt -> 
                    match mt with
                    | Pure.Var v when snd x = v -> ()
                    | _ -> errr l "Recursive calls much have identical paramters"));
-               [Core.STypeDecl (t,fs,Pure.Mu((Linear,x),s'))] (* TODO hardcoded mode *)
+               [Core.STypeDecl (t,fs,Pure.Mu((Linear,x),s',snd t,List.map fs (fun (_,x) -> Pure.Var x)))] (* TODO hardcoded mode *)
              | None -> [Core.STypeDecl (t,fs,s')]

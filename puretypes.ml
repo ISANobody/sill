@@ -11,7 +11,7 @@ type mtype = Comp of string * mtype list
            | Stop of modality
            | Intern of modality * stype LM.t
            | Extern of modality * stype LM.t
-           | Mu of tyvar * stype
+           | Mu of tyvar * stype * string * mtype list (* Second two record data for printing *)
            | SVar of srcloc * tyvar (* Session type variables *)
            | SComp of srcloc * string * mtype list
            | Forall of modality * tyvar * stype
@@ -56,7 +56,7 @@ and string_of_stype (tin : stype) : string =
   | SComp (_,c,args) -> if List.length args = 0
                       then c
                       else c^"("^intercal string_of_mtype "," args^")"
-  | Mu (x,s) -> "mu $"^string_of_tyvar x^". "^string_of_stype s
+  | Mu (x,s,_,_) -> "mu $"^string_of_tyvar x^". "^string_of_stype s
   | SVar (_,(_,x)) -> "$"^x
   | Forall (_,x,s) -> "forall "^string_of_tyvar x^"."^string_of_stype s
   | Exists (_,x,s) -> "exists "^string_of_tyvar x^"."^string_of_stype s
@@ -80,7 +80,7 @@ let rec getmode (tin:stype) : modality =
   | Stop m -> m
   | Intern (m,_) -> m
   | Extern (m,_) -> m
-  | Mu((m,_),_) -> m
+  | Mu((m,_),_,_,_) -> m
   | SVar (_,(m,_)) -> m
   | SComp (l,c,_) -> if SM.mem !declModes c
                      then SM.find_exn !declModes c
@@ -123,7 +123,7 @@ and freeMVarsSPure (tin:stype) : SS.t =
                                 ~f:(fun ~key:_ ~data:s a -> SS.union a (freeMVarsSPure s))
   | Extern (_,c) -> LM.fold c ~init:SS.empty
                                  ~f:(fun ~key:_ ~data:s a -> SS.union a (freeMVarsSPure s))
-  | Mu (_,s) -> freeMVarsSPure s
+  | Mu (_,s,_,_) -> freeMVarsSPure s
   | SVar _ -> SS.empty
   | SComp (_,_,args) -> List.fold_left args 
                                      ~init:SS.empty
@@ -163,7 +163,7 @@ and freeSVarsSPure (tin:stype) : SS.t =
                               ~f:(fun ~key:_ ~data:s a -> SS.union a (freeSVarsSPure s))
   | Extern (_,c) -> LM.fold c ~init:SS.empty
                               ~f:(fun ~key:_ ~data:s a -> SS.union a (freeSVarsSPure s))
-  | Mu ((_,x),s) -> SS.remove (freeSVarsSPure s) x
+  | Mu ((_,x),s,_,_) -> SS.remove (freeSVarsSPure s) x
   | SVar (_,(_,x)) -> SS.singleton x
   | SComp (_,_,args) -> List.fold_left args 
                                      ~init:SS.empty

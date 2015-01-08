@@ -1,1 +1,1 @@
-@24:26 Subtyping failure in { }E failed solving mu m5.&{next: Int/\m5; stop: 1} <<< mu m4.&{next: Int/\m4; skip: m4; stop: 1}: when solving mu m5.&{next: Int/\m5; stop: 1} <<< mu m4.&{next: Int/\m4; skip: m4; stop: 1} found label skip only on the right
+@24:26 Subtyping failure in { }E failed solving &{next: Int/\Stream Int; stop: 1} <<< &{next: Int/\SkipStream Int; skip: SkipStream Int; stop: 1}: when solving &{next: Int/\Stream Int; stop: 1} <<< &{next: Int/\SkipStream Int; skip: SkipStream Int; stop: 1} found label skip only on the right

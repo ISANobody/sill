@@ -79,6 +79,9 @@ let allconsumed (rule:string) (res : consumed CM.t) : unit =
                                      | Consumed | Slack -> ())
 
 let prettyUnifM (rule : string) (loc : srcloc) (tin1 : mtype) (tin2 : mtype) : unit =
+  if !unify_trace_flag
+  then print_endline ("prettyUnifM: "^rule^" "^loc2str loc^" "^string_of_mtype tin1
+                     ^" === " ^string_of_mtype tin2);
   let st1 = string_of_mtype tin1
   and st2 = string_of_mtype tin2 in
   try (unifyM tin1 tin2) 
@@ -87,6 +90,9 @@ let prettyUnifM (rule : string) (loc : srcloc) (tin1 : mtype) (tin2 : mtype) : u
             ^" === "^st2)
 
 let prettyUnifS (rule : string) (loc : srcloc) (tin1 : stype) (tin2 : stype) : unit =
+  if !unify_trace_flag
+  then print_endline ("prettyUnifS: "^rule^" "^loc2str loc^" "^string_of_stype tin1
+                     ^" === "^string_of_stype tin2);
   let st1 = string_of_stype tin1
   and st2 = string_of_stype tin2 in
   try (unifyS tin1 tin2) 

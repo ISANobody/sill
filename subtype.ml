@@ -74,6 +74,7 @@ and uniqSubS (asmpSubS : stype list) (asmpSupS : stype list)
   then true
   else match !t with
        | SInd _ -> failwith "uniqSubS SInd after getSType"
+       | SComp _ -> failwith "uniqSubS SComp after getSType"
        | Stop _ -> true
        | SVar -> false
        | SVarU _ -> true
@@ -96,6 +97,7 @@ and uniqSupS (asmpSubS : stype list) (asmpSupS : stype list)
   then true
   else match !t with
        | SInd _ -> failwith "uniqSupS SInd after getSType"
+       | SComp _ -> failwith "uniqSupS SComp after getSType"
        | Stop _ -> true
        | SVar -> false
        | SVarU _ -> true

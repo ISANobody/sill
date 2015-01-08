@@ -90,11 +90,13 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
            then errr l ("Number of arguments, "^string_of_int (List.length args) ^", to "
                        ^c^" doesn't match its expectation of "^string_of_int (List.length qs)^"");
            Dest.substS t (SM.of_alist_exn (List.zip_exn qs (List.map args puretoptrM))) SM.empty
-    | Pure.Mu ((_,x),s) -> let a = Dest.mksvar ()
-                  in let t = go s (SM.add env x a)
-                     in a := Dest.SInd t;
-                        t
-    | Pure.SVar (l,(mode,x)) -> if SM.mem env x
+    | Pure.Mu ((_,x),s,name,ms) -> 
+      let a = Dest.mksvar ()
+      in let t = go s (SM.add env x a)
+         in a := Dest.SComp (t,name,List.map ms puretoptrM);
+            t
+    | Pure.SVar (l,(mode,x)) ->
+                if SM.mem env x
                 then SM.find_exn env x
                 else ref (Dest.SVarU (mode,x))
     | Pure.Intern (mode,c) -> Dest.mkint mode (LM.map c (fun s -> go s env))
@@ -147,6 +149,7 @@ and ptrtopureS_raw (tin : Dest.stype) (cache : (Dest.stype * string option ref) 
   let body = 
     match !t with (* TODO Actually account for modalities *)
     | Dest.SInd _ -> failwith "ptrtopureS: SInd after getSType"
+    | Dest.SComp _ -> failwith "ptrtopureS: SComp after getSType"
     | Dest.SVar -> failwith "ptrtopureS: SVar"
     | Dest.SVarU _ -> failwith "ptrtopureS: SVarU"
     | Dest.InD (mode,m,s) -> Pure.InD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
@@ -164,7 +167,7 @@ and ptrtopureS_raw (tin : Dest.stype) (cache : (Dest.stype * string option ref) 
     | Dest.ShftDw (m,s) -> Pure.ShftDw (m,(ptrtopureS_raw s ((t,n)::cache)))
   in match !n with
      | None -> body
-     | Some x -> Pure.Mu ((Linear,x),body)
+     | Some x -> Pure.Mu ((Linear,x),body,"BUG",[]) (* TODO this is clearly wrong *)
 
 let ptrtopureM tin = ptrtopureM_raw tin []
 let ptrtopureS tin = ptrtopureS_raw tin []

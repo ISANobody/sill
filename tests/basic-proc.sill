@@ -6,19 +6,21 @@ close 'c;;
 
 t3 : a -> {b=>1};; 'c <- t3 x = y <- recv 'c; close 'c;;
 
-t4 : () -> {mu $x. Int/\Float /\ $x};;
+ltype T4 = Int /\ Float /\ T4;;
+t4 : () -> {T4};;
  'c <- t4 x = send 'c  4; 
                   send 'c 0.0;
                   'd <- t4 (); 
                   'c <- 'd;;
 
-t5 : {mu $x. Int /\ Float /\$x};;
+t5 : {T4};;
  'c <- t5 = send 'c  4; 
                 send 'c 0.0;
                 'd <- t5; 
                 'c <- 'd;;
 
-t6: (a -> Bool) -> {mu $x. a /\ $x <- mu $x. a /\ $x};;
+ltype T6 a = a /\ T6 a;;
+t6: (a -> Bool) -> {T6 a <- T6 a};;
  'c <- t6 q -< 'd = 
  x <- recv 'd;
  case q x of
@@ -65,7 +67,8 @@ t14 : {+{done: 1}};;
 'c <- t14 =
  'c.done; close 'c;;
 
-t15 : {mu $x . +{done:Int/\$x}};;
+ltype T15 = +{done:Int/\T15};;
+t15 : {T15};;
 'c <- t15 =
  'c.done; send 'c 5; 'c <- t15;;
 

@@ -28,6 +28,7 @@ and stype = stype_raw ref
 and stype_raw =
    | SVar
    | SInd of stype
+   | SComp of stype * string * mtype list
    | InD of modality * mtype * stype
    | OutD of modality * mtype * stype
    | InC of modality * stype * stype
@@ -48,10 +49,17 @@ let rec getMType (r : mtype) : mtype =
   | MInd r' -> getMType r'
   | _ -> r
 
-let rec getSType (r : stype) : stype =
+let rec getSType_raw (r : stype) : stype =
   match !r with
-  | SInd r' -> getSType r'
+  | SInd r' -> getSType_raw r'
   | _ ->  r
+
+let rec getSType (r : stype) : stype =
+  let r' = getSType_raw r
+  in match !r' with
+     | SInd _ -> failwith "BUG getSType SInd"
+     | SComp (r'',_,_) -> getSType r''
+     | _ -> r'
 
 (* showing types *)
 let mvarNames : (mtype * string) list ref = ref []
@@ -126,12 +134,13 @@ let rec string_of_mtype (tin : mtype) : string =
 (* assumes that anything in vs has been bound previously.
    x |-> "" means that x was never encountered again  *)
 and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
-  let t = getSType tin
+  let t = getSType_raw tin
   in if ass_memq t vs
      then let s = muvarName t in (assq t vs) := s; s
      else let n = ref "" in
           match !t with
           | SInd _ -> failwith "string_of_stype: SInd after getSType"
+          | SComp (_,name,ms) -> name^" "^intercal string_of_mtype " " ms
           | SVar -> "#"^svarName t
           | Stop _ -> "1"
           | OutD(_,m,s) -> 
@@ -186,7 +195,8 @@ let  string_of_ptype (tin : ptype) : string =
 (* Get the modality information in each type *)
 let getMode (sin:stype) : modality =
   match !(getSType sin) with
-  | SInd _ -> failwith "SInd after getSType destype getMode"
+  | SInd _ -> failwith "BUG SInd after getSType destype getMode"
+  | SComp _ -> failwith "BUG SComp after getSType destype getMode"
   | Stop m -> m
   | SVar -> failwith "BUG getMode SVar"
   | SVarU _ -> Linear (* TODO Modality *)
@@ -237,6 +247,7 @@ and freeMVars_S (tin : stype) (vs : stype list) : mtype list =
  if memq tin vs then []
  else match !(getSType tin) with
       | SInd _ -> failwith "freeMVars_S: SInd after getSType"
+      | SComp _ -> failwith "freeMVars_S: SComp after getSType"
       | SVar -> []
       | Stop _ -> []
       | OutD (_,t,s) -> freeMVars t @ freeMVars_S s (tin::vs)
@@ -281,7 +292,8 @@ and instantiate_S (tin:stype) (vs:(mtype * mtype) list) (ss:(stype*stype) list) 
   in if ass_memq t ss
      then assq t ss
      else match !t with
-          | SInd _ -> failwith "instantiate_S: SInd after getSType"
+          | SInd _ -> failwith "BUG instantiate_S: SInd after getSType"
+          | SComp _ -> failwith "BUG instantiate_S: SInd after getSType"
           | Stop m -> mkstop m
           | SVar -> t
           | SVarU _ -> t
@@ -345,8 +357,9 @@ and freeSUS_ (sin:stype) (vm: mtype list) (vs: stype list) : string list =
   let t = getSType sin in if memq t vs then [] else
   match !t with
   | SInd _ -> failwith "BUG. freeSUS_ SInd"
-  | Stop _ -> []
+  | SComp _ -> failwith "BUG. freeSUS_ SComp"
   | SVar -> failwith "BUG. freeSUS_ SVar"
+  | Stop _ -> []
   | SVarU (_,x) -> [x]
   | OutD (_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
   | InD (_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
@@ -378,11 +391,17 @@ let rec substM_ (min:mtype) (subM:mtype SM.t) (subS:stype SM.t)
                | None -> min)
 and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype SM.t) 
             (vm:(mtype*mtype) list) (vs:(stype*stype) list) : stype = 
-  let t = getSType sin in if ass_memq t vs then assq t vs else
+  let t = getSType_raw sin in if ass_memq t vs then assq t vs else
   match !t with
   | SInd _ -> failwith "BUG. substS SInd"
-  | Stop m -> mkstop m
   | SVar -> failwith "BUG substS_ SVar" (* sin *)(* TODO This might be questionable *)
+  | SComp (s,name,args) -> 
+    let a = mksvar ()
+    in a := SInd (ref (SComp (substS_ s subM subS vm ((t,a)::vs)
+                             ,name
+                             ,List.map args (fun x -> substM_ x subM subS vm ((t,a)::vs)))));
+       a
+  | Stop m -> mkstop m
   | SVarU (_,x) -> (* TODO mode *)
     (match SM.find subS x with
     | Some s' -> s'
