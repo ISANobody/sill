@@ -185,6 +185,60 @@ let rec synthable e =
 let modeCompatable (m1:modality) (m2:modality) : bool =
   m1 = m2 || (m1 = Linear && m2 = Affine)
 
+(* Check that a type is well formed wrt a set of mtype variables and session type
+   variables. Should this be in destypes.ml? *)
+let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit =
+  match !(getMType tin) with
+  | MInd _ -> errr loc "BUG wfM_ MInd"
+  | MVar -> errr loc "BUG wfM_ MVar"
+  | MVarU x -> if not (SS.mem wfms x) then errr loc (x^" is not in scope")
+  | MonT (Some s,args) -> wfS_ vs loc wfms wfss s; List.iter args (wfS_ vs loc wfms wfss)
+  | MonT (None,args) -> List.iter args (wfS_ vs loc wfms wfss)
+  | Comp (_,args) -> List.iter args (wfM_ vs loc wfms wfss)
+and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
+  if memq tin vs then () else
+  let go (mode:modality) (s:stype) : unit =
+    errr loc ("Expected a "^string_of_mode mode^" version of "^string_of_stype s
+             ^" but found "^string_of_mode (getMode s)^" instead")
+  in match !(getSType tin) with
+  | SVar -> errr loc "BUG wfS SVar"
+  | SInd _ -> errr loc "BUG wfS SInd"
+  | SComp _ -> errr loc "BUG wfS SComp"
+  | SVarU x -> if not (TS.mem wfss x) then errr loc (string_of_tyvar x^" is not in scope")
+  | Stop _ -> ()
+  | InD (mode,m,s) -> if not (mode = getMode s) 
+                      then go mode s 
+                      else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
+  | OutD (mode,m,s) -> if not (mode = getMode s) 
+                       then go mode s 
+                       else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
+  | InC (mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
+                        if not (mode = getMode s2) then go mode s2;
+                        wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
+  | OutC (mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
+                         if not (mode = getMode s2) then go mode s2;
+                         wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
+  | Intern (mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+                                                          then go mode s
+                                                          else wfS_ (tin::vs) loc wfms wfss s)
+  | Extern (mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+                                                          then go mode s
+                                                          else wfS_ (tin::vs) loc wfms wfss s)
+  | Forall (mode,x,s) -> if not (mode = getMode s) then go mode s;
+                         wfS_ (tin::vs) loc wfms (TS.add wfss x) s
+  | Exists (mode,x,s) -> if not (mode = getMode s) then go mode s;
+                         wfS_ (tin::vs) loc wfms (TS.add wfss x) s
+  | ShftUp (mode,s) -> if not (mode > getMode s)
+                       then errr loc ("Tried to upcast from "^string_of_mode (getMode s)
+                                     ^" to "^string_of_mode mode)
+  | ShftDw (mode,s) -> if not (mode < getMode s)
+                       then errr loc ("Tried to upcast from "^string_of_mode (getMode s)
+                                     ^" to "^string_of_mode mode)
+
+let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = wfM_ [] loc wfms wfss tin
+let wfS (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = wfS_ [] loc wfms wfss tin
+        
+
 (* We use unit since, we won't branch on failure, merely return an error to the user *)
 (* We should use a specialized subtype at some point, the general one probably isn't so
 safe *)
@@ -208,7 +262,8 @@ and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv)
                                                            | `S v -> TS.add acc v
                                                            | `M _ -> acc)
       and t' = puretoptrM t
-      in checkM wfms' wfss' (FM.add env x (Poly(qs,t'))) e t';
+      in wfM sloc wfms' wfss' t';
+         checkM wfms' wfss' (FM.add env x (Poly(qs,t'))) e t';
          Poly(qs,t')
 
 and varcommon (env:funenv) (x:fvar) : mtype =
@@ -310,7 +365,8 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
      | Cast (i,e,t) ->
          let t_ref = puretoptrM t
          and et    = synthM wfms wfss env e
-         in (* Might as well do this, this unification might be unneeded *)
+         in wfM (locE ein) wfms wfss t_ref;
+            (* Might as well do this, this unification might be unneeded *)
             prettyUnifM "Cast" (locE ein) t_ref tin;
             (match !(getMType et),!(getMType t_ref) with
             | MonT(Some s1,ss1),MonT(Some s2,ss2) -> (* TODO do we still want this? *)
@@ -322,7 +378,7 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
             | _,MonT _ -> errr (locE e) ("Expected: "^string_of_mtype t_ref^" found "^string_of_mtype et)
             | _,_ -> errr (locE ein) ("Coercions must be to a monadic type"))
    | Box _ -> failwith "checkM Box"
-   | PolyApp _ -> failwith "checkM polyapp"
+   | PolyApp _ -> subsumeM "polyapp" wfms wfss env ein tin
 
 and synthM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
   let m = synthM_raw wfms wfss env ein
@@ -344,9 +400,12 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
             let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)
               ~f:(fun (accm,accs) q amb ->
                  match q,amb with
-                 | `S x,`S s -> (accm,TM.add accs x (puretoptrS s))
-                 | `S x,`A s -> (accm,TM.add accs x (puretoptrS (Ambig.ambigstype s)))
-                 | `M x,`A s -> (SM.add accm x (puretoptrM (Ambig.ambigmtype s)),accs)
+                 | `S x,`S s -> let s' = puretoptrS s
+                                in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
+                 | `S x,`A a -> let s' = puretoptrS (Ambig.ambigstype a)
+                                in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
+                 | `M x,`A a -> let m' = (puretoptrM (Ambig.ambigmtype a))
+                                in wfM (locE ein) wfms wfss m'; (SM.add accm x m',accs)
                  | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
                                                 ^" with session type "^Puretypes.string_of_stype s)
                  )
@@ -410,7 +469,8 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
    | Monad _ -> errr (locE ein) "Tried to synthesise type for monad"
    | Cast (_,e,t) -> (* Unsure if this should be an error. *)
      let t' = puretoptrM t
-     in checkM wfms wfss env e t';
+     in wfM (locE ein) wfms wfss t';
+        checkM wfms wfss env e t';
         t'
    | Box _ -> failwith "synthM Box"
 (* Returns a slackness map *)
@@ -912,16 +972,18 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
            checkS wfms wfss env (CM.add senv c ct) p cpr tin
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype (safefind "existsL" senv c)))
   | OutputTy (_,c,st,p) ->
+    let st' = puretoptrS st
+    in wfS (locP pin) wfms wfss st';
     if cvar_eq c cpr
     then (match !(getSType tin) with
          | Exists (_,x,ct) -> 
            checkS wfms wfss env senv p cpr (substS ct (SM.empty)
-                                                   (TM.singleton x (puretoptrS st)))
+                                                   (TM.singleton x st'))
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype tin))
     else (* Should this have an occurs check? *)
          (match !(getSType (safefind "forallL" senv c)) with
          | Forall (_,x,ct) ->
-          usedhere "forallL" (checkS wfms wfss env (CM.add senv c (substS ct (SM.empty) (TM.singleton x (puretoptrS st)))) p cpr tin) c
+          usedhere "forallL" (checkS wfms wfss env (CM.add senv c (substS ct (SM.empty) (TM.singleton x st'))) p cpr tin) c
                      [getinfoP p]
          | _ -> errr (fst c) ("Expected forall type. Found: "^string_of_stype (safefind "forallL" senv c)))
   | ShftUpL (_,c1,c2,p) -> 
