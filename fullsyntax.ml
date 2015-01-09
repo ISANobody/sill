@@ -49,7 +49,7 @@ and proc =
   | IfP of srcloc * exp * proc * proc
   | Seq of srcloc * exp * proc
   | LetP of srcloc * [`M of mtype | `P of ptype] * fvar * fvar list * exp * proc
-  | InTy of srcloc * fvar * cvar * proc
+  | InTy of srcloc * tyvar * cvar * proc
   | OutTy of srcloc * cvar * stype * proc
   | ShftUpL of srcloc * cvar * cvar * proc (* c1 <- send c2; P *)
   | ShftDwR of srcloc * cvar * cvar * proc (* send c1 (c2 <- P) *)

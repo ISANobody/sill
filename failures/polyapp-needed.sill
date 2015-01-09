@@ -1,4 +1,4 @@
-foo : forall <#a>. {1};;
+foo : forall <'a>. {1};;
 'c <- foo =
   close 'c;;
 

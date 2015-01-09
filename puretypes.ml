@@ -23,7 +23,7 @@ type mtype = Comp of string * mtype list
            | Prime of stype
            | Bang of stype
  with sexp, bin_io
-type ptype = Poly of [`M of string | `S of string] list * mtype with sexp, bin_io (* first one is mtype
+type ptype = Poly of [`M of string | `S of tyvar] list * mtype with sexp, bin_io (* first one is mtype
 quantifier, second session *)
 
 (* Some printing functions *)
@@ -137,39 +137,39 @@ and freeMVarsSPure (tin:stype) : SS.t =
   | At s -> freeMVarsSPure s
   | Prime s -> freeMVarsSPure s
 
-let rec freeSVarsMPure (tin:mtype) : SS.t =
+let rec freeSVarsMPure (tin:mtype) : TS.t =
   match tin with
-  | Var _ -> SS.empty
+  | Var _ -> TS.empty
   | Comp (_,args) -> List.fold_left args
-                                        ~init:SS.empty
-                                        ~f:(fun m a -> SS.union m (freeSVarsMPure a))
-  | MonT (Some s,ss) -> SS.union (freeSVarsSPure s)
+                                    ~init:TS.empty
+                                    ~f:(fun m a -> TS.union m (freeSVarsMPure a))
+  | MonT (Some s,ss) -> TS.union (freeSVarsSPure s)
                                      (List.fold_left ss
-                                        ~init:SS.empty
-                                        ~f:(fun acc a -> SS.union acc (freeSVarsSPure a)))
+                                        ~init:TS.empty
+                                        ~f:(fun acc a -> TS.union acc (freeSVarsSPure a)))
   | MonT (None,ss) -> (List.fold_left ss
-                                      ~init:SS.empty
-                                      ~f:(fun acc a -> SS.union acc (freeSVarsSPure a)))
+                                      ~init:TS.empty
+                                      ~f:(fun acc a -> TS.union acc (freeSVarsSPure a)))
 (* TODO decide if overloading type variables by modality is ok *)
 (* TODO Move freevariable stuff to be closer together *)
-and freeSVarsSPure (tin:stype) : SS.t =
+and freeSVarsSPure (tin:stype) : TS.t =
   match tin with
-  | InD (_,m,s) -> SS.union (freeSVarsMPure m) (freeSVarsSPure s)
-  | OutD (_,m,s) -> SS.union (freeSVarsMPure m) (freeSVarsSPure s)
-  | InC (_,s1,s2) -> SS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
-  | OutC (_,s1,s2) -> SS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
-  | Stop _ -> SS.empty
-  | Intern (_,c) -> LM.fold c ~init:SS.empty 
-                              ~f:(fun ~key:_ ~data:s a -> SS.union a (freeSVarsSPure s))
-  | Extern (_,c) -> LM.fold c ~init:SS.empty
-                              ~f:(fun ~key:_ ~data:s a -> SS.union a (freeSVarsSPure s))
-  | Mu ((_,x),s,_,_) -> SS.remove (freeSVarsSPure s) x
-  | SVar (_,(_,x)) -> SS.singleton x
+  | InD (_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
+  | OutD (_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
+  | InC (_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
+  | OutC (_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
+  | Stop _ -> TS.empty
+  | Intern (_,c) -> LM.fold c ~init:TS.empty 
+                              ~f:(fun ~key:_ ~data:s a -> TS.union a (freeSVarsSPure s))
+  | Extern (_,c) -> LM.fold c ~init:TS.empty
+                              ~f:(fun ~key:_ ~data:s a -> TS.union a (freeSVarsSPure s))
+  | Mu (x,s,_,_) -> TS.remove (freeSVarsSPure s) x
+  | SVar (_,x) -> TS.singleton x
   | SComp (_,_,args) -> List.fold_left args 
-                                     ~init:SS.empty
-                                     ~f:(fun s a -> SS.union s (freeSVarsMPure a))
-  | Forall (_,(_,x),s) -> SS.remove (freeSVarsSPure s) x
-  | Exists (_,(_,x),s) -> SS.remove (freeSVarsSPure s) x
+                                     ~init:TS.empty
+                                     ~f:(fun s a -> TS.union s (freeSVarsMPure a))
+  | Forall (_,x,s) -> TS.remove (freeSVarsSPure s) x
+  | Exists (_,x,s) -> TS.remove (freeSVarsSPure s) x
   | Parens s -> freeSVarsSPure s
   | ShftUp (_,s) -> freeSVarsSPure s
   | ShftDw (_,s) -> freeSVarsSPure s

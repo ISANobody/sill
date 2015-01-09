@@ -3,8 +3,8 @@
    @15:9 bind
    @16:9 wait
    @17:9 close
-2: @3:3 bound from 1
-   @3:3 inputTy
+2: @3:4 bound from 1
+   @3:4 inputTy
    @4:3 inputC
    @5:3 forward
 3: @9:3 bound from 1
@@ -23,8 +23,8 @@
    @31:9 wait
    @32:9 wait
    @33:9 close
-6: @21:3 bound from 5
-   @21:3 inputTy
+6: @21:4 bound from 5
+   @21:4 inputTy
    @22:3 inputC
    @23:3 outputC
    @24:3 close
@@ -45,9 +45,9 @@
    @58:9 wait
    @59:9 wait
    @60:9 close
-10: @37:3 bound from 9
-    @37:3 inputTy
-    @38:3 inputTy
+10: @37:4 bound from 9
+    @37:4 inputTy
+    @38:4 inputTy
     @39:3 inputC
     @40:3 inputC
     @41:3 outputC
@@ -71,8 +71,8 @@
 16: @70:3 bound from 15
     @70:3 outputTy
     @71:3 close
-17: @75:3 bound from 15
-    @75:3 inputTy
+17: @75:4 bound from 15
+    @75:4 inputTy
     @76:3 wait
     @77:3 close
 18: @96:9 bound from 0

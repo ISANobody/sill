@@ -16,7 +16,7 @@ open Core.Std
    a single type since until we know that we are widening there is
    no harm in having different branches. Similarly for Extern *)
 type ptype = (* TODO modality for sesvars *)
-   | Poly of ([`M of string | `S of string] list) * mtype (* list should only contain MVars and SVars *)
+   | Poly of ([`M of string | `S of tyvar] list) * mtype (* list should only contain MVars and SVars *)
 and mtype = mtype_raw ref
 and mtype_raw =
    | MVar
@@ -141,7 +141,7 @@ and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
           match !t with
           | SInd _ -> failwith "string_of_stype: SInd after getSType"
           | SComp (_,name,ms) -> name^" "^intercal string_of_mtype " " ms
-          | SVar -> "#"^svarName t
+          | SVar -> "?"^svarName t
           | Stop _ -> "1"
           | OutD(_,m,s) -> 
             let s = string_of_mtype m ^ "/\\"^string_of_stype_raw s ((t,n)::vs) in
@@ -175,9 +175,9 @@ and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
             in if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | SVarU (_,x) -> "#"^x (* TODO modes *)
-          | Forall (_,(_,x),s) -> "forall #"^x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
-          | Exists (_,(_,x),s) -> "exists #"^x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
+          | SVarU x -> string_of_tyvar x
+          | Forall (_,x,s) -> "forall "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
+          | Exists (_,x,s) -> "exists "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
           | ShftUp (m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
                             in if !n = "" then s else "mu "^(!n)^"."^s
           | ShftDw (m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
@@ -189,7 +189,7 @@ let  string_of_ptype (tin : ptype) : string =
                    then string_of_mtype m
                    else "forall " ^intercal (fun x -> match x with
                                                       | `M v -> v
-                                                      | `S v -> "#"^v) " " qs
+                                                      | `S v -> string_of_tyvar v) " " qs
                         ^"."^string_of_mtype m
 
 (* Get the modality information in each type *)
@@ -375,7 +375,7 @@ and freeSUS_ (sin:stype) (vm: mtype list) (vs: stype list) : string list =
 let freeSUM m = List.dedup (freeSUM_ m [] [])
 let freeSUS s = List.dedup (freeSUS_ s [] [])
 
-let rec substM_ (min:mtype) (subM:mtype SM.t) (subS:stype SM.t) 
+let rec substM_ (min:mtype) (subM:mtype SM.t) (subS:stype TM.t) 
             (vm:(mtype*mtype) list) (vs:(stype*stype) list) : mtype = 
   let t = getMType min in if ass_memq t vm then assq t vm else
   match !t with
@@ -389,7 +389,7 @@ let rec substM_ (min:mtype) (subM:mtype SM.t) (subS:stype SM.t)
   | MVarU x -> (match SM.find subM x with
                | Some m' -> m'
                | None -> min)
-and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype SM.t) 
+and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype TM.t) 
             (vm:(mtype*mtype) list) (vs:(stype*stype) list) : stype = 
   let t = getSType_raw sin in if ass_memq t vs then assq t vs else
   match !t with
@@ -402,8 +402,8 @@ and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype SM.t)
                              ,List.map args (fun x -> substM_ x subM subS vm ((t,a)::vs)))));
        a
   | Stop m -> mkstop m
-  | SVarU (_,x) -> (* TODO mode *)
-    (match SM.find subS x with
+  | SVarU x ->
+    (match TM.find subS x with
     | Some s' -> s'
     | None -> sin)
   | InD (mode,m,s) -> 
@@ -426,17 +426,17 @@ and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype SM.t)
     in b := SInd (mkoutc m (substS_ s1 subM subS vm ([t,b]@vs)) a);
        a := SInd (substS_ s2 subM subS vm ([t,b]@vs));
        b
-  | Forall (m,(mode,x),s) ->
+  | Forall (m,x,s) ->
     (* TODO be capture avoiding *)
-    let subS' = if SM.mem subS x then SM.remove subS x else subS
+    let subS' = if TM.mem subS x then TM.remove subS x else subS
     in let a = mksvar()
-       in a := SInd (ref (Forall (m,(mode,x),substS_ s subM subS' vm ([t,a]@vs))));
+       in a := SInd (ref (Forall (m,x,substS_ s subM subS' vm ([t,a]@vs))));
           a
-  | Exists (m,(mode,x),s) ->
+  | Exists (m,x,s) ->
     (* TODO be capture avoiding *)
-    let subS' = if SM.mem subS x then SM.remove subS x else subS
+    let subS' = if TM.mem subS x then TM.remove subS x else subS
     in let a = mksvar()
-       in a := SInd (ref (Exists (m,(mode,x),substS_ s subM subS' vm ([t,a]@vs))));
+       in a := SInd (ref (Exists (m,x,substS_ s subM subS' vm ([t,a]@vs))));
           a
   | Intern (m,c) -> 
     let b = mksvar()
@@ -505,5 +505,5 @@ let conInstance (c : string) : (mtype list * mtype) =
   if not (SM.mem !conTypes c) then failwith ("BUG unbound constructor: "^c);
   let (qs,args,result) = SM.find_exn !conTypes c
   in let subM = SM.of_alist_exn (List.map qs (fun v -> (v,ref MVar)))
-     in (List.map args (fun a -> substM a subM SM.empty)
-        ,substM result subM SM.empty)
+     in (List.map args (fun a -> substM a subM TM.empty)
+        ,substM result subM TM.empty)

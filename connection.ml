@@ -89,7 +89,7 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
         in if not (List.length args = List.length qs)
            then errr l ("Number of arguments, "^string_of_int (List.length args) ^", to "
                        ^c^" doesn't match its expectation of "^string_of_int (List.length qs)^"");
-           Dest.substS t (SM.of_alist_exn (List.zip_exn qs (List.map args puretoptrM))) SM.empty
+           Dest.substS t (SM.of_alist_exn (List.zip_exn qs (List.map args puretoptrM))) TM.empty
     | Pure.Mu ((_,x),s,name,ms) -> 
       let a = Dest.mksvar ()
       in let t = go s (SM.add env x a)

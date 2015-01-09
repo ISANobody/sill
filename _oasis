@@ -3,7 +3,7 @@ Name:         sill
 Version:      1.0
 Synopsis:     Implementation of Linear Session Types
 Description:  A prototype language focused on organizing concurrent programs via
-              communication along substructurally channels between processes.
+              communication along substructurally typed channels between processes.
 Authors:      Dennis Griffith <isanobody@gmail.com>, Frank Pfenning <fp@cs.cmu.edu>
 Maintainers:  Dennis Griffith <isanobody@gmail.com>
 License:      GPL-3 with OCaml linking exception

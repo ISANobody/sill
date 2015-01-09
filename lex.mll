@@ -113,7 +113,6 @@ rule token = parse
   | '\'' (lowercase (id_char*) as s)    { LINCHAN (mkloc (1+String.length s),s) }
   | '!' (lowercase (id_char*) as s)   { SHRCHAN (mkloc (1+String.length s),s) }
   | '@' (lowercase (id_char*) as s)   { AFFCHAN (mkloc (1+String.length s),s) }
-  | '#' (lowercase (id_char*) as s)   { SVNAME (mkloc (1+String.length s),s) }
   | ((lowercase (id_char*)) as s) '<' { POLY (mkloc (1+String.length s),s) }
 
   | "!"         { cinc 1; BANG }

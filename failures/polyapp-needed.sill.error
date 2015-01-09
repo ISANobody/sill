@@ -1,1 +1,1 @@
-@5:15 foo has session polymorphism in its type forall #a.{1} Use foo<...> instead
+@5:15 foo has session polymorphism in its type forall 'a.{1} Use foo<...> instead

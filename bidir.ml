@@ -188,24 +188,24 @@ let modeCompatable (m1:modality) (m2:modality) : bool =
 (* We use unit since, we won't branch on failure, merely return an error to the user *)
 (* We should use a specialized subtype at some point, the general one probably isn't so
 safe *)
-let rec subsumeM (rule:string) (wfms: SS.t) (wfss: SS.t) (env:funenv) (e:exp) (t:mtype) =
+let rec subsumeM (rule:string) (wfms: SS.t) (wfss: TS.t) (env:funenv) (e:exp) (t:mtype) =
   prettyUnifM rule (locE e) (synthM wfms wfss env e) t
 
 (* TODO `M case should just convert to the `P case and call that *)
-and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: SS.t) (env:funenv) 
+and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv) 
               (tin:[`M of Puretypes.mtype | `P of Puretypes.ptype])
               (x:fvar) (e:exp) : ptype =
     match tin with
     | `M t -> 
       let mvs = SS.fold (Puretypes.freeMVarsMPure t) ~init:[] ~f:(fun acc x -> `M x :: acc)
-      and svs = SS.fold (Puretypes.freeSVarsMPure t) ~init:[] ~f:(fun acc x -> `S x :: acc)
+      and svs = TS.fold (Puretypes.freeSVarsMPure t) ~init:[] ~f:(fun acc x -> `S x :: acc)
       in letcommon sloc wfms wfss env (`P (Puretypes.Poly(mvs@svs,t))) x e
     | `P (Puretypes.Poly (qs,t)) ->
       let wfms' = List.fold qs ~init:wfms ~f:(fun acc x -> match x with
                                                            | `M v -> SS.add acc v
                                                            | `S _ -> acc)
       and wfss' = List.fold qs ~init:wfss ~f:(fun acc x -> match x with
-                                                           | `S v -> SS.add acc v
+                                                           | `S v -> TS.add acc v
                                                            | `M _ -> acc)
       and t' = puretoptrM t
       in checkM wfms' wfss' (FM.add env x (Poly(qs,t'))) e t';
@@ -221,7 +221,7 @@ and varcommon (env:funenv) (x:fvar) : mtype =
                   | `S _ -> errr (fst x) (string_of_fvar x^" has session polymorphism in its type " 
                                          ^string_of_ptype (Poly(qs,t)) ^" Use "
                                          ^string_of_fvar x^"<...> instead")))
-                SM.empty
+                TM.empty
   else if SM.mem !conTypes (snd x)
        then let argts,t = conInstance (snd x)
             in List.fold_right argts ~init:t ~f:(fun xt et -> mkfun xt et)
@@ -246,7 +246,7 @@ and varcommon (env:funenv) (x:fvar) : mtype =
             | _ -> errr (fst x) ("Variable "^string_of_fvar x^" not found"))
   
 
-and checkM (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
+and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
   if !infer_trace_flag
   then print_endline (loc2str (locE ein)^" checkM :: "^string_of_mtype tin);
    match ein with
@@ -324,13 +324,13 @@ and checkM (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
    | Box _ -> failwith "checkM Box"
    | PolyApp _ -> failwith "checkM polyapp"
 
-and synthM (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) : mtype =
+and synthM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
   let m = synthM_raw wfms wfss env ein
   in if !infer_trace_flag
      then print_endline (loc2str (locE ein)^" synthM : "^string_of_mtype m);
           m
 
-and synthM_raw (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) : mtype =
+and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
    match ein with
    | PolyApp (_,x,ss) -> 
      if FM.mem env x
@@ -341,11 +341,11 @@ and synthM_raw (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) : mtype =
                                  ^" quantifier(s) in its type "^string_of_ptype (FM.find_exn env x)
                                  ^" but "^string_of_int (List.length ss)^" type(s) were supplied");
 
-            let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,SM.empty)
+            let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)
               ~f:(fun (accm,accs) q amb ->
                  match q,amb with
-                 | `S x,`S s -> (accm,SM.add accs x (puretoptrS s))
-                 | `S x,`A s -> (accm,SM.add accs x (puretoptrS (Ambig.ambigstype s)))
+                 | `S x,`S s -> (accm,TM.add accs x (puretoptrS s))
+                 | `S x,`A s -> (accm,TM.add accs x (puretoptrS (Ambig.ambigstype s)))
                  | `M x,`A s -> (SM.add accm x (puretoptrM (Ambig.ambigmtype s)),accs)
                  | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
                                                 ^" with session type "^Puretypes.string_of_stype s)
@@ -414,7 +414,7 @@ and synthM_raw (wfms: SS.t) (wfss: SS.t) (env:funenv) (ein:exp) : mtype =
         t'
    | Box _ -> failwith "synthM Box"
 (* Returns a slackness map *)
-and checkS (wfms: SS.t) (wfss: SS.t) (env:funenv) (senv:sesenv) 
+and checkS (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv) 
            (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t =
   if !infer_trace_flag
   then print_endline (loc2str (locP pin)^" checkS "^string_of_cvar cpr^" :: "^string_of_stype tin);
@@ -429,7 +429,7 @@ and checkS (wfms: SS.t) (wfss: SS.t) (env:funenv) (senv:sesenv)
      
      slackmap
   
-and checkS_raw (wfms: SS.t) (wfss: SS.t) (env:funenv) (senv:sesenv) 
+and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv) 
                (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t = 
   match pin with
   | TailBind (_,c,e,cs) -> 
@@ -913,15 +913,15 @@ and checkS_raw (wfms: SS.t) (wfss: SS.t) (env:funenv) (senv:sesenv)
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype (safefind "existsL" senv c)))
   | OutputTy (_,c,st,p) ->
     if cvar_eq c cpr
-    then (match !(getSType tin) with (* TODO mode *)
-         | Exists (_,(_,x),ct) -> 
+    then (match !(getSType tin) with
+         | Exists (_,x,ct) -> 
            checkS wfms wfss env senv p cpr (substS ct (SM.empty)
-                                                   (SM.singleton x (puretoptrS st)))
+                                                   (TM.singleton x (puretoptrS st)))
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype tin))
     else (* Should this have an occurs check? *)
          (match !(getSType (safefind "forallL" senv c)) with
-         | Forall (_,(_,x),ct) -> (* TODO mode *)
-          usedhere "forallL" (checkS wfms wfss env (CM.add senv c (substS ct (SM.empty) (SM.singleton x (puretoptrS st)))) p cpr tin) c
+         | Forall (_,x,ct) ->
+          usedhere "forallL" (checkS wfms wfss env (CM.add senv c (substS ct (SM.empty) (TM.singleton x (puretoptrS st)))) p cpr tin) c
                      [getinfoP p]
          | _ -> errr (fst c) ("Expected forall type. Found: "^string_of_stype (safefind "forallL" senv c)))
   | ShftUpL (_,c1,c2,p) -> 
@@ -1004,9 +1004,9 @@ let toplevel (ds:toplvl list) : unit=
   let _ = List.fold_left ds ~init:FM.empty
     ~f:(fun env d -> clearmaps ();
         match d with
-        | TopLet (f,t,e) -> let p = letcommon (fst f) SS.empty SS.empty env t f e
+        | TopLet (f,t,e) -> let p = letcommon (fst f) SS.empty TS.empty env t f e
                             in  FM.add env f p
-        | TopProc (c,p) -> allconsumed "top" (checkS SS.empty SS.empty env CM.empty p c (mkstop Linear));
+        | TopProc (c,p) -> allconsumed "top" (checkS SS.empty TS.empty env CM.empty p c (mkstop Linear));
                            env
         | Pass -> env
         | ServDecl (f,s) -> sessions := FM.add !sessions f (Connection.puretoptrS s); env

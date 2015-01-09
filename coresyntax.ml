@@ -94,7 +94,7 @@ and proc =
    | External of astinfo * cvar * proc LM.t            (* case c of SM *)
    | Internal of astinfo * cvar * label * proc        (* select c.l; P *)
    | Fwd of astinfo * cvar * cvar                   (* fwd c d *)
-   | InputTy of astinfo * fvar * cvar * proc
+   | InputTy of astinfo * tyvar * cvar * proc
    | OutputTy of astinfo * cvar * stype * proc
    | ShftUpL of astinfo * cvar * cvar * proc (* c1 <- send c2; P *)
    | ShftDwR of astinfo * cvar * cvar * proc (* send c1 (c2 <- P) *)

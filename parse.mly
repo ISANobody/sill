@@ -26,12 +26,30 @@ let namecheck tysig (body:fvar) : unit =
   then errr (fst (fst tysig)) ("Signature for wrong function. Wanted "
                               ^snd body^" got "^snd (fst tysig))
 
+let chan2tyvar (c:cvar) : tyvar =
+  match c with
+  | (_,Lin x) -> (Linear,x)
+  | (_,Aff x) -> (Affine,x)
+  | (_,Shr x) -> (Intuist,x)
+
+let chan2svar (c:cvar) : stype =
+  match c with
+  | (_,Lin x) -> SVar (fst c,(Linear,x))
+  | (_,Aff x) -> SVar (fst c,(Affine,x))
+  | (_,Shr x) -> SVar (fst c,(Intuist,x))
+
+let abrace2mtype ((c1,c2):(cvar * cvar)) : mtype =
+  MonT (Some (chan2svar c1),[chan2svar c2])
+
+let abrace2proc ((c1,c2):(cvar * cvar)) : proc =
+  Fwd (fst c1,c1,c2)
+
 %}
 
 /* Define the tokens of the language: */
 %token <Base.srcloc*int> INT
 %token <Base.srcloc*float> FLOAT
-%token <Base.srcloc*string> LINCHAN SHRCHAN AFFCHAN FUNNAME STRING TYNAME SVNAME POLY
+%token <Base.srcloc*string> LINCHAN SHRCHAN AFFCHAN FUNNAME STRING TYNAME POLY
 %token <(int*int)> OPCOM CLCOM SCLCOM
 %token <Base.srcloc> RBRAC UNDERSCORE CLOSE AWAIT WAIT CASE INPUT OUTPUT FUN EQUALS LET OR IF NEG ABORT UNIT LBRAC
                      SERVICE REGISTER
@@ -60,7 +78,7 @@ let namecheck tysig (body:fvar) : unit =
 %type <stype LM.t> choices
 
 /* Intermediate changes */
-%type <cvar> channel linchan shrchan
+%type <cvar> linchan shrchan
 %type <cvar list> chanlist
 %type <exp> expression pure_or_exp or_exp and_exp app_exp expo_exp mult_exp add_exp cons_exp rel_exp
 %type <proc> process
@@ -99,6 +117,9 @@ ambig_notimesarr:
   | ambig_notimesarr INT                 { ambigsnoc $1 (Int (fst $2,snd $2)) }
   | ambig_notimesarr LPAREN ambig RPAREN { ambigsnoc $1 (Paren $3) }
   | ambig_notimesarr LBRAC ambig RBRAC   { ambigsnoc $1 (List $3) }
+
+ambig_brace:
+  | LBRACE linchan LARROW linchan RBRACE { ($2,$4) }
 
 typedecl:
   | TYPE TYNAME vars EQUALS constructors
@@ -157,14 +178,20 @@ colonpats:
   | patvar colonpats { $1::$2 }
 
 netyvarlist: 
-  | SVNAME { [`S (snd $1)] }
+  | LINCHAN { [`S (Linear,snd $1)] }
+  | AFFCHAN { [`S (Affine,snd $1)] }
+  | SHRCHAN { [`S (Intuist,snd $1)] }
   | FUNNAME { [`M (snd $1)] }
-  | SVNAME COMMA netyvarlist { (`S (snd $1)) :: $3 }
+  | LINCHAN COMMA netyvarlist { (`S (Linear,snd $1)) :: $3 }
+  | AFFCHAN COMMA netyvarlist { (`S (Affine,snd $1)) :: $3 }
+  | SHRCHAN COMMA netyvarlist { (`S (Intuist,snd $1)) :: $3 }
   | FUNNAME COMMA netyvarlist { (`M (snd $1)) :: $3 }
 
 topsig:
   | FUNNAME COLON ambig DBLSEMI    { ($1,`M (ambigmtype $3)) }
+  | FUNNAME COLON ambig_brace DBLSEMI  { ($1,`M (abrace2mtype $3)) }  
   | FUNNAME COLON FORALL LT netyvarlist GT DOT ambig DBLSEMI { ($1,`P (Poly ($5,ambigmtype $8))) }
+  | FUNNAME COLON FORALL LT netyvarlist GT DOT ambig_brace DBLSEMI { ($1,`P (Poly ($5,abrace2mtype $8))) }
 
 toplet:
   | topsig FUNNAME eqpats expression 
@@ -294,12 +321,20 @@ app_exp:
 if_let_fun_case_exp:
   | LET FUNNAME colonpats ambig EQUALS expression IN expression
       { Let($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS expression IN expression
+      { Let($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
   | LET FUNNAME colonpats ambig EQUALS expression IN ambig
       { Let($1,`M (ambigmtype $4),$2,$3,$6,ambigexp $8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS expression IN ambig
+      { Let($1,`M (abrace2mtype $4),$2,$3,$6,ambigexp $8) }
   | LET FUNNAME colonpats ambig EQUALS ambig IN expression
       { Let($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS ambig IN expression
+      { Let($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
   | LET FUNNAME colonpats ambig EQUALS ambig IN ambig
       { Let($1,`M (ambigmtype $4),$2,$3,ambigexp $6,ambigexp $8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS ambig IN ambig
+      { Let($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,ambigexp $8) }
   | FUN arrowpats expression  { match $2 with 
                                     | [] -> errr $1 "No arguments to 'function'";
                                     | hd::tl -> Fun ($1,hd,tl,$3)}
@@ -456,29 +491,47 @@ atomic_expression:
   | LPAREN expression COMMA ambig RPAREN    { Sat (locE $2,",",[$2;ambigexp $4]) }
   | LPAREN ambig COMMA expression RPAREN    { Sat (ambigl $2,",",[ambigexp $2;$4]) }
   | list_expression		{ $1 }
-  | linchan LARROW LBRACE process RBRACE 
+  | linchan LARROW LBRACE process_nf RBRACE 
     { Monad((fst $1),Some $1,$4,[]) }
-  | shrchan LARROW LBRACE process RBRACE 
+  | linchan LARROW ambig_brace 
+    { Monad((fst $1),Some $1,abrace2proc $3,[]) }
+  | shrchan LARROW LBRACE process_nf RBRACE 
     { Monad((fst $1),Some $1,$4,[]) }
-  | UNDERSCORE LARROW LBRACE process RBRACE { Monad($1,None,$4,[]) }
-  | UNDERSCORE LARROW LBRACE process RBRACE TAIL chanlist { Monad($1,None,$4,$7) }
-  | linchan LARROW LBRACE process RBRACE TAIL chanlist 
+  | shrchan LARROW ambig_brace
+    { Monad((fst $1),Some $1,abrace2proc $3,[]) }
+  | UNDERSCORE LARROW LBRACE process_nf RBRACE { Monad($1,None,$4,[]) }
+  | UNDERSCORE LARROW ambig_brace { Monad($1,None,abrace2proc $3,[]) }
+  | UNDERSCORE LARROW LBRACE process_nf RBRACE TAIL chanlist { Monad($1,None,$4,$7) }
+  | UNDERSCORE LARROW ambig_brace TAIL chanlist { Monad($1,None,abrace2proc $3,$5) }
+  | linchan LARROW LBRACE process_nf RBRACE TAIL chanlist 
        { Monad((fst $1),Some $1,$4,$7) }
-  | shrchan LARROW LBRACE process RBRACE TAIL chanlist 
+  | linchan LARROW ambig_brace TAIL chanlist 
+       { Monad((fst $1),Some $1,abrace2proc $3,$5) }
+  | shrchan LARROW LBRACE process_nf RBRACE TAIL chanlist 
     { Monad((fst $1),Some $1,$4,$7) }
+  | shrchan LARROW ambig_brace TAIL chanlist 
+    { Monad((fst $1),Some $1,abrace2proc $3,$5) }
   | LBRAC RBRAC                       { Sat($1,"[]",[]) }
   | LT expression COLON ambig GT 
       { Cast ((locE $2),$2,ambigmtype $4) }
+  | LT expression COLON ambig_brace GT 
+      { Cast ((locE $2),$2,abrace2mtype $4) }
   | LT ambig COLON ambig GT 
       { Cast ((ambigl $2),ambigexp $2,ambigmtype $4) }
+  | LT ambig COLON ambig_brace GT 
+      { Cast ((ambigl $2),ambigexp $2,abrace2mtype $4) }
   | POLY polytail  { PolyApp(fst $1,$1,$2) }
 
 polytail:
   | GT                         { [] }
   | sessiontype GT             { [`S $1] }
+  | shrchan GT                 { [`S (chan2svar $1)] }
+  | linchan GT                 { [`S (chan2svar $1)] }
   | ambig GT                   { [`A $1] }
   | addtail GT                 { [`S ($1 Linear)] }
   | sessiontype COMMA polytail { (`S $1) :: $3 }
+  | shrchan COMMA polytail     { (`S (chan2svar $1)) :: $3 }
+  | linchan COMMA polytail     { (`S (chan2svar $1)) :: $3 }
   | ambig COMMA polytail       { (`A $1) :: $3 }
   | addtail COMMA polytail     { (`S ($1 Linear)) :: $3 }
 
@@ -500,13 +553,11 @@ constant_expression:
   | FLOAT			{ (fst $1,Float (snd $1)) }
   | STRING			{ (fst $1,String (snd $1)) }
 
-channel: /* This probably needs to be distinct somehow from regular vars */
-  | linchan  { $1 }
-  | shrchan  { $1 }
-
 chanlist:
-  | channel { [$1] }
-  | channel chanlist { $1::$2 }
+  | linchan { [$1] }
+  | shrchan { [$1] }
+  | linchan chanlist { $1::$2 }
+  | shrchan chanlist { $1::$2 }
 
 linchan:
   | LINCHAN { (fst $1, Lin (snd $1)) }
@@ -534,12 +585,15 @@ process:
   | UNDERSCORE LARROW INPUT linchan SEMI process { InD ($3,($1,priv_name ()),$4,$6) }
   | OUTPUT linchan expression SEMI process { OutD ($1,$2,$3,$5) }
   | OUTPUT linchan ambig SEMI process { OutD ($1,$2,ambigexp $3,$5) }
-  | linchan LARROW INPUT channel SEMI process { InC ((fst $1), $1,$4,$6) }
-  | shrchan LARROW INPUT channel SEMI process { InC ((fst $1), $1,$4,$6) }
+  | linchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | linchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | shrchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | shrchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI process 
            { OutC ($1,$2, $4, $6, $9) }
   | OUTPUT linchan linchan SEMI process { Throw ($1,$2,$3,$5) }
-  | linchan LARROW OUTPUT channel SEMI process { ShftUpL (fst $1,$1,$4,$6) }
+  | linchan LARROW OUTPUT linchan SEMI process { ShftUpL (fst $1,$1,$4,$6) }
+  | linchan LARROW OUTPUT shrchan SEMI process { ShftUpL (fst $1,$1,$4,$6) }
   | OUTPUT linchan LPAREN linchan LARROW process RPAREN { ShftDwR ($1,$2,$4,$6) }
   | OUTPUT linchan LPAREN shrchan LARROW process RPAREN { ShftDwR ($1,$2,$4,$6) }
   | linchan LARROW linchan {Fwd((fst $1),$1,$3) }
@@ -580,16 +634,96 @@ process:
   | CASE linchan OF extcases { External ($1,$2,$4)  }
   | expression SEMI process { Seq (locE $1,$1,$3) }
   | ambig SEMI process { Seq (ambigl $1,ambigexp $1,$3) }
-  | proclet { $1 }
-  | OUTPUT linchan LT sessiontype GT SEMI process { OutTy ($1,$2,$4,$7) }
-  | OUTPUT linchan LT ambig GT SEMI process { OutTy ($1,$2,ambigstype $4,$7) }
-  | SVNAME LARROW INPUT linchan SEMI process {  InTy (fst $1,$1,$4,$6) }
-
-proclet:
   | LET FUNNAME colonpats ambig EQUALS expression SEMI process 
         { LetP ($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS expression SEMI process 
+        { LetP ($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
   | LET FUNNAME colonpats ambig EQUALS ambig SEMI process 
         { LetP ($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS ambig SEMI process 
+        { LetP ($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
+  | OUTPUT linchan LT sessiontype GT SEMI process { OutTy ($1,$2,$4,$7) }
+  | OUTPUT linchan LT linchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
+  | OUTPUT linchan LT shrchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
+  | OUTPUT linchan LT ambig GT SEMI process { OutTy ($1,$2,ambigstype $4,$7) }
+  | OUTPUT linchan LT addtail GT SEMI process { OutTy ($1,$2,$4 Linear,$7) } /* TODO Get rid of the application here */
+  | LT linchan GT LARROW INPUT linchan SEMI process {  InTy (fst $2,chan2tyvar $2,$6,$8) }
+  | LT shrchan GT LARROW INPUT linchan SEMI process {  InTy (fst $2,chan2tyvar $2,$6,$8) }
+
+
+/* This is needed to differentiate { 'a <- 'a } the type and { 'a <- 'a } the forwarding */
+process_nf:
+  | /* empty */ { Exit {lnum = -1; cnum = -1} }
+  | linchan LARROW SERVICE TYNAME SEMI process { Service(fst $1,$1,$4,$6) }
+  | REGISTER TYNAME linchan SEMI process { Register($1,$2,$3,$5) }
+  | ABORT { Abort $1 }
+  | FUNNAME LARROW INPUT linchan SEMI process { InD ($3,$1,$4,$6) }
+  | UNDERSCORE LARROW INPUT linchan SEMI process { InD ($3,($1,priv_name ()),$4,$6) }
+  | OUTPUT linchan expression SEMI process { OutD ($1,$2,$3,$5) }
+  | OUTPUT linchan ambig SEMI process { OutD ($1,$2,ambigexp $3,$5) }
+  | linchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | linchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | shrchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | shrchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI process 
+           { OutC ($1,$2, $4, $6, $9) }
+  | OUTPUT linchan linchan SEMI process { Throw ($1,$2,$3,$5) }
+  | linchan LARROW OUTPUT linchan SEMI process { ShftUpL (fst $1,$1,$4,$6) }
+  | linchan LARROW OUTPUT shrchan SEMI process { ShftUpL (fst $1,$1,$4,$6) }
+  | OUTPUT linchan LPAREN linchan LARROW process RPAREN { ShftDwR ($1,$2,$4,$6) }
+  | OUTPUT linchan LPAREN shrchan LARROW process RPAREN { ShftDwR ($1,$2,$4,$6) }
+  | CLOSE linchan { Close ($1,$2) }
+  | CLOSE { Exit $1 }
+  | WAIT linchan SEMI process { Wait ($1,$2,$4) }
+  | linchan LARROW expression SEMI process 
+    { Bind ((fst $1),$1,$3,[],$5) }
+  | linchan LARROW ambig SEMI process 
+    { Bind ((fst $1),$1,ambigexp $3,[],$5) }
+  | shrchan LARROW expression SEMI process
+    { Bind ((fst $1),$1,$3,[],$5) }
+  | shrchan LARROW ambig SEMI process
+    { Bind ((fst $1),$1,ambigexp $3,[],$5) }
+  | linchan LARROW expression TAIL chanlist SEMI process 
+    { Bind ((fst $1),$1,$3,$5,$7) }
+  | linchan LARROW ambig TAIL chanlist SEMI process 
+    { Bind ((fst $1),$1,ambigexp $3,$5,$7) }
+  | shrchan LARROW expression TAIL chanlist SEMI process 
+    { Bind ((fst $1) ,$1,$3,$5,$7) }
+  | shrchan LARROW ambig TAIL chanlist SEMI process 
+    { Bind ((fst $1) ,$1,ambigexp $3,$5,$7) }
+  | linchan LARROW expression { TailBind (fst $1,$1,$3,[]) }
+  | linchan LARROW ambig { TailBind (fst $1,$1,ambigexp $3,[]) }
+  | linchan LARROW expression TAIL chanlist { TailBind (fst $1,$1,$3,$5) }
+  | linchan LARROW ambig TAIL chanlist { TailBind (fst $1,$1,ambigexp $3,$5) }
+  | UNDERSCORE LARROW expression SEMI process { Detached ($1,$3,[],$5) }
+  | UNDERSCORE LARROW ambig SEMI process { Detached ($1,ambigexp $3,[],$5) }
+  | UNDERSCORE LARROW expression TAIL chanlist SEMI process { Detached ($1,$3,$5,$7) }
+  | UNDERSCORE LARROW ambig TAIL chanlist SEMI process { Detached ($1,ambigexp $3,$5,$7) }
+  | LPAREN process RPAREN { $2 }
+  | CASE expression OF matchesP { CaseP ($1,$2,$4) }
+  | CASE ambig OF matchesP { CaseP ($1,ambigexp $2,$4) }
+  | IF expression THEN process ELSE process { IfP ($1,$2,$4,$6) }
+  | IF ambig THEN process ELSE process { IfP ($1,ambigexp $2,$4,$6) }
+  | linchan DOT FUNNAME SEMI process { Internal (fst $1,$1,$3,$5) }
+  | CASE linchan OF { External ($1, $2, LM.empty) }
+  | CASE linchan OF extcases { External ($1,$2,$4)  }
+  | expression SEMI process { Seq (locE $1,$1,$3) }
+  | ambig SEMI process { Seq (ambigl $1,ambigexp $1,$3) }
+  | LET FUNNAME colonpats ambig EQUALS expression SEMI process 
+        { LetP ($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS expression SEMI process 
+        { LetP ($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
+  | LET FUNNAME colonpats ambig EQUALS ambig SEMI process 
+        { LetP ($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+  | LET FUNNAME colonpats ambig_brace EQUALS ambig SEMI process 
+        { LetP ($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
+  | OUTPUT linchan LT sessiontype GT SEMI process { OutTy ($1,$2,$4,$7) }
+  | OUTPUT linchan LT linchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
+  | OUTPUT linchan LT shrchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
+  | OUTPUT linchan LT ambig GT SEMI process { OutTy ($1,$2,ambigstype $4,$7) }
+  | OUTPUT linchan LT addtail GT SEMI process { OutTy ($1,$2,$4 Linear,$7) } /* TODO Get rid of the application here */
+  | LT linchan GT LARROW INPUT linchan SEMI process {  InTy (fst $2,chan2tyvar $2,$6,$8) }
+  | LT shrchan GT LARROW INPUT linchan SEMI process {  InTy (fst $2,chan2tyvar $2,$6,$8) }
 
 extcases:
   | PIPE extcase { LM.singleton (fst $2) (snd $2) }
@@ -603,59 +737,120 @@ extcase:
 monotype_atom:
   | DIAMOND monotype_atom { Comp ("<>",[$2]) }
   | monadprefix RBRACE { MonT ($1,[]) }
-  | monadprefix monadtail { MonT($1,$2) }
+  | monadprefix LARROW sessiontype RBRACE { MonT($1,[$3]) }
+  | monadprefix LARROW linchan RBRACE { MonT($1,[chan2svar $3]) }
+  | monadprefix LARROW shrchan RBRACE { MonT($1,[chan2svar $3]) }
+  | monadprefix LARROW sestypes_ne RBRACE { MonT($1,$3) }
+  | monadprefix LARROW addtail RBRACE { MonT($1,[$3 Linear]) }
+  | monadprefix LARROW ambig RBRACE { MonT($1,[ambigstype $3]) }
   | LBRACE RBRACE { MonT (None,[]) }
-  | LBRACE monadtail { MonT (None,$2) }
+  | LBRACE LARROW sessiontype RBRACE { MonT (None,[$3]) }
+  | LBRACE LARROW sestypes_ne RBRACE { MonT (None,$3) }
+  | LBRACE LARROW addtail RBRACE { MonT (None,[$3 Linear]) }
+  | LBRACE LARROW ambig RBRACE { MonT (None,[ambigstype $3]) }
+  | LBRACE LARROW linchan RBRACE { MonT (None,[chan2svar $3]) }
+  | LBRACE LARROW shrchan RBRACE { MonT (None,[chan2svar $3]) }
+  | LBRACE linchan LARROW sestypes_ne RBRACE { MonT (Some (chan2svar $2),$4) }
+  | LBRACE linchan LARROW sessiontype RBRACE { MonT (Some (chan2svar $2),[$4]) }
+  | LBRACE linchan LARROW addtail RBRACE { MonT (Some (chan2svar $2),[$4 Linear]) }
+  | LBRACE linchan LARROW ambig RBRACE { MonT (Some (chan2svar $2),[ambigstype $4]) }
   
-monadtail:
-  | LARROW modesestypes RBRACE     { $2 }
-  | LARROW addtail RBRACE          { [$2 Linear] }
-  | LARROW ambig RBRACE          { [ambigstype $2] }
-
 monadprefix: 
   | LBRACE sessiontype { Some $2}
   | LBRACE ambig       { Some (ambigstype $2) }
   | LBRACE addtail     { Some ($2 Linear) }
 
-modesestypes:
-  | sessiontype { [$1] }
-  | sessiontype SEMI modesestypes { $1::$3 }
+sestypes_ne:
+  | sessiontype SEMI sessiontype { $1::[$3] }
+  | sessiontype SEMI sestypes_ne { $1::$3 }
   | sessiontype SEMI addtail { $1::[$3 Linear] }
   | sessiontype SEMI ambig { $1::[ambigstype $3] }
+  | sessiontype SEMI linchan { $1::[chan2svar $3] }
+  | sessiontype SEMI shrchan { $1::[chan2svar $3] }
+  | addtail SEMI sessiontype { ($1 Linear) :: [$3] }
+  | addtail SEMI sestypes_ne { ($1 Linear) :: $3 }
   | addtail SEMI addtail { ($1 Linear)::[($3 Linear)] }
   | addtail SEMI ambig { ($1 Linear) :: [ambigstype $3] }
-  | addtail SEMI modesestypes { ($1 Linear) :: $3 }
-  | ambig SEMI addtail      { (ambigstype $1) :: [($3 Linear)] }
-  | ambig SEMI ambig        { (ambigstype $1) :: [ambigstype $3] }
-  | ambig SEMI modesestypes { (ambigstype $1) :: $3 }
+  | addtail SEMI linchan { ($1 Linear) :: [chan2svar $3] }
+  | addtail SEMI shrchan { ($1 Linear) :: [chan2svar $3] }
+  | ambig SEMI sessiontype    { (ambigstype $1) :: [$3] }
+  | ambig SEMI sestypes_ne    { (ambigstype $1) :: $3 }
+  | ambig SEMI addtail        { (ambigstype $1) :: [($3 Linear)] }
+  | ambig SEMI ambig          { (ambigstype $1) :: [ambigstype $3] }
+  | ambig SEMI linchan        { (ambigstype $1) :: [chan2svar $3] }
+  | ambig SEMI shrchan        { (ambigstype $1) :: [chan2svar $3] }
+  | linchan SEMI sessiontype    { (chan2svar $1) :: [$3] }
+  | linchan SEMI sestypes_ne    { (chan2svar $1) :: $3 }
+  | linchan SEMI addtail        { (chan2svar $1) :: [($3 Linear)] }
+  | linchan SEMI ambig          { (chan2svar $1) :: [ambigstype $3] }
+  | linchan SEMI linchan        { (chan2svar $1) :: [chan2svar $3] }
+  | linchan SEMI shrchan        { (chan2svar $1) :: [chan2svar $3] }
+  | shrchan SEMI sessiontype    { (chan2svar $1) :: [$3] }
+  | shrchan SEMI sestypes_ne    { (chan2svar $1) :: $3 }
+  | shrchan SEMI addtail        { (chan2svar $1) :: [($3 Linear)] }
+  | shrchan SEMI ambig          { (chan2svar $1) :: [ambigstype $3] }
+  | shrchan SEMI linchan        { (chan2svar $1) :: [chan2svar $3] }
+  | shrchan SEMI shrchan        { (chan2svar $1) :: [chan2svar $3] }
 
 sessiontype:
   | stype_atom { $1 }
   | wedge_types { $1 }
   | shoe_types { $1 }
   | AT sessiontype { At $2 }
+  | AT linchan { At (chan2svar $2) }
+  | AT shrchan { At (chan2svar $2) }
   | AT ambig { At (ambigstype $2) }
-  | AT addtail { At ($2 Linear) } /* mode */
+  | AT addtail { At ($2 Linear) }
   | PRIME sessiontype { Prime $2 }
+  | PRIME linchan { Prime (chan2svar $2) }
+  | PRIME shrchan { Prime (chan2svar $2) }
   | PRIME ambig { Prime (ambigstype $2) }
-  | PRIME addtail { Prime ($2 Linear) } /* mode */
+  | PRIME addtail { Prime ($2 Linear) }
   | BANG sessiontype { Bang $2 }
+  | BANG linchan { Bang (chan2svar $2) }
+  | BANG shrchan { Bang (chan2svar $2) }
   | BANG ambig { Bang (ambigstype $2) }
-  | BANG addtail { Bang ($2 Linear) } /* mode */
-  | FORALL SVNAME DOT sessiontype { Forall (Linear,(Linear,snd $2),$4) } /* mode */
-  | FORALL SVNAME DOT ambig { Forall (Linear,(Linear,snd $2),ambigstype $4) } /* mode */
-  | FORALL SVNAME DOT addtail { Forall (Linear,(Linear,snd $2),$4 Linear ) } /* mode */
-  | EXISTS SVNAME DOT sessiontype { Exists (Linear,(Linear,snd $2),$4) } /* mode */
-  | EXISTS SVNAME DOT ambig { Exists (Linear,(Linear,snd $2),ambigstype $4) } /* mode */
-  | EXISTS SVNAME DOT addtail { Exists (Linear,(Linear,snd $2),$4 Linear) } /* mode */
+  | BANG addtail { Bang ($2 Linear) }
+  | FORALL linchan DOT sessiontype { Forall (Linear,chan2tyvar $2,$4) }
+  | FORALL linchan DOT linchan { Forall (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | FORALL linchan DOT shrchan { Forall (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | FORALL linchan DOT ambig { Forall (Linear,chan2tyvar $2,ambigstype $4) } /* mode */
+  | FORALL linchan DOT addtail { Forall (Linear,chan2tyvar $2,$4 Linear ) } /* mode */
+  | FORALL shrchan DOT sessiontype { Forall (Linear,chan2tyvar $2,$4) }
+  | FORALL shrchan DOT linchan { Forall (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | FORALL shrchan DOT shrchan { Forall (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | FORALL shrchan DOT ambig { Forall (Linear,chan2tyvar $2,ambigstype $4) } /* mode */
+  | FORALL shrchan DOT addtail { Forall (Linear,chan2tyvar $2,$4 Linear ) } /* mode */
+  | EXISTS linchan DOT sessiontype { Exists (Linear,chan2tyvar $2,$4) } /* mode */
+  | EXISTS linchan DOT linchan { Exists (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | EXISTS linchan DOT shrchan { Exists (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | EXISTS linchan DOT ambig { Exists (Linear,chan2tyvar $2,ambigstype $4) } /* mode */
+  | EXISTS linchan DOT addtail { Exists (Linear,chan2tyvar $2,$4 Linear) } /* mode */
+  | EXISTS shrchan DOT sessiontype { Exists (Linear,chan2tyvar $2,$4) } /* mode */
+  | EXISTS shrchan DOT linchan { Exists (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | EXISTS shrchan DOT shrchan { Exists (Linear,chan2tyvar $2,chan2svar $4) } /* mode */
+  | EXISTS shrchan DOT ambig { Exists (Linear,chan2tyvar $2,ambigstype $4) } /* mode */
+  | EXISTS shrchan DOT addtail { Exists (Linear,chan2tyvar $2,$4 Linear) } /* mode */
 
-wedge_types: /* TODO modes */
+wedge_types:
   | ambig WEDGE sessiontype { Puretypes.OutD (Linear,ambigmtype $1,$3) }
+  | ambig WEDGE linchan { Puretypes.OutD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig WEDGE shrchan { Puretypes.OutD (Linear,ambigmtype $1,chan2svar $3) }
   | ambig WEDGE ambig { Puretypes.OutD (Linear,ambigmtype $1,ambigstype $3) }
+  | ambig_brace WEDGE sessiontype { Puretypes.OutD (Linear,abrace2mtype $1,$3) }
+  | ambig_brace WEDGE linchan { Puretypes.OutD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace WEDGE shrchan { Puretypes.OutD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace WEDGE ambig { Puretypes.OutD (Linear,abrace2mtype $1,ambigstype $3) }
 
-shoe_types: /* TODO modes */
+shoe_types:
   | ambig SHOE sessiontype { Puretypes.InD (Linear,ambigmtype $1,$3) }
+  | ambig SHOE linchan { Puretypes.InD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig SHOE shrchan { Puretypes.InD (Linear,ambigmtype $1,chan2svar $3) }
   | ambig SHOE ambig { Puretypes.InD (Linear,ambigmtype $1,ambigstype $3) }
+  | ambig_brace SHOE sessiontype { Puretypes.InD (Linear,abrace2mtype $1,$3) }
+  | ambig_brace SHOE linchan { Puretypes.InD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace SHOE shrchan { Puretypes.InD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace SHOE ambig { Puretypes.InD (Linear,abrace2mtype $1,ambigstype $3) }
 
 addtail:
   | timestail { $1 }
@@ -665,24 +860,53 @@ timestail: /* TODO modes */
   |  stype_atom TIMES sessiontype { fun m -> Puretypes.OutC (m,$1,$3) }
   |  stype_atom TIMES ambig { fun m ->  Puretypes.OutC (m,$1,ambigstype $3) }
   |  stype_atom TIMES addtail { fun m ->  Puretypes.OutC (m,$1,$3 Linear) }
+  |  stype_atom TIMES linchan { fun m ->  Puretypes.OutC (m,$1,chan2svar $3) }
+  |  stype_atom TIMES shrchan { fun m ->  Puretypes.OutC (m,$1,chan2svar $3) }
+  |  linchan TIMES sessiontype { fun m -> Puretypes.OutC (m,chan2svar $1,$3) }
+  |  linchan TIMES ambig { fun m ->  Puretypes.OutC (m,chan2svar $1,ambigstype $3) }
+  |  linchan TIMES addtail { fun m ->  Puretypes.OutC (m,chan2svar $1,$3 Linear) }
+  |  linchan TIMES linchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
+  |  linchan TIMES shrchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan TIMES sessiontype { fun m -> Puretypes.OutC (m,chan2svar $1,$3) }
+  |  shrchan TIMES ambig { fun m ->  Puretypes.OutC (m,chan2svar $1,ambigstype $3) }
+  |  shrchan TIMES addtail { fun m ->  Puretypes.OutC (m,chan2svar $1,$3 Linear) }
+  |  shrchan TIMES linchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan TIMES shrchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
   |  ambig_notimesarr TIMES sessiontype { fun m -> Puretypes.OutC (m,ambigstype $1,$3) }
   |  ambig_notimesarr TIMES addtail { fun m ->  Puretypes.OutC (m,ambigstype $1,$3 Linear) }
+  |  ambig_notimesarr TIMES linchan { fun m ->  Puretypes.OutC (m,ambigstype $1,chan2svar $3) }
+  |  ambig_notimesarr TIMES shrchan { fun m ->  Puretypes.OutC (m,ambigstype $1,chan2svar $3) }
 
 lolitail: 
   |  stype_atom LOLI sessiontype { fun m -> Puretypes.InC (m,$1,$3) }
   |  stype_atom LOLI ambig { fun m ->  Puretypes.InC (m,$1,ambigstype $3) }
   |  stype_atom LOLI addtail { fun m ->  Puretypes.InC (m,$1,$3 Linear) }
+  |  stype_atom LOLI linchan { fun m ->  Puretypes.InC (m,$1,chan2svar $3) }
+  |  stype_atom LOLI shrchan { fun m ->  Puretypes.InC (m,$1,chan2svar $3) }
+  |  linchan LOLI sessiontype { fun m -> Puretypes.InC (m,chan2svar $1,$3) }
+  |  linchan LOLI ambig { fun m ->  Puretypes.InC (m,chan2svar $1,ambigstype $3) }
+  |  linchan LOLI addtail { fun m ->  Puretypes.InC (m,chan2svar $1,$3 Linear) }
+  |  linchan LOLI linchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
+  |  linchan LOLI shrchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan LOLI sessiontype { fun m -> Puretypes.InC (m,chan2svar $1,$3) }
+  |  shrchan LOLI ambig { fun m ->  Puretypes.InC (m,chan2svar $1,ambigstype $3) }
+  |  shrchan LOLI addtail { fun m ->  Puretypes.InC (m,chan2svar $1,$3 Linear) }
+  |  shrchan LOLI linchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan LOLI shrchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
   |  ambig_notimesarr LOLI sessiontype { fun m -> Puretypes.InC (m,ambigstype $1,$3) }
   |  ambig_notimesarr LOLI ambig { fun m -> Puretypes.InC (m,ambigstype $1,ambigstype $3) }
   |  ambig_notimesarr LOLI addtail { fun m ->  Puretypes.InC (Linear,ambigstype $1,$3 Linear) }
+  |  ambig_notimesarr LOLI linchan { fun m ->  Puretypes.InC (Linear,ambigstype $1,chan2svar $3) }
+  |  ambig_notimesarr LOLI shrchan { fun m ->  Puretypes.InC (Linear,ambigstype $1,chan2svar $3) }
 
 stype_atom: /* TODO modes */
   | LPAREN sessiontype RPAREN { Parens $2 }
+  | LPAREN linchan RPAREN { Parens (chan2svar $2) }
+  | LPAREN shrchan RPAREN { Parens (chan2svar $2) }
   | LPAREN lolitail RPAREN { Parens ($2 Linear) }
   | LPAREN timestail RPAREN { Parens ($2 Linear) }
   | OPLUS choices RBRACE { Intern (Linear,$2) }
   | AMPR choices RBRACE { Extern (Linear,$2) }
-  | SVNAME { SVar (fst $1,(Linear,snd $1)) } /* mode */
 
 choices:
   | /* empty */ { LM.empty }
@@ -691,6 +915,8 @@ choices:
 
 choice:
   | FUNNAME COLON sessiontype { ($1,$3) }
+  | FUNNAME COLON linchan { ($1,chan2svar $3) }
+  | FUNNAME COLON shrchan { ($1,chan2svar $3) }
   | FUNNAME COLON ambig { ($1,ambigstype $3) }
   | FUNNAME COLON timestail { ($1,$3 Linear) }
   | FUNNAME COLON lolitail { ($1,$3 Linear) }

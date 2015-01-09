@@ -169,3 +169,17 @@ let string_of_mode m : string = match m with
 (* Maybe this should go in vars.ml instead? *)
 type tyvar = modality * string with sexp, bin_io
 let string_of_tyvar (m,x) = modetag m ^ x
+module TS = Set.Make(
+  struct
+    type t = tyvar
+    let compare x1 x2 = Pervasives.compare x1 x2
+    let t_of_sexp = tyvar_of_sexp
+    let sexp_of_t = sexp_of_tyvar
+  end)
+module TM = Map.Make(
+  struct
+    type t = tyvar
+    let compare x1 x2 = Pervasives.compare x1 x2
+    let t_of_sexp = tyvar_of_sexp
+    let sexp_of_t = sexp_of_tyvar
+  end)
