@@ -138,8 +138,8 @@ foo : Int;; 'c <- foo = let x : Int = 1; 'c <- 'c;;
 foo : {1};; foo = ();;
 foo : {@1};; foo = ();;
 foo : {!1};; foo = ();;
-(* foo : {mu $x. 1};; foo = ();;
-foo : {@mu $x. 1};; foo = ();;
-foo : {!mu $x. 1};; foo = ();; BUG *)
 foo : {1 -o 1};; foo = ();;
 foo : {1 * 1};; foo = ();;
+
+foo : { [a] /\ 1 };; foo = ();;
+foo : { {'a <- 'a} /\ 1 };; foo = ();;

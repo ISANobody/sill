@@ -38,11 +38,11 @@ rule token = parse
   | eof             { EOF } 
 
 (* your rules go here *)
-  | ":"         { cinc 1; COLON }
+  | ":"         { COLON (mkloc 1) }
   | ";;" 	{ cinc 2; DBLSEMI  }
   | "+" 	{ cinc 1; PLUS  }
   | "-" 	{ cinc 1; MINUS  }
-  | "*" 	{ cinc 1; TIMES  }
+  | "*" 	{ TIMES (mkloc 1) }
   | "/" 	{ cinc 1; DIV  }
   | "+." 	{ cinc 2; DPLUS  }
   | "-." 	{ cinc 2; DMINUS  }
@@ -60,12 +60,12 @@ rule token = parse
   | "||" 	{ OR (mkloc 2) }
   | "|" 	{ cinc 1; PIPE  }
   | "->" 	{ cinc 2; ARROW  }
-  | "<-" 	{ cinc 2; LARROW  }
+  | "<-" 	{ LARROW (mkloc 2) }
   | "-<"        { cinc 2; TAIL }
   | "::" 	{ cinc 2; DCOLON  }
   | "let" 	{ LET (mkloc 3) }
   | "~" 	{ NEG (mkloc 1) }
-  | ";" 	{ cinc 1; SEMI  }
+  | ";" 	{ SEMI (mkloc 1) }
   | "in" 	{ cinc 2; IN  }
   | "if" 	{ IF (mkloc 2) }
   | "then" 	{ cinc 4; THEN  }
@@ -73,11 +73,11 @@ rule token = parse
   | "fun" 	{ FUN (mkloc 3) }
   | "[" 	{ LBRAC (mkloc 1) }
   | "]" 	{ RBRAC (mkloc 1) }
-  | "(" 	{ cinc 1; LPAREN  }
+  | "(" 	{ LPAREN (mkloc 1) }
   | ")" 	{ cinc 1; RPAREN  }
-  | "{" 	{ cinc 1; LBRACE  }
+  | "{" 	{ LBRACE (mkloc 1) }
   | "}" 	{ cinc 1; RBRACE  }
-  | "," 	{ cinc 1; COMMA  }
+  | "," 	{ COMMA (mkloc 1) }
   | "_"		{ UNDERSCORE (mkloc 1) }
   | "abort"     { ABORT (mkloc 5) }
   | "type"      { cinc 4; TYPE }
@@ -93,14 +93,13 @@ rule token = parse
   | "wait"      { WAIT (mkloc 4) }
   | "service"   { SERVICE (mkloc 7) }
   | "register"  { REGISTER (mkloc 8) }
-  | "=>"        { cinc 2; SHOE }
-  | "/\\"       { cinc 2; WEDGE }
-  | "-o"        { cinc 2; LOLI }
-  | "ALL"       { cinc 3; ALL }
-  | "."         { cinc 1; DOT }
-  | "+{"        { cinc 2; OPLUS }
-  | "&{"        { cinc 2; AMPR }
-  | "forall"    { cinc 6; FORALL }
+  | "=>"        { SHOE (mkloc 2) }
+  | "/\\"       { WEDGE (mkloc 2) }
+  | "-o"        { LOLI (mkloc 2) }
+  | "."         { DOT (mkloc 1) }
+  | "+{"        { OPLUS (mkloc 2) }
+  | "&{"        { AMPR (mkloc 2) }
+  | "forall"    { FORALL (mkloc 6) }
   | "exists"    { cinc 6; EXISTS }
 
   | numeric+ as s { INT (mkloc (String.length s),(int_of_string s)) }
@@ -115,9 +114,9 @@ rule token = parse
   | '@' (lowercase (id_char*) as s)   { AFFCHAN (mkloc (1+String.length s),s) }
   | ((lowercase (id_char*)) as s) '<' { POLY (mkloc (1+String.length s),s) }
 
-  | "!"         { cinc 1; BANG }
-  | "'"         { cinc 1; PRIME }
-  | "@"         { cinc 1; AT }
+  | "!"         { BANG (mkloc 1) }
+  | "'"         { PRIME (mkloc 1) }
+  | "@"         { AT (mkloc 1) }
 
   | ("//"([^'\n' '\r']*)) as s	   { cinc (String.length s); token lexbuf }
   | open_comment	   { comment [mkloc 2] lexbuf }

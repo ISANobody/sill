@@ -4,7 +4,9 @@ open Core.Std
 open Puretypes
 open Fullsyntax
 
-let checkStop n = if snd n = 1 then Stop Linear else errr (fst n) "Expected 1 found something else"
+let checkStop n = if snd n = 1 
+                  then Stop Linear 
+                  else errr (fst n) ("Expected the session type 1 found "^string_of_int (snd n))
 
 let rec ambigstype (ain: ambig) : stype =
   match ain with
