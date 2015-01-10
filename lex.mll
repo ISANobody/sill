@@ -100,7 +100,7 @@ rule token = parse
   | "+{"        { OPLUS (mkloc 2) }
   | "&{"        { AMPR (mkloc 2) }
   | "forall"    { FORALL (mkloc 6) }
-  | "exists"    { cinc 6; EXISTS }
+  | "exists"    { EXISTS (mkloc 6) }
 
   | numeric+ as s { INT (mkloc (String.length s),(int_of_string s)) }
   | (numeric+'.'(numeric*)) as s       { FLOAT (mkloc (String.length s),(float_of_string s)) }

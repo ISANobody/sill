@@ -54,7 +54,7 @@ let abrace2proc ((c1,c2):(cvar * cvar)) : proc =
 %token <Base.srcloc> RBRAC UNDERSCORE CLOSE AWAIT WAIT CASE INPUT OUTPUT FUN 
                      EQUALS LET OR IF NEG ABORT UNIT LBRAC SERVICE REGISTER
                      SEMI LPAREN LOLI TIMES DOT COLON LBRACE OPLUS AMPR
-                     SHOE WEDGE AT BANG PRIME LARROW FORALL COMMA
+                     SHOE WEDGE AT BANG PRIME LARROW FORALL COMMA EXISTS
 %token DBLSEMI PLUS MINUS DIV DPLUS DMINUS DTIMES DDIV CARAT EXP LT GEQ LEQ GT
        AND PIPE ARROW DCOLON IN THEN ELSE TYPE LIST
        RPAREN
@@ -62,7 +62,7 @@ let abrace2proc ((c1,c2):(cvar * cvar)) : proc =
        OF POLL
        RBRACE
        PROC TAIL
-       BANG DIAMOND ASSERT MUTAND EXISTS
+       BANG DIAMOND ASSERT MUTAND
 
 %token<Base.modality> STYPE 
 
@@ -199,12 +199,17 @@ topsig:
   | FUNNAME COLON ambig_brace DBLSEMI  { ($1,`M (abrace2mtype $3)) }  
   | FUNNAME COLON FORALL error { errr $3 "Expected quantifer (e.g., <a,'b,@c>) after 'forall'." }
   | FUNNAME COLON FORALL LT error GT { errr $3 "Expected ','-separated list of type variables (x/'x/@x/!x) between '<' and '>'." }
-  | FUNNAME COLON FORALL LT netyvarlist GT DOT error { errr $7 "Expected data-level type after '.' here." }
-  | FUNNAME COLON FORALL LT netyvarlist GT DOT error DBLSEMI { errr $7 "Expected data-level type after '.' here." }
+  | FUNNAME COLON FORALL LT GT DOT error { errr $6 "Expected a data-level type after '.' here." }
+  | FUNNAME COLON FORALL LT GT DOT error DBLSEMI { errr $6 "Expected a data-level type after '.' here." }
+  | FUNNAME COLON FORALL LT GT DOT ambig DBLSEMI { ($1,`P (Poly ([],ambigmtype $7))) }
+  | FUNNAME COLON FORALL LT GT DOT ambig_brace DBLSEMI { ($1,`P (Poly ([],abrace2mtype $7))) }
+  | FUNNAME COLON FORALL LT netyvarlist GT DOT error { errr $7 "Expected a data-level type after '.' here." }
+  | FUNNAME COLON FORALL LT netyvarlist GT DOT error DBLSEMI { errr $7 "Expected a data-level type after '.' here." }
   | FUNNAME COLON FORALL LT netyvarlist GT DOT ambig DBLSEMI { ($1,`P (Poly ($5,ambigmtype $8))) }
   | FUNNAME COLON FORALL LT netyvarlist GT DOT ambig_brace DBLSEMI { ($1,`P (Poly ($5,abrace2mtype $8))) }
 
 toplet:
+  | topsig error { errr (fst (fst $1)) ("Missing definition for signature of "^string_of_fvar (fst $1)) }
   | topsig FUNNAME eqpats expression 
     { namecheck $1 $2; (fst $1,(TopExp ($2,$1,$3,$4))) }
   | topsig FUNNAME eqpats ambig 
@@ -752,7 +757,6 @@ extcase:
   | FUNNAME ARROW process { ($1,$3) }
 
 monotype_atom:
-  | LBRACE error { errr $1 "Expected monad type here. E.g., { 1 <- Stream a }" }
   | LBRACE error RBRACE { errr $1 "Expected monad type here. E.g., { 1 <- Stream a }" }
   | LBRACE error LARROW sessiontype RBRACE { errr $3 "Expected session type before '<-' here." }
   | LBRACE error LARROW linchan RBRACE { errr $3 "Expected session type before '<-' here." }
@@ -854,6 +858,9 @@ sessiontype:
   | BANG shrchan { Bang (chan2svar $2) }
   | BANG ambig { Bang (ambigstype $2) }
   | BANG addtail { Bang ($2 Linear) }
+  | FORALL error { errr $1 "Expected a session type variable ('x/@x/!x) after 'forall'." }
+  | FORALL linchan error { errr (fst $2) "Expected '.' after session type variable." }
+  | FORALL shrchan error { errr (fst $2) "Expected '.' after session type variable." }
   | FORALL linchan DOT error { errr $3 "Expected a session type after '.' here." }
   | FORALL linchan DOT sessiontype { Forall (Linear,chan2tyvar $2,$4) }
   | FORALL linchan DOT linchan { Forall (Linear,chan2tyvar $2,chan2svar $4) }
@@ -866,6 +873,9 @@ sessiontype:
   | FORALL shrchan DOT shrchan { Forall (Linear,chan2tyvar $2,chan2svar $4) }
   | FORALL shrchan DOT ambig { Forall (Linear,chan2tyvar $2,ambigstype $4) }
   | FORALL shrchan DOT addtail { Forall (Linear,chan2tyvar $2,$4 Linear ) }
+  | EXISTS error { errr $1 "Expected a session type variable ('x/@x/!x) after 'exists'." }
+  | EXISTS linchan error { errr (fst $2) "Expected '.' after session type variable." }
+  | EXISTS shrchan error { errr (fst $2) "Expected '.' after session type variable." }
   | EXISTS linchan DOT error { errr $3 "Expected a session type after '.' here." }
   | EXISTS linchan DOT sessiontype { Exists (Linear,chan2tyvar $2,$4) }
   | EXISTS linchan DOT linchan { Exists (Linear,chan2tyvar $2,chan2svar $4) }
@@ -910,7 +920,10 @@ addtail:
   | lolitail  { $1 }
 
 timestail:
-  |  error TIMES { errr $2 "Expected session type before *" }
+  |  error TIMES { errr $2 "Expected session type before '*' here." }
+  |  stype_atom TIMES error { errr $2 "Expected session type after '*' here." }
+  |  linchan TIMES error { errr $2 "Expected session type after '*' here." }
+  |  shrchan TIMES error { errr $2 "Expected session type after '*' here." }
   |  stype_atom TIMES sessiontype { fun m -> Puretypes.OutC (m,$1,$3) }
   |  stype_atom TIMES ambig { fun m ->  Puretypes.OutC (m,$1,ambigstype $3) }
   |  stype_atom TIMES addtail { fun m ->  Puretypes.OutC (m,$1,$3 Linear) }
@@ -932,7 +945,10 @@ timestail:
   |  ambig_notimesarr TIMES shrchan { fun m ->  Puretypes.OutC (m,ambigstype $1,chan2svar $3) }
 
 lolitail: 
-  |  error LOLI { errr $2 "Expected session type before -o" }
+  |  error LOLI { errr $2 "Expected session type before '-o' here." }
+  |  stype_atom LOLI error { errr $2 "Expected session type after '-o' here." }
+  |  linchan LOLI error { errr $2 "Expected session type after '-o' here." }
+  |  shrchan LOLI error { errr $2 "Expected session type after '-o' here." }
   |  stype_atom LOLI sessiontype { fun m -> Puretypes.InC (m,$1,$3) }
   |  stype_atom LOLI ambig { fun m ->  Puretypes.InC (m,$1,ambigstype $3) }
   |  stype_atom LOLI addtail { fun m ->  Puretypes.InC (m,$1,$3 Linear) }
@@ -962,9 +978,9 @@ stype_atom:
   | LPAREN timestail RPAREN { Parens ($2 Linear) }
   | LPAREN error RPAREN { errr $1 "Expected a session type here" }
   | OPLUS choices RBRACE { Intern (Linear,$2) }
-  | OPLUS error RBRACE   { errr $1 "Expected label to session type mapping here. E.g., +{foo:1; bar:1}" }
+  | OPLUS error RBRACE   { errr $1 "Expected a mapping from labels to session types. E.g., +{foo:1; bar:1}" }
   | AMPR choices RBRACE { Extern (Linear,$2) }
-  | AMPR error RBRACE   { errr $1 "Expected label to session type mapping here. E.g., +{foo:1; bar:1}" }
+  | AMPR error RBRACE   { errr $1 "Expected a mapping from labels to session types. E.g., +{foo:1; bar:1}" }
 
 choices:
   | /* empty */ { LM.empty }

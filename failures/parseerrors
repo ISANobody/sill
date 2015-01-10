@@ -1,0 +1,152 @@
+t:&&;;
+t = ();;
+%%%%
+@1:2 Expected a data-level type after ':' here.
+
+t:forall && ;;
+%%%%
+@2:3 Expected quantifer (e.g., <a,'b,@c>) after 'forall'.
+
+t:forall <&&> ;;
+%%%%
+@2:3 Expected ','-separated list of type variables (x/'x/@x/!x) between '<' and '>'.
+
+t:forall <>. &&;;
+%%%%
+@2:12 Expected a data-level type after '.' here.
+
+t:forall <'a>. &&;;
+%%%%
+@2:14 Expected a data-level type after '.' here.
+
+t:{&&};;
+%%%%
+@2:3 Expected monad type here. E.g., { 1 <- Stream a }
+
+t:{(&&)};;
+%%%%
+@2:4 Expected a session type here
+
+t:{+{&&}};;
+%%%%
+@2:4 Expected a mapping from labels to session types. E.g., +{foo:1; bar:1}
+
+t:{&{&&}};;
+%%%%
+@2:4 Expected a mapping from labels to session types. E.g., +{foo:1; bar:1}
+
+t:{&{foo:1;&&}};;
+%%%%
+@2:11 Expected the rest of a session type mapping here. E.g., bar:1}
+
+t:{&{&&;foo:1}};;
+%%%%
+@2:12 Expected branch label (lower case identifier) before ':' here.
+
+t:{&{bar:&&;foo:1}};;
+%%%%
+@2:9 Expected session type after ':' here.
+
+t:{ ! && };;
+%%%%
+@2:5 Expected session type after '!' here.
+
+t:{ @ && };;
+%%%%
+@2:5 Expected session type after '@' here.
+
+t:{ ' && };;
+%%%%
+@2:5 Expected session type after ''' here.
+
+t:{ forall && };;
+%%%%
+@2:5 Expected a session type variable ('x/@x/!x) after 'forall'.
+
+t:{ forall 'x && };;
+%%%%
+@2:12 Expected '.' after session type variable.
+
+t:{ forall !x && };;
+%%%%
+@2:12 Expected '.' after session type variable.
+
+t:{ forall 'x . && };;
+%%%%
+@2:15 Expected a session type after '.' here.
+
+t:{ forall !x . && };;
+%%%%
+@2:15 Expected a session type after '.' here.
+
+t:{ exists && };;
+%%%%
+@2:5 Expected a session type variable ('x/@x/!x) after 'exists'.
+
+t:{ exists 'x && };;
+%%%%
+@2:12 Expected '.' after session type variable.
+
+t:{ exists !x && };;
+%%%%
+@2:12 Expected '.' after session type variable.
+
+t:{ exists 'x . && };;
+%%%%
+@2:15 Expected a session type after '.' here.
+
+t:{ exists !x . && };;
+%%%%
+@2:15 Expected a session type after '.' here.
+
+t:{ && /\ 1 };;
+%%%%
+@2:8 Expected data-level type before '/\' here.
+
+t:{ 1 /\ && };;
+%%%%
+@2:7 Expected session type after '/\' here.
+
+t:{ {'a <- 'a} /\ && };;
+%%%%
+@2:16 Expected session type after '/\' here.
+
+t:{ && => 1 };;
+%%%%
+@2:8 Expected data-level type before '=>' here.
+
+t:{ 1 => && };;
+%%%%
+@2:7 Expected session type after '=>' here.
+
+t:{ {'a <- 'a} => && };;
+%%%%
+@2:16 Expected session type after '=>' here.
+
+t:{ && * 1 };;
+%%%%
+@2:8 Expected session type before '*' here.
+
+t:{ ('a) * && };;
+%%%%
+@2:10 Expected session type after '*' here.
+
+t:{ 'a * && };;
+%%%%
+@2:8 Expected session type after '*' here.
+
+t:{ && -o 1 };;
+%%%%
+@2:8 Expected session type before '-o' here.
+
+t:{ ('a) -o && };;
+%%%%
+@2:10 Expected session type after '-o' here.
+
+t:{ 'a -o && };;
+%%%%
+@2:8 Expected session type after '-o' here.
+
+t:{ 1 -o 1 };;
+%%%%
+@2:1 Missing definition for signature of t
