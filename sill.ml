@@ -19,8 +19,8 @@ let main =
                                 (optional_with_default "linear" string)
            +> (anon ("<program>" %: file)))
   and realMain (backend:string) (eval_trace:bool) (live_trace:bool) (infer_trace:bool) (sub_trace:bool) 
-               (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool) (gkind:string)
-               (prog:string)  () = 
+               (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool)
+               (gkind:string) (prog:string)  () = 
       eval_trace_flag := eval_trace;
       live_trace_flag := live_trace;
       infer_trace_flag := infer_trace;
@@ -57,4 +57,4 @@ let main =
          | "ssh" -> Eval_ssh.Impl_SSH.init();
                     Eval_ssh.SSH_Eval.eval_top SM.empty pds
          | _ -> prerr_endline "Unknown backend option"
-  in run (basic ~summary:"SILL interpreter" spec realMain)
+  in run ~version:"1.2.1" (basic ~summary:"SILL interpreter" spec realMain)
