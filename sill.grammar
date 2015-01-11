@@ -127,7 +127,10 @@ process ::= ( <process> )
           | send <subchan> < <session_type> > ; <process>
           | < <subchan> > <- recv <subchan> ; <process>
 
+any_type_var ::= <lowercase> | <anychan>
+
 topsig ::= <lowercase> : <data_level_type> ;;
+         | forall < <' '-separated list of <any_type_var>> . <data_level_type>;;
 
 topdef ::= <topsig> <lowercase> <' '-separated list of <pattern_var>> = <expression>
          | <topsig> <subchan> <- <lowercase> <' '-separated list of <pattern_var>> = <process>
