@@ -39,7 +39,7 @@ rule token = parse
 
 (* your rules go here *)
   | ":"         { COLON (mkloc 1) }
-  | ";;" 	{ cinc 2; DBLSEMI  }
+  | ";;" 	{ DBLSEMI (mkloc 2) }
   | "+" 	{ cinc 1; PLUS  }
   | "-" 	{ cinc 1; MINUS  }
   | "*" 	{ TIMES (mkloc 1) }
@@ -51,25 +51,25 @@ rule token = parse
   | "^" 	{ cinc 1; CARAT  }
   | "**" 	{ cinc 2; EXP  }
   | "<" 	{ cinc 1; LT  }
-  | ">" 	{ cinc 1; GT  }
+  | ">" 	{ GT (mkloc 1) }
   | "<=" 	{ cinc 2; LEQ  }
   | ">=" 	{ cinc 2; GEQ  }
   | "=" 	{ EQUALS (mkloc 1)  }
   | "&&" 	{ cinc 2; AND  }
-  | "and"       { cinc 2; MUTAND }
+  | "and"       { MUTAND (mkloc 3) }
   | "||" 	{ OR (mkloc 2) }
   | "|" 	{ cinc 1; PIPE  }
-  | "->" 	{ cinc 2; ARROW  }
+  | "->" 	{ ARROW (mkloc 2) }
   | "<-" 	{ LARROW (mkloc 2) }
-  | "-<"        { cinc 2; TAIL }
+  | "-<"        { TAIL (mkloc 2) }
   | "::" 	{ cinc 2; DCOLON  }
   | "let" 	{ LET (mkloc 3) }
   | "~" 	{ NEG (mkloc 1) }
   | ";" 	{ SEMI (mkloc 1) }
   | "in" 	{ cinc 2; IN  }
   | "if" 	{ IF (mkloc 2) }
-  | "then" 	{ cinc 4; THEN  }
-  | "else" 	{ cinc 4; ELSE  }
+  | "then" 	{ THEN (mkloc 4) }
+  | "else" 	{ ELSE (mkloc 4) }
   | "fun" 	{ FUN (mkloc 3) }
   | "[" 	{ LBRAC (mkloc 1) }
   | "]" 	{ RBRAC (mkloc 1) }
@@ -86,7 +86,7 @@ rule token = parse
   | "utype"     { cinc 5; STYPE Intuist }
   | "proc"      { cinc 4; PROC }
   | "case"      { CASE (mkloc 4) }
-  | "of"        { cinc 2; OF }
+  | "of"        { OF (mkloc 2) }
   | "recv"      { INPUT (mkloc 4) }
   | "send"      { OUTPUT (mkloc 4) }
   | "close"     { CLOSE (mkloc 5) }

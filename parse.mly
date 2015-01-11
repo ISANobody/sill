@@ -55,14 +55,15 @@ let abrace2proc ((c1,c2):(cvar * cvar)) : proc =
                      EQUALS LET OR IF NEG ABORT UNIT LBRAC SERVICE REGISTER
                      SEMI LPAREN LOLI TIMES DOT COLON LBRACE OPLUS AMPR
                      SHOE WEDGE AT BANG PRIME LARROW FORALL COMMA EXISTS
-%token DBLSEMI PLUS MINUS DIV DPLUS DMINUS DTIMES DDIV CARAT EXP LT GEQ LEQ GT
-       AND PIPE ARROW DCOLON IN THEN ELSE TYPE LIST
+                     DBLSEMI MUTAND ARROW TAIL THEN ELSE OF GT
+%token PLUS MINUS DIV DPLUS DMINUS DTIMES DDIV CARAT EXP LT GEQ LEQ
+       AND PIPE DCOLON IN TYPE LIST
        RPAREN
        ERROR EOF
-       OF POLL
+       POLL
        RBRACE
-       PROC TAIL
-       BANG DIAMOND ASSERT MUTAND
+       PROC 
+       BANG DIAMOND ASSERT
 
 %token<Base.modality> STYPE 
 
@@ -90,6 +91,7 @@ main:
   | /* empty */ { [] }
   | typedecl main { $1 :: $2 }
   | code main { $1 :: $2 }
+  | error DBLSEMI { errr $2 "Expected top level declaration before ';;'." }
 
 ambig:
   | ambig_noarr { $1 }
@@ -120,6 +122,7 @@ ambig_notimesarr:
 
 ambig_brace:
   | LBRACE linchan LARROW linchan RBRACE { ($2,$4) }
+  | LBRACE linchan LARROW error RBRACE { errr $3 "Expected (';' separated) list of session types after '<-' here." }
 
 typedecl:
   | TYPE TYNAME vars EQUALS constructors
@@ -154,28 +157,36 @@ code:
   | toplets DBLSEMI { TopLets $1 }
 
 topprocs:
+  | error LARROW { errr $2 "Expected substructural variable (e.g., 'x or @x) before '<-'." }
   | linchan LARROW process { [($1,$3)] }
+  | linchan LARROW error { errr $2 "Expected process after '<-'." }
   | linchan LARROW process MUTAND topprocs { ($1,$3)::$5 }
+  | linchan LARROW process MUTAND error { errr $4 "Expected top level process after 'and'." }
 
 toplets: 
   | toplet { FM.singleton (fst $1) (snd $1) }
   | toplet MUTAND toplets { FM.add $3 (fst $1) (snd $1) }
+  | toplet MUTAND error { errr $2 "Expected top level expression declaration after 'and'." }
 
 eqpats:
- | EQUALS { [] }
- | patvar eqpats { $1 :: $2 }
+ | EQUALS { ($1,[]) }
+ | patvar eqpats { (fst $1,$1 :: (snd $2)) }
+ | error eqpats { errr (fst $2) "Expected function argument (e.g., x or _) before '='." }
 
 arrowpats:
-  | ARROW { [] }
-  | patvar arrowpats { $1::$2 }
+  | ARROW { ($1,[]) }
+  | patvar arrowpats { (fst $1,$1::(snd $2)) }
+  | error arrowpats { errr (fst $2) "Expected function argument (e.g., x or _) before '->'." }
 
 tailpats:
-  | TAIL { [] }
-  | patvar tailpats { $1::$2 }
+  | TAIL { ($1,[]) }
+  | patvar tailpats { (fst $1,$1::(snd $2)) }
+  | error tailpats { errr (fst $2) "Expected function argument (e.g., x or _) before '-<'." }
 
 colonpats:
-  | COLON { [] }
-  | patvar colonpats { $1::$2 }
+  | COLON { ($1,[]) }
+  | patvar colonpats { (fst $1,$1::(snd $2)) }
+  | error colonpats { errr (fst $2) "Expected function argument (e.g., x or _) before '-<'." }
 
 netyvarlist: 
   | LINCHAN { [`S (Linear,snd $1)] }
@@ -211,17 +222,29 @@ topsig:
 toplet:
   | topsig error { errr (fst (fst $1)) ("Missing definition for signature of "^string_of_fvar (fst $1)) }
   | topsig FUNNAME eqpats expression 
-    { namecheck $1 $2; (fst $1,(TopExp ($2,$1,$3,$4))) }
+    { namecheck $1 $2; (fst $1,(TopExp ($2,$1,snd $3,$4))) }
+  | topsig FUNNAME error
+    { errr (fst $2) "Expected list of arguments, '=', and expression here." }
+  | topsig FUNNAME eqpats error
+    { errr (fst $2) "Expected an expression for the body of this definition." }
   | topsig FUNNAME eqpats ambig 
-    { namecheck $1 $2; (fst $1,(TopExp ($2,$1,$3, ambigexp $4))) }
+    { namecheck $1 $2; (fst $1,(TopExp ($2,$1,snd $3, ambigexp $4))) }
+  | topsig linchan LARROW FUNNAME eqpats error
+    { errr (fst $2) "Expected a process for the body of this definition." }
   | topsig linchan LARROW FUNNAME eqpats process
-    { namecheck $1 $4; (fst $1,(TopMon ($4,$1,$5,$2,$6,[]))) }
+    { namecheck $1 $4; (fst $1,(TopMon ($4,$1,snd $5,$2,$6,[]))) }
+  | topsig linchan LARROW FUNNAME tailpats chanlist EQUALS error
+    { errr (fst $2) "Expected a process for the body of this definition." }
   | topsig linchan LARROW FUNNAME tailpats chanlist EQUALS process
-    { namecheck $1 $4; (fst $1,(TopMon ($4,$1,$5,$2,$8,$6))) }
+    { namecheck $1 $4; (fst $1,(TopMon ($4,$1,snd $5,$2,$8,$6))) }
+  | topsig UNDERSCORE LARROW FUNNAME eqpats error
+    { errr $2 "Expected a process for the body of this definition." }
   | topsig UNDERSCORE LARROW FUNNAME eqpats process
-    { namecheck $1 $4; (fst $1,(TopDet ($4,$1,$5,$2,$6,[]))) }
+    { namecheck $1 $4; (fst $1,(TopDet ($4,$1,snd $5,$2,$6,[]))) }
+  | topsig UNDERSCORE LARROW FUNNAME tailpats chanlist EQUALS error
+    { errr $2 "Expected a process for the body of this definition." }
   | topsig UNDERSCORE LARROW FUNNAME tailpats chanlist EQUALS process
-    { namecheck $1 $4; (fst $1,(TopDet ($4,$1,$5,$2,$8,$6))) }
+    { namecheck $1 $4; (fst $1,(TopDet ($4,$1,snd $5,$2,$8,$6))) }
 
 /* 
 The modifier pure mean it may allow atomic expressions, (pure)
@@ -336,27 +359,40 @@ app_exp:
 
 if_let_fun_case_exp:
   | LET FUNNAME colonpats ambig EQUALS expression IN expression
-      { Let($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+      { Let($1,`M (ambigmtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS expression IN expression
-      { Let($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
+      { Let($1,`M (abrace2mtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig EQUALS expression IN ambig
-      { Let($1,`M (ambigmtype $4),$2,$3,$6,ambigexp $8) }
+      { Let($1,`M (ambigmtype $4),$2,snd $3,$6,ambigexp $8) }
   | LET FUNNAME colonpats ambig_brace EQUALS expression IN ambig
-      { Let($1,`M (abrace2mtype $4),$2,$3,$6,ambigexp $8) }
+      { Let($1,`M (abrace2mtype $4),$2,snd $3,$6,ambigexp $8) }
   | LET FUNNAME colonpats ambig EQUALS ambig IN expression
-      { Let($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+      { Let($1,`M (ambigmtype $4),$2,snd $3,ambigexp $6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS ambig IN expression
-      { Let($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
+      { Let($1,`M (abrace2mtype $4),$2,snd $3,ambigexp $6,$8) }
   | LET FUNNAME colonpats ambig EQUALS ambig IN ambig
-      { Let($1,`M (ambigmtype $4),$2,$3,ambigexp $6,ambigexp $8) }
+      { Let($1,`M (ambigmtype $4),$2,snd $3,ambigexp $6,ambigexp $8) }
   | LET FUNNAME colonpats ambig_brace EQUALS ambig IN ambig
-      { Let($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,ambigexp $8) }
-  | FUN arrowpats expression  { match $2 with 
+      { Let($1,`M (abrace2mtype $4),$2,snd $3,ambigexp $6,ambigexp $8) }
+  | FUN arrowpats expression  { match snd $2 with 
                                     | [] -> errr $1 "No arguments to 'function'";
                                     | hd::tl -> Fun ($1,hd,tl,$3)}
-  | FUN arrowpats ambig  { match $2 with 
+  | FUN arrowpats ambig  { match snd $2 with 
                                     | [] -> errr $1 "No arguments to 'function'";
                                     | hd::tl -> Fun ($1,hd,tl,ambigexp $3)}
+  | IF error { errr $1 "Expected an expression after 'if'." }
+  | IF expression THEN error
+    { errr $3 "Expected an expression after 'then'." }
+  | IF ambig THEN error
+    { errr $3 "Expected an expression after 'then'." }
+  | IF expression THEN expression ELSE error
+    { errr $5 "Expected an expression after 'else'." }
+  | IF ambig THEN expression ELSE error
+    { errr $5 "Expected an expression after 'else'." }
+  | IF expression THEN ambig ELSE error
+    { errr $5 "Expected an expression after 'else'." }
+  | IF ambig THEN ambig ELSE error
+    { errr $5 "Expected an expression after 'else'." }
   | IF expression THEN expression ELSE expression { If($1,$2,$4,$6) }
   | IF expression THEN expression ELSE ambig      { If($1,$2,$4,ambigexp $6) }
   | IF expression THEN ambig ELSE expression	  { If($1,$2,ambigexp $4,$6) }
@@ -365,6 +401,8 @@ if_let_fun_case_exp:
   | IF ambig THEN expression ELSE ambig           { If($1,ambigexp $2,$4,ambigexp $6) }
   | IF ambig THEN ambig ELSE expression	          { If($1,ambigexp $2,ambigexp $4,$6) }
   | IF ambig THEN ambig ELSE ambig	          { If($1,ambigexp $2,ambigexp $4,ambigexp $6) }
+  | CASE error { errr $1 "Expected expression after 'case'" }
+  | CASE expression OF error { errr $3 "Expected a pattern match (e.g., \"| Foo x y -> e\") after 'of'" }
   | CASE expression OF matches	{ Case($1,$2,$4) }
   | CASE ambig OF matches	{ Case($1,ambigexp $2,$4) }
 
@@ -373,8 +411,12 @@ matches:
   | onematch matches { SM.add $2 (fst $1) (snd $1) }
 
 onematch: 
-  | PIPE TYNAME arrowpats expression { (snd $2,($3,$4)) }
-  | PIPE TYNAME arrowpats ambig { (snd $2,($3,ambigexp $4)) }
+  | PIPE TYNAME arrowpats error { errr (fst $3) "Expected an expression after '->'" }
+  | PIPE LBRAC RBRAC ARROW error { errr $4 "Expected an expression after '->'" }
+  | PIPE patvar DCOLON patvar ARROW error { errr $5 "Expected an expression after '->'" }
+  | PIPE LPAREN patvar COMMA patvar RPAREN ARROW error { errr $7 "Expected an expression after '->'" }
+  | PIPE TYNAME arrowpats expression { (snd $2,(snd $3,$4)) }
+  | PIPE TYNAME arrowpats ambig { (snd $2,(snd $3,ambigexp $4)) }
   | PIPE LBRAC RBRAC ARROW expression { ("[]",([],$5)) }
   | PIPE LBRAC RBRAC ARROW ambig { ("[]",([],ambigexp $5)) }
   | PIPE patvar DCOLON patvar ARROW expression { ("::",([$2;$4],$6)) }
@@ -503,6 +545,8 @@ pure_expo_exp:
 atomic_expression:
     constant_expression         { Con ((fst $1),snd $1) }
   | LPAREN expression RPAREN    { $2 }
+  | LPAREN error COMMA expression RPAREN { errr $1 "Expected an expression after '('" }
+  | LPAREN expression COMMA error RPAREN { errr $3 "Expected an expression after ','" }
   | LPAREN expression COMMA expression RPAREN    { Sat (locE $2,",",[$2;$4]) }
   | LPAREN expression COMMA ambig RPAREN    { Sat (locE $2,",",[$2;ambigexp $4]) }
   | LPAREN ambig COMMA expression RPAREN    { Sat (ambigl $2,",",[ambigexp $2;$4]) }
@@ -537,6 +581,7 @@ atomic_expression:
   | LT ambig COLON ambig_brace GT 
       { Cast ((ambigl $2),ambigexp $2,abrace2mtype $4) }
   | POLY polytail  { PolyApp(fst $1,$1,$2) }
+  | POLY error GT { errr (fst $1) "Expected comma separated list of types between '<' and '>'" }
 
 polytail:
   | GT                         { [] }
@@ -550,6 +595,7 @@ polytail:
   | linchan COMMA polytail     { (`S (chan2svar $1)) :: $3 }
   | ambig COMMA polytail       { (`A $1) :: $3 }
   | addtail COMMA polytail     { (`S ($1 Linear)) :: $3 }
+  | error COMMA                { errr $2 "Expected a type before ','" }
 
 list_expression:
     LBRAC list_contents			{ $2 }
@@ -587,24 +633,48 @@ matchesP:
   | onematchP matchesP { let (c,m) = $1 in SM.add $2 c m }
 
 onematchP: 
-  | PIPE TYNAME arrowpats process { (snd $2,($3,$4)) }
+  | PIPE TYNAME arrowpats process { (snd $2,(snd $3,$4)) }
   | PIPE LBRAC RBRAC ARROW process { ("[]",([],$5)) }
   | PIPE patvar DCOLON patvar ARROW process { ("::",([$2;$4],$6)) }
 
 
 process:
   | /* empty */ { Exit {lnum = -1; cnum = -1} }
+  | linchan LARROW SERVICE TYNAME SEMI error 
+    { errr $5 "Expected process after ';'" }
   | linchan LARROW SERVICE TYNAME SEMI process { Service(fst $1,$1,$4,$6) }
+  | REGISTER TYNAME linchan SEMI error
+    { errr $4 "Expected process after ';'" }
   | REGISTER TYNAME linchan SEMI process { Register($1,$2,$3,$5) }
   | ABORT { Abort $1 }
+  | FUNNAME LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | FUNNAME LARROW INPUT linchan SEMI process { InD ($3,$1,$4,$6) }
+  | UNDERSCORE LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | UNDERSCORE LARROW INPUT linchan SEMI process { InD ($3,($1,priv_name ()),$4,$6) }
+  | OUTPUT linchan expression SEMI error
+    { errr $4 "Expected process after ';'" }
+  | OUTPUT linchan ambig SEMI error
+    { errr $4 "Expected process after ';'" }
   | OUTPUT linchan expression SEMI process { OutD ($1,$2,$3,$5) }
   | OUTPUT linchan ambig SEMI process { OutD ($1,$2,ambigexp $3,$5) }
+  | linchan LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | linchan LARROW INPUT shrchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | shrchan LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | shrchan LARROW INPUT shrchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | linchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | linchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | shrchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | shrchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | OUTPUT linchan LPAREN linchan LARROW error
+    { errr $5 "Expected process after '<-'" }
+  | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI error
+    { errr $8 "Expected process after ';'" }
   | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI process 
            { OutC ($1,$2, $4, $6, $9) }
   | OUTPUT linchan linchan SEMI process { Throw ($1,$2,$3,$5) }
@@ -654,13 +724,13 @@ process:
   | expression SEMI process { Seq (locE $1,$1,$3) }
   | ambig SEMI process { Seq (ambigl $1,ambigexp $1,$3) }
   | LET FUNNAME colonpats ambig EQUALS expression SEMI process 
-        { LetP ($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+        { LetP ($1,`M (ambigmtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS expression SEMI process 
-        { LetP ($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
+        { LetP ($1,`M (abrace2mtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig EQUALS ambig SEMI process 
-        { LetP ($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+        { LetP ($1,`M (ambigmtype $4),$2,snd $3,ambigexp $6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS ambig SEMI process 
-        { LetP ($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
+        { LetP ($1,`M (abrace2mtype $4),$2,snd $3,ambigexp $6,$8) }
   | OUTPUT linchan LT sessiontype GT SEMI process { OutTy ($1,$2,$4,$7) }
   | OUTPUT linchan LT linchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
   | OUTPUT linchan LT shrchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
@@ -673,17 +743,41 @@ process:
 /* This is needed to differentiate { 'a <- 'a } the type and { 'a <- 'a } the forwarding */
 process_nf:
   | /* empty */ { Exit {lnum = -1; cnum = -1} }
+  | linchan LARROW SERVICE TYNAME SEMI error 
+    { errr $5 "Expected process after ';'" }
   | linchan LARROW SERVICE TYNAME SEMI process { Service(fst $1,$1,$4,$6) }
+  | REGISTER TYNAME linchan SEMI error
+    { errr $4 "Expected process after ';'" }
   | REGISTER TYNAME linchan SEMI process { Register($1,$2,$3,$5) }
   | ABORT { Abort $1 }
+  | FUNNAME LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | FUNNAME LARROW INPUT linchan SEMI process { InD ($3,$1,$4,$6) }
+  | UNDERSCORE LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | UNDERSCORE LARROW INPUT linchan SEMI process { InD ($3,($1,priv_name ()),$4,$6) }
+  | OUTPUT linchan expression SEMI error
+    { errr $4 "Expected process after ';'" }
+  | OUTPUT linchan ambig SEMI error
+    { errr $4 "Expected process after ';'" }
   | OUTPUT linchan expression SEMI process { OutD ($1,$2,$3,$5) }
   | OUTPUT linchan ambig SEMI process { OutD ($1,$2,ambigexp $3,$5) }
+  | linchan LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | linchan LARROW INPUT shrchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | shrchan LARROW INPUT linchan SEMI error
+    { errr $5 "Expected process after ';'" }
+  | shrchan LARROW INPUT shrchan SEMI error
+    { errr $5 "Expected process after ';'" }
   | linchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | linchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | shrchan LARROW INPUT linchan SEMI process { InC ((fst $1), $1,$4,$6) }
   | shrchan LARROW INPUT shrchan SEMI process { InC ((fst $1), $1,$4,$6) }
+  | OUTPUT linchan LPAREN linchan LARROW error
+    { errr $5 "Expected process after '<-'" }
+  | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI error
+    { errr $8 "Expected process after ';'" }
   | OUTPUT linchan LPAREN linchan LARROW process RPAREN SEMI process 
            { OutC ($1,$2, $4, $6, $9) }
   | OUTPUT linchan linchan SEMI process { Throw ($1,$2,$3,$5) }
@@ -732,13 +826,13 @@ process_nf:
   | expression SEMI process { Seq (locE $1,$1,$3) }
   | ambig SEMI process { Seq (ambigl $1,ambigexp $1,$3) }
   | LET FUNNAME colonpats ambig EQUALS expression SEMI process 
-        { LetP ($1,`M (ambigmtype $4),$2,$3,$6,$8) }
+        { LetP ($1,`M (ambigmtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS expression SEMI process 
-        { LetP ($1,`M (abrace2mtype $4),$2,$3,$6,$8) }
+        { LetP ($1,`M (abrace2mtype $4),$2,snd $3,$6,$8) }
   | LET FUNNAME colonpats ambig EQUALS ambig SEMI process 
-        { LetP ($1,`M (ambigmtype $4),$2,$3,ambigexp $6,$8) }
+        { LetP ($1,`M (ambigmtype $4),$2,snd $3,ambigexp $6,$8) }
   | LET FUNNAME colonpats ambig_brace EQUALS ambig SEMI process 
-        { LetP ($1,`M (abrace2mtype $4),$2,$3,ambigexp $6,$8) }
+        { LetP ($1,`M (abrace2mtype $4),$2,snd $3,ambigexp $6,$8) }
   | OUTPUT linchan LT sessiontype GT SEMI process { OutTy ($1,$2,$4,$7) }
   | OUTPUT linchan LT linchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
   | OUTPUT linchan LT shrchan GT SEMI process { OutTy ($1,$2,chan2svar $4,$7) }
@@ -769,6 +863,7 @@ monotype_atom:
   | LBRACE LARROW error RBRACE { errr $2 ("Expected (';' separated) list of session types "
                                               ^"after '<-' here.") }
   | DIAMOND monotype_atom { Comp ("<>",[$2]) }
+  | LBRACE error LARROW { errr $3 "Expected session type before '<-' here." }
   | monadprefix RBRACE { MonT ($1,[]) }
   | monadprefix LARROW sessiontype RBRACE { MonT($1,[$3]) }
   | monadprefix LARROW linchan RBRACE { MonT($1,[chan2svar $3]) }
@@ -787,6 +882,12 @@ monotype_atom:
   | LBRACE linchan LARROW sessiontype RBRACE { MonT (Some (chan2svar $2),[$4]) }
   | LBRACE linchan LARROW addtail RBRACE { MonT (Some (chan2svar $2),[$4 Linear]) }
   | LBRACE linchan LARROW ambig RBRACE { MonT (Some (chan2svar $2),[ambigstype $4]) }
+  | LBRACE linchan LARROW shrchan RBRACE { MonT (Some (chan2svar $2),[chan2svar $4]) }
+  | LBRACE shrchan LARROW sestypes_ne RBRACE { MonT (Some (chan2svar $2),$4) }
+  | LBRACE shrchan LARROW sessiontype RBRACE { MonT (Some (chan2svar $2),[$4]) }
+  | LBRACE shrchan LARROW addtail RBRACE { MonT (Some (chan2svar $2),[$4 Linear]) }
+  | LBRACE shrchan LARROW ambig RBRACE { MonT (Some (chan2svar $2),[ambigstype $4]) }
+  | LBRACE shrchan LARROW shrchan RBRACE { MonT (Some (chan2svar $2),[chan2svar $4]) }
   
 monadprefix: 
   | LBRACE sessiontype { Some $2}
