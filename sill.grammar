@@ -1,0 +1,144 @@
+lowercase ::= [a-z]([a-zA-Z0-9'_])*
+uppercase ::= [A-Z]([a-zA-Z0-9'_])*
+
+linchan ::= '<lowercase>
+affchan ::= @<lowercase>
+shrchan ::= !<lowercase>
+
+subchan ::= <linchan> | <affchan>
+anychan ::= <linchan> | <affchan> | <shrchan>
+
+data_level_type ::= { <session_type> <- <';'-separated list of <session_type>> }
+                  | { <- <';'-separated list of <session_type>> }
+                  | <uppercase> <' '-separated list of <data_level_type>>
+                  | <lowercase>
+                  | ()
+                  | ( <data_level_type> )
+                  | ( <data_level_type> , <data_level_type> )
+                  | [ <data_level_type> ]
+                  | <data_level_type> -> <data_level_type>
+
+session_type ::= ( <session_type> )
+               | <uppercase> <' '-separated list of <data_level_type>>
+               | <anychan>
+               | 1
+               | ' <session_type>
+               | @ <session_type>
+               | ! <session_type>
+               | <data_level_type> /\ <session_type>
+               | <data_level_type> => <session_type>
+               | <session_type> *  <session_type>
+               | <session_type> -o <session_type>
+               | +{ <';'-separated list of <session_type_mapping>> }
+               | &{ <';'-separated list of <session_type_mapping>> }
+               | forall <anychan> . <session_type>
+               | exists <anychan> . <session_type>
+
+session_type_mapping ::= <lowercase> : <session_type>
+
+list_of_vars ::= <' '-separated list of <lowercase>>
+
+constructor ::= uppercase <' '-separated list of <data_level_type>>
+
+typedec ::= type <uppercase> <list_of_vars> = <'|'-separated lists of <constructor>>
+          | ltype <uppercase> <list_of_vars> = <session_type> 
+          | atype <uppercase> <list_of_vars> = <session_type>
+          | utype <uppercase> <list_of_vars> = <session_type>
+
+either_type ::= <data_level_type>
+              | <session_type>
+
+pattern_var ::= lowercase 
+              | _
+
+expression ::= ( <expression> )
+             | <integer literal>
+             | <float literal>
+             | <string literal>
+             | ()
+             | [ <';'-separated list of <expression>> ]
+             | <lowercase>
+             | <uppercase>
+             | <expression> <expression>
+             | ( <expression> , <expression> )
+             | <expression> || <expression>
+             | <expression> && <expression>
+             | <expression> < <expression>
+             | <expression> > <expression>
+             | <expression> <= <expression>
+             | <expression> >= <expression>
+             | <expression> = <expression>
+             | <expression> :: <expression>
+             | <expression> + <expression>
+             | <expression> - <expression>
+             | <expression> +. <expression>
+             | <expression> -. <expression>
+             | <expression> * <expression>
+             | <expression> / <expression>
+             | <expression> *. <expression>
+             | <expression> /. <expression>
+             | <expression> ^ <expression>
+             | <expression> ** <expression>
+             | let <' '-separated list of <pattern_var>> : <data_level_type> 
+               = <expression> in <expression>
+             | fun <' '-separated list of <pattern_var>> -> <expression>
+             | if <expression> then <expression> else <expression>
+             | <lowercase>'<'<','-separated list of <either_type>>'>'
+             | case <expression> of <' '-separated list of <case_exp>>
+             | < <expression> : <data_level_type> >
+             | <anychan> <-{ <process> }
+             | <anychan> <-{ <process> }-< <' '-separated list of <anychan>>
+             | _ <-{ <process> }
+             | _ <-{ <process> }-< <' '-separated list of <anychan>>
+
+case_exp ::= '|' <uppercase> <' '-separated list of <pattern_var>> -> <expression>
+           | '|' [ ] -> <expression>
+           | '|' <pattern_var> :: <pattern_var> -> <expression>
+           | '|' ( <pattern_var> , <pattern_var> ) -> <expression>
+
+case_exp ::= '|' <uppercase> <' '-separated list of <pattern_var>> -> <process>
+           | '|' [ ] -> <process>
+           | '|' <pattern_var> :: <pattern_var> -> <process>
+           | '|' ( <pattern_var> , <pattern_var> ) -> <process>
+
+branch ::= '|' <lowercase> -> <process>
+
+process ::= ( <process> )
+          | abort
+          | close <subchan>
+          | wait <subchan> ; <process>
+          | <anychan> <- <expression; <process>
+          | <anychan> <- <expression -< <' '-separated list of <anychan>>; <process>
+          | _ <- <expression; <process>
+          | _ <- <expression -< <' '-separated list of <anychan>>; <process>
+          | send <subchan> <expression> ; <process>
+          | <pattern_var> <- recv <subchan> ; <process>
+          | send <subchan> <subchan> ; <process>
+          | send <subchan> ( <subchan> <- <process> ) ; <process>
+          | <subchan> <- recv <subchan> ; <process>
+          | <subchan> <- send <anychan> ; <process>
+          | send <subchan> ( <anychan> <- <process> )
+          | <subchan> <- <subchan>
+          | if <expression> then <process> else <process>
+          | case <expression> of <' '-separated list of <case_proc>>
+          | case <subchan> of <' '-separated list of <branch>>
+          | <expression> ; <process>
+          | let <lowercase> <' '-separated list of <pattern_var>> = <expression> ; <process>
+          | send <subchan> < <session_type> > ; <process>
+          | < <subchan> > <- recv <subchan> ; <process>
+
+topsig ::= <lowercase> : <data_level_type> ;;
+
+topdef ::= <topsig> <lowercase> <' '-separated list of <pattern_var>> = <expression>
+         | <topsig> <subchan> <- <lowercase> <' '-separated list of <pattern_var>> = <process>
+         | <topsig> <subchan> <- <lowercase> <' '-separated list of <pattern_var>>
+           -< <' '-separated list of <anychan>> = <process>
+         | <topsig> _ <- <lowercase> <' '-separated list of <pattern_var>> = <process>
+         | <topsig> _ <- <lowercase> <' '-separated list of <pattern_var>>
+           -< <' '-separated list of <anychan>> = <process>
+
+topproc ::= <linchan> <- <process>
+
+code ::= <typedec> ;;  
+       | <'and'-separated list of <topdef>> ;; 
+       | <'and'-separated list of <topproc>> ;;
