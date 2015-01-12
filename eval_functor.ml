@@ -66,15 +66,11 @@ struct
   | OutputD (i,c,e,p) -> 
     let v = Exp.eval_exp e env
     in eval_trace ("output "^string_of_value v);
-       (if !dynchecks_flag
-       then I.write_comm (chanfind "OutputD" c) (I.valComm (Boxed (Option.value_exn !(i.expType),v)))
-       else I.write_comm (chanfind "OutputD" c) (I.valComm v));
+       I.write_comm (chanfind "OutputD" c) (I.valComm v);
        eval_proc env senv cenv p
   | InputD (i,x,c,p) ->
     (match I.getVal (I.read_comm (chanfind "InputD" c)) with
     | Some (Boxed (t,v)) -> 
-      if !dynchecks_flag
-      then  Unify.unifyM_raw (puretoptrM t) (puretoptrM (Option.value_exn !(i.expType))) `Neither;
       eval_trace ("input "^string_of_value v);
       eval_proc (SM.add env (snd x) v) senv cenv p
     | Some v -> 
@@ -143,9 +139,7 @@ struct
   | OutputC (i,c,d,pd,p) ->
     eval_trace "outputC";
     let ch = I.spawn env senv cenv pd d
-    in (if !dynchecks_flag
-       then I.write_comm (chanfind "OutputC" c) (I.boxedChanComm (Option.value_exn !(i.sesType)) ch)
-       else I.write_comm (chanfind "OutputC" c) (I.chanComm ch));
+    in I.write_comm (chanfind "OutputC" c) (I.chanComm ch);
        eval_proc env senv cenv p
   | InputC (i,disambig,cx,cc,p) ->
     (match !disambig with

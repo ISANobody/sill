@@ -247,14 +247,14 @@ let rec subsumeM (rule:string) (wfms: SS.t) (wfss: TS.t) (env:funenv) (e:exp) (t
 
 (* TODO `M case should just convert to the `P case and call that *)
 and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv) 
-              (tin:[`M of Puretypes.mtype | `P of Puretypes.ptype])
+              (tin:[`M of Fullsyntax.mtype | `P of Fullsyntax.ptype])
               (x:fvar) (e:exp) : ptype =
     match tin with
     | `M t -> 
-      let mvs = SS.fold (Puretypes.freeMVarsMPure t) ~init:[] ~f:(fun acc x -> `M x :: acc)
-      and svs = TS.fold (Puretypes.freeSVarsMPure t) ~init:[] ~f:(fun acc x -> `S x :: acc)
-      in letcommon sloc wfms wfss env (`P (Puretypes.Poly(mvs@svs,t))) x e
-    | `P (Puretypes.Poly (qs,t)) ->
+      let mvs = SS.fold (Fullsyntax.freeMVarsMPure t) ~init:[] ~f:(fun acc x -> `M x :: acc)
+      and svs = TS.fold (Fullsyntax.freeSVarsMPure t) ~init:[] ~f:(fun acc x -> `S x :: acc)
+      in letcommon sloc wfms wfss env (`P (Fullsyntax.Poly(mvs@svs,t))) x e
+    | `P (Fullsyntax.Poly (qs,t)) ->
       let wfms' = List.fold qs ~init:wfms ~f:(fun acc x -> match x with
                                                            | `M v -> SS.add acc v
                                                            | `S _ -> acc)
@@ -402,12 +402,12 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
                  match q,amb with
                  | `S x,`S s -> let s' = puretoptrS s
                                 in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
-                 | `S x,`A a -> let s' = puretoptrS (Ambig.ambigstype a)
+                 | `S x,`A a -> let s' = puretoptrS (Fullsyntax.ambigstype a)
                                 in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
-                 | `M x,`A a -> let m' = (puretoptrM (Ambig.ambigmtype a))
+                 | `M x,`A a -> let m' = (puretoptrM (Fullsyntax.ambigmtype a))
                                 in wfM (locE ein) wfms wfss m'; (SM.add accm x m',accs)
                  | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
-                                                ^" with session type "^Puretypes.string_of_stype s)
+                                                ^" with session type "^Fullsyntax.string_of_stype s)
                  )
             in substM t subM subS
      else errr (fst x) ("Unbound variable "^string_of_fvar x)
@@ -699,7 +699,6 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
               ("Trying to bind linear channel "^string_of_cvar c1^" while providing an affine service");
            if not (var2mode c1 = m) then errr (fst c1)
               ("*L modality mismatch");
-           if !dynchecks_flag then i.sesType := Some (ptrtopureS c1t);
            let sub = checkS wfms wfss env (CM.add (CM.add senv c2 c2t) c1 c1t) p cpr tin
            in boundhere "*L" senv (usedhere "*L" sub c2 [getinfoP p]) c1 [getinfoP p]
          | ShftDw (_,t) ->
@@ -1081,6 +1080,6 @@ let toplevel (ds:toplvl list) : unit=
            env
         | STypeDecl (t,fs,s) -> 
           let s' = Connection.puretoptrS s
-          in Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (List.map fs snd,s');
+          in Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
              env)
   in ()

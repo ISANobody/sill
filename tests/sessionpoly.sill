@@ -113,3 +113,11 @@ t10 : forall <a,'b> . { a => ('b) <- 'b };;
         'd <- t7<1,1> -< 'c;
         wait 'd;
         close 'top;;
+
+ltype List 'a = +{nil: 1; cons: 'a * List 'a};;
+
+nil : forall <'a>. {List 'a};;
+'c <- nil =
+    'c.nil;
+    close 'c
+;;

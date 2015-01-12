@@ -3,10 +3,8 @@
 open Base
 open Vars
 open Types
-open Puretypes
 open Fullsyntax
 open Connection
-open Ambig
 
 (* exceptions for type declarations *)
 (* provide some context when we can *)
@@ -113,6 +111,8 @@ ambig_notimesarr:
   | monotype_atom                     { Seqq [MAtom $1] }
   | ambig_notimesarr atomic_expression   { ambigsnoc $1 (EAtom $2) }
   | ambig_notimesarr monotype_atom       { ambigsnoc $1 (MAtom $2) }
+  | ambig_notimesarr linchan             { ambigsnoc $1 (TYVar (fst $2,(chan2tyvar $2))) }
+  | ambig_notimesarr shrchan             { ambigsnoc $1 (TYVar (fst $2,(chan2tyvar $2))) }
   | ambig_notimesarr TYNAME              { ambigsnoc $1 (Tyname (fst $2,snd $2)) }
   | ambig_notimesarr FUNNAME             { ambigsnoc $1 (Funname (fst $2,snd $2)) }
   | ambig_notimesarr UNIT                { ambigsnoc $1 (Unit $2) }
@@ -134,11 +134,11 @@ typedecl:
         conTypes := SM.add !conTypes c 
                     (List.map vartoptr (SS.to_list $3)
                     ,List.map puretoptrM a))} */
-  | STYPE TYNAME vars EQUALS sessiontype DBLSEMI 
+  | STYPE TYNAME svars EQUALS sessiontype DBLSEMI 
     { STypeDecl ($1,$2,$3,$5) }
-  | STYPE TYNAME vars EQUALS addtail DBLSEMI 
+  | STYPE TYNAME svars EQUALS addtail DBLSEMI 
     { STypeDecl ($1,$2,$3,$5 Linear) }
-  | STYPE TYNAME vars EQUALS ambig DBLSEMI 
+  | STYPE TYNAME svars EQUALS ambig DBLSEMI 
     { STypeDecl ($1,$2,$3,ambigstype $5) }
   | SERVICE TYNAME EQUALS sessiontype DBLSEMI
     { ServDecl ($2,$4) }
@@ -146,6 +146,12 @@ typedecl:
 vars:
   | /* empty */ { [] }
   | FUNNAME vars { $1::$2 }
+
+svars:
+  | /* empty */ { [] }
+  | FUNNAME svars { (`M (snd $1))::$2 }
+  | linchan svars { (`S (chan2tyvar $1))::$2 }
+  | shrchan svars { (`S (chan2tyvar $1))::$2 }
 
 constructors:
   | DBLSEMI { SM.empty }
@@ -887,12 +893,13 @@ monotype_atom:
   | LBRACE shrchan LARROW sessiontype RBRACE { MonT (Some (chan2svar $2),[$4]) }
   | LBRACE shrchan LARROW addtail RBRACE { MonT (Some (chan2svar $2),[$4 Linear]) }
   | LBRACE shrchan LARROW ambig RBRACE { MonT (Some (chan2svar $2),[ambigstype $4]) }
+  | LBRACE shrchan LARROW linchan RBRACE { MonT (Some (chan2svar $2),[chan2svar $4]) }
   | LBRACE shrchan LARROW shrchan RBRACE { MonT (Some (chan2svar $2),[chan2svar $4]) }
   
 monadprefix: 
   | LBRACE sessiontype { Some $2}
-  | LBRACE ambig       { Some (ambigstype $2) }
   | LBRACE addtail     { Some ($2 Linear) }
+  | LBRACE ambig { Some (ambigstype $2) }
 
 sestypes_ne:
   | error SEMI sessiontype { errr $2 "Expected a session type before ';' here." }
@@ -942,11 +949,11 @@ sessiontype:
   | wedge_types { $1 }
   | shoe_types { $1 }
   | AT error { errr $1 "Expected session type after '@' here." }
-  | AT sessiontype { At $2 }
-  | AT linchan { At (chan2svar $2) }
-  | AT shrchan { At (chan2svar $2) }
-  | AT ambig { At (ambigstype $2) }
-  | AT addtail { At ($2 Linear) }
+  | AT sessiontype { TyAt $2 }
+  | AT linchan { TyAt (chan2svar $2) }
+  | AT shrchan { TyAt (chan2svar $2) }
+  | AT ambig { TyAt (ambigstype $2) }
+  | AT addtail { TyAt ($2 Linear) }
   | PRIME error { errr $1 "Expected session type after '\'' here." }
   | PRIME sessiontype { Prime $2 }
   | PRIME linchan { Prime (chan2svar $2) }
@@ -993,28 +1000,28 @@ sessiontype:
 wedge_types:
   | error WEDGE { errr $2 "Expected data-level type before '/\\' here." }
   | ambig WEDGE error { errr $2 "Expected session type after '/\\' here." }
-  | ambig WEDGE sessiontype { Puretypes.OutD (Linear,ambigmtype $1,$3) }
-  | ambig WEDGE linchan { Puretypes.OutD (Linear,ambigmtype $1,chan2svar $3) }
-  | ambig WEDGE shrchan { Puretypes.OutD (Linear,ambigmtype $1,chan2svar $3) }
-  | ambig WEDGE ambig { Puretypes.OutD (Linear,ambigmtype $1,ambigstype $3) }
+  | ambig WEDGE sessiontype { Fullsyntax.TyOutD (Linear,ambigmtype $1,$3) }
+  | ambig WEDGE linchan { Fullsyntax.TyOutD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig WEDGE shrchan { Fullsyntax.TyOutD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig WEDGE ambig { Fullsyntax.TyOutD (Linear,ambigmtype $1,ambigstype $3) }
   | ambig_brace WEDGE error { errr $2 "Expected session type after '/\\' here." }
-  | ambig_brace WEDGE sessiontype { Puretypes.OutD (Linear,abrace2mtype $1,$3) }
-  | ambig_brace WEDGE linchan { Puretypes.OutD (Linear,abrace2mtype $1,chan2svar $3) }
-  | ambig_brace WEDGE shrchan { Puretypes.OutD (Linear,abrace2mtype $1,chan2svar $3) }
-  | ambig_brace WEDGE ambig { Puretypes.OutD (Linear,abrace2mtype $1,ambigstype $3) }
+  | ambig_brace WEDGE sessiontype { Fullsyntax.TyOutD (Linear,abrace2mtype $1,$3) }
+  | ambig_brace WEDGE linchan { Fullsyntax.TyOutD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace WEDGE shrchan { Fullsyntax.TyOutD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace WEDGE ambig { Fullsyntax.TyOutD (Linear,abrace2mtype $1,ambigstype $3) }
 
 shoe_types:
   | error SHOE { errr $2 "Expected data-level type before '=>' here." }
   | ambig SHOE error { errr $2 "Expected session type after '=>' here." }
-  | ambig SHOE sessiontype { Puretypes.InD (Linear,ambigmtype $1,$3) }
-  | ambig SHOE linchan { Puretypes.InD (Linear,ambigmtype $1,chan2svar $3) }
-  | ambig SHOE shrchan { Puretypes.InD (Linear,ambigmtype $1,chan2svar $3) }
-  | ambig SHOE ambig { Puretypes.InD (Linear,ambigmtype $1,ambigstype $3) }
+  | ambig SHOE sessiontype { Fullsyntax.TyInD (Linear,ambigmtype $1,$3) }
+  | ambig SHOE linchan { Fullsyntax.TyInD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig SHOE shrchan { Fullsyntax.TyInD (Linear,ambigmtype $1,chan2svar $3) }
+  | ambig SHOE ambig { Fullsyntax.TyInD (Linear,ambigmtype $1,ambigstype $3) }
   | ambig_brace SHOE error { errr $2 "Expected session type after '=>' here." }
-  | ambig_brace SHOE sessiontype { Puretypes.InD (Linear,abrace2mtype $1,$3) }
-  | ambig_brace SHOE linchan { Puretypes.InD (Linear,abrace2mtype $1,chan2svar $3) }
-  | ambig_brace SHOE shrchan { Puretypes.InD (Linear,abrace2mtype $1,chan2svar $3) }
-  | ambig_brace SHOE ambig { Puretypes.InD (Linear,abrace2mtype $1,ambigstype $3) }
+  | ambig_brace SHOE sessiontype { Fullsyntax.TyInD (Linear,abrace2mtype $1,$3) }
+  | ambig_brace SHOE linchan { Fullsyntax.TyInD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace SHOE shrchan { Fullsyntax.TyInD (Linear,abrace2mtype $1,chan2svar $3) }
+  | ambig_brace SHOE ambig { Fullsyntax.TyInD (Linear,abrace2mtype $1,ambigstype $3) }
 
 addtail:
   | timestail { $1 }
@@ -1025,51 +1032,51 @@ timestail:
   |  stype_atom TIMES error { errr $2 "Expected session type after '*' here." }
   |  linchan TIMES error { errr $2 "Expected session type after '*' here." }
   |  shrchan TIMES error { errr $2 "Expected session type after '*' here." }
-  |  stype_atom TIMES sessiontype { fun m -> Puretypes.OutC (m,$1,$3) }
-  |  stype_atom TIMES ambig { fun m ->  Puretypes.OutC (m,$1,ambigstype $3) }
-  |  stype_atom TIMES addtail { fun m ->  Puretypes.OutC (m,$1,$3 Linear) }
-  |  stype_atom TIMES linchan { fun m ->  Puretypes.OutC (m,$1,chan2svar $3) }
-  |  stype_atom TIMES shrchan { fun m ->  Puretypes.OutC (m,$1,chan2svar $3) }
-  |  linchan TIMES sessiontype { fun m -> Puretypes.OutC (m,chan2svar $1,$3) }
-  |  linchan TIMES ambig { fun m ->  Puretypes.OutC (m,chan2svar $1,ambigstype $3) }
-  |  linchan TIMES addtail { fun m ->  Puretypes.OutC (m,chan2svar $1,$3 Linear) }
-  |  linchan TIMES linchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
-  |  linchan TIMES shrchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
-  |  shrchan TIMES sessiontype { fun m -> Puretypes.OutC (m,chan2svar $1,$3) }
-  |  shrchan TIMES ambig { fun m ->  Puretypes.OutC (m,chan2svar $1,ambigstype $3) }
-  |  shrchan TIMES addtail { fun m ->  Puretypes.OutC (m,chan2svar $1,$3 Linear) }
-  |  shrchan TIMES linchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
-  |  shrchan TIMES shrchan { fun m ->  Puretypes.OutC (m,chan2svar $1,chan2svar $3) }
-  |  ambig_notimesarr TIMES sessiontype { fun m -> Puretypes.OutC (m,ambigstype $1,$3) }
-  |  ambig_notimesarr TIMES addtail { fun m ->  Puretypes.OutC (m,ambigstype $1,$3 Linear) }
-  |  ambig_notimesarr TIMES linchan { fun m ->  Puretypes.OutC (m,ambigstype $1,chan2svar $3) }
-  |  ambig_notimesarr TIMES shrchan { fun m ->  Puretypes.OutC (m,ambigstype $1,chan2svar $3) }
+  |  stype_atom TIMES sessiontype { fun m -> Fullsyntax.TyOutC (m,$1,$3) }
+  |  stype_atom TIMES ambig { fun m ->  Fullsyntax.TyOutC (m,$1,ambigstype $3) }
+  |  stype_atom TIMES addtail { fun m ->  Fullsyntax.TyOutC (m,$1,$3 Linear) }
+  |  stype_atom TIMES linchan { fun m ->  Fullsyntax.TyOutC (m,$1,chan2svar $3) }
+  |  stype_atom TIMES shrchan { fun m ->  Fullsyntax.TyOutC (m,$1,chan2svar $3) }
+  |  linchan TIMES sessiontype { fun m -> Fullsyntax.TyOutC (m,chan2svar $1,$3) }
+  |  linchan TIMES ambig { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,ambigstype $3) }
+  |  linchan TIMES addtail { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,$3 Linear) }
+  |  linchan TIMES linchan { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,chan2svar $3) }
+  |  linchan TIMES shrchan { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan TIMES sessiontype { fun m -> Fullsyntax.TyOutC (m,chan2svar $1,$3) }
+  |  shrchan TIMES ambig { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,ambigstype $3) }
+  |  shrchan TIMES addtail { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,$3 Linear) }
+  |  shrchan TIMES linchan { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan TIMES shrchan { fun m ->  Fullsyntax.TyOutC (m,chan2svar $1,chan2svar $3) }
+  |  ambig_notimesarr TIMES sessiontype { fun m -> Fullsyntax.TyOutC (m,ambigstype $1,$3) }
+  |  ambig_notimesarr TIMES addtail { fun m ->  Fullsyntax.TyOutC (m,ambigstype $1,$3 Linear) }
+  |  ambig_notimesarr TIMES linchan { fun m ->  Fullsyntax.TyOutC (m,ambigstype $1,chan2svar $3) }
+  |  ambig_notimesarr TIMES shrchan { fun m ->  Fullsyntax.TyOutC (m,ambigstype $1,chan2svar $3) }
 
 lolitail: 
   |  error LOLI { errr $2 "Expected session type before '-o' here." }
   |  stype_atom LOLI error { errr $2 "Expected session type after '-o' here." }
   |  linchan LOLI error { errr $2 "Expected session type after '-o' here." }
   |  shrchan LOLI error { errr $2 "Expected session type after '-o' here." }
-  |  stype_atom LOLI sessiontype { fun m -> Puretypes.InC (m,$1,$3) }
-  |  stype_atom LOLI ambig { fun m ->  Puretypes.InC (m,$1,ambigstype $3) }
-  |  stype_atom LOLI addtail { fun m ->  Puretypes.InC (m,$1,$3 Linear) }
-  |  stype_atom LOLI linchan { fun m ->  Puretypes.InC (m,$1,chan2svar $3) }
-  |  stype_atom LOLI shrchan { fun m ->  Puretypes.InC (m,$1,chan2svar $3) }
-  |  linchan LOLI sessiontype { fun m -> Puretypes.InC (m,chan2svar $1,$3) }
-  |  linchan LOLI ambig { fun m ->  Puretypes.InC (m,chan2svar $1,ambigstype $3) }
-  |  linchan LOLI addtail { fun m ->  Puretypes.InC (m,chan2svar $1,$3 Linear) }
-  |  linchan LOLI linchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
-  |  linchan LOLI shrchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
-  |  shrchan LOLI sessiontype { fun m -> Puretypes.InC (m,chan2svar $1,$3) }
-  |  shrchan LOLI ambig { fun m ->  Puretypes.InC (m,chan2svar $1,ambigstype $3) }
-  |  shrchan LOLI addtail { fun m ->  Puretypes.InC (m,chan2svar $1,$3 Linear) }
-  |  shrchan LOLI linchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
-  |  shrchan LOLI shrchan { fun m ->  Puretypes.InC (m,chan2svar $1,chan2svar $3) }
-  |  ambig_notimesarr LOLI sessiontype { fun m -> Puretypes.InC (m,ambigstype $1,$3) }
-  |  ambig_notimesarr LOLI ambig { fun m -> Puretypes.InC (m,ambigstype $1,ambigstype $3) }
-  |  ambig_notimesarr LOLI addtail { fun m ->  Puretypes.InC (Linear,ambigstype $1,$3 Linear) }
-  |  ambig_notimesarr LOLI linchan { fun m ->  Puretypes.InC (Linear,ambigstype $1,chan2svar $3) }
-  |  ambig_notimesarr LOLI shrchan { fun m ->  Puretypes.InC (Linear,ambigstype $1,chan2svar $3) }
+  |  stype_atom LOLI sessiontype { fun m -> Fullsyntax.TyInC (m,$1,$3) }
+  |  stype_atom LOLI ambig { fun m ->  Fullsyntax.TyInC (m,$1,ambigstype $3) }
+  |  stype_atom LOLI addtail { fun m ->  Fullsyntax.TyInC (m,$1,$3 Linear) }
+  |  stype_atom LOLI linchan { fun m ->  Fullsyntax.TyInC (m,$1,chan2svar $3) }
+  |  stype_atom LOLI shrchan { fun m ->  Fullsyntax.TyInC (m,$1,chan2svar $3) }
+  |  linchan LOLI sessiontype { fun m -> Fullsyntax.TyInC (m,chan2svar $1,$3) }
+  |  linchan LOLI ambig { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,ambigstype $3) }
+  |  linchan LOLI addtail { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,$3 Linear) }
+  |  linchan LOLI linchan { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,chan2svar $3) }
+  |  linchan LOLI shrchan { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan LOLI sessiontype { fun m -> Fullsyntax.TyInC (m,chan2svar $1,$3) }
+  |  shrchan LOLI ambig { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,ambigstype $3) }
+  |  shrchan LOLI addtail { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,$3 Linear) }
+  |  shrchan LOLI linchan { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,chan2svar $3) }
+  |  shrchan LOLI shrchan { fun m ->  Fullsyntax.TyInC (m,chan2svar $1,chan2svar $3) }
+  |  ambig_notimesarr LOLI sessiontype { fun m -> Fullsyntax.TyInC (m,ambigstype $1,$3) }
+  |  ambig_notimesarr LOLI ambig { fun m -> Fullsyntax.TyInC (m,ambigstype $1,ambigstype $3) }
+  |  ambig_notimesarr LOLI addtail { fun m ->  Fullsyntax.TyInC (Linear,ambigstype $1,$3 Linear) }
+  |  ambig_notimesarr LOLI linchan { fun m ->  Fullsyntax.TyInC (Linear,ambigstype $1,chan2svar $3) }
+  |  ambig_notimesarr LOLI shrchan { fun m ->  Fullsyntax.TyInC (Linear,ambigstype $1,chan2svar $3) }
 
 stype_atom:
   | LPAREN sessiontype RPAREN { Parens $2 }

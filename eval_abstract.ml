@@ -25,8 +25,8 @@ sig
   val getVal : communicable -> value option 
   val chanComm : channel -> communicable
   val getChan : communicable -> channel option 
-  val boxedChanComm : Puretypes.stype -> channel -> communicable
-  val getBoxedChan : communicable -> (Puretypes.stype * channel) option
+  val boxedChanComm : Fullsyntax.stype -> channel -> communicable
+  val getBoxedChan : communicable -> (Fullsyntax.stype * channel) option
   val labComm : label -> communicable
   val getLab : communicable -> label option
   val forward : channel -> channel -> unit

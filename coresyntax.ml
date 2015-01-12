@@ -1,12 +1,9 @@
 open Base
 open Core.Std
 open Vars
-open Puretypes
 
 type astinfo = { linenum : int; (* These first two should probably just be a srcloc *)
                  charnum : int; 
-                 expType : mtype option ref; (* These just store types for run-time checking *)
-                 sesType : stype option ref;
                  affineFrees : CS.t ref (* Represent free instructions inserted right
                                            before this one. Since we don't actually
                                            perform transformations, this is easier. *) } 
@@ -17,7 +14,7 @@ let ast2loc (a : astinfo) : srcloc =
     {lnum = a.linenum; cnum = a.charnum}
 
 let nullloc = { lnum = 0; cnum = 0}
-let nullinfo = { linenum = 0; charnum = 0; expType = ref None; sesType = ref None; affineFrees = ref CS.empty }
+let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty }
 
 (* constants for PicoML *)
 type const = Int of int | Float of float | String of string with sexp, bin_io
@@ -73,12 +70,12 @@ type exp =
    | Mon of astinfo * monop * exp           (* % exp1
                                         where % is a builtin monadic operator *)
    | Fun of astinfo * fvar * exp          (* fun x -> exp *)
-   | Let of astinfo * [`M of Puretypes.mtype | `P of Puretypes.ptype] * fvar * exp * exp    (* let x = exp1 in exp2 *)
+   | Let of astinfo * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype] * fvar * exp * exp    (* let x = exp1 in exp2 *)
    | Cas of astinfo * exp * ((fvar list * exp) SM.t)
    | Monad of astinfo * cvar option * proc * cvar list * procType option (* c <-{P}<- cs *)
-   | Cast of astinfo * exp * mtype (* <e:t> *)
-   | Box of astinfo * exp * mtype (* [e:t] *)
-   | PolyApp of astinfo * fvar * [`A of Fullsyntax.ambig | `S of Puretypes.stype] list (* x<S,S,...> *)
+   | Cast of astinfo * exp * Fullsyntax.mtype (* <e:t> *)
+   | Box of astinfo * exp * Fullsyntax.mtype (* [e:t] *)
+   | PolyApp of astinfo * fvar * [`A of Fullsyntax.ambig | `S of Fullsyntax.stype] list (* x<S,S,...> *)
 and proc =
    | Bind of astinfo * cvar * exp * cvar list * proc (* c <- e -< cs; P *)
    | TailBind of astinfo * cvar * exp * cvar list (* c <- e -< cs *)
@@ -95,7 +92,7 @@ and proc =
    | Internal of astinfo * cvar * label * proc        (* select c.l; P *)
    | Fwd of astinfo * cvar * cvar                   (* fwd c d *)
    | InputTy of astinfo * tyvar * cvar * proc
-   | OutputTy of astinfo * cvar * stype * proc
+   | OutputTy of astinfo * cvar * Fullsyntax.stype * proc
    | ShftUpL of astinfo * cvar * cvar * proc (* c1 <- send c2; P *)
    | ShftDwR of astinfo * cvar * cvar * proc (* send c1 (c2 <- P) *)
 
@@ -108,15 +105,15 @@ and proc =
    might have stored the checking information closer to its use, but I think this would
    require walking the entire AST and duplicating most of it, which could be much more
    expensive if there is a large amount of non-dynamically checked functional code. *)
-and procType = ProcType of SS.t * (proc * mtype) list * (proc * stype) list
-with sexp, bin_io
+and procType = ProcType of SS.t * (proc * Fullsyntax.mtype) list * (proc * Fullsyntax.stype) list
+with sexp, bin_io (* TODO Do we use procType? *)
 
-type toplvl = TopLet of (fvar * [`M of Puretypes.mtype | `P of Puretypes.ptype] * exp) (* let f : tau = ... ;; *)
+type toplvl = TopLet of (fvar * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype] * exp) (* let f : tau = ... ;; *)
             | TopProc of cvar * proc
-            | MTypeDecl of fvar * fvar list * mtype list SM.t
-            | STypeDecl of fvar * fvar list * stype
+            | MTypeDecl of fvar * fvar list * Fullsyntax.mtype list SM.t
+            | STypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.stype
             | Pass
-            | ServDecl of fvar * Puretypes.stype
+            | ServDecl of fvar * Fullsyntax.stype
 
 let getinfoE (e:exp) : astinfo = 
   match e with

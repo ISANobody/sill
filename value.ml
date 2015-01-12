@@ -2,7 +2,6 @@ open Base
 open Core.Std
 open Syntax.Core
 open Vars
-open Puretypes
 open Sexplib
 
 type memory = value SM.t
@@ -15,8 +14,8 @@ and value =
   | ADT of string * value list
   | MonV of cvar option * cvar list * proc * memory
   | Cypher of string
-  | Boxed of mtype * value
-  | BoxedS of stype * value
+  | Boxed of Fullsyntax.mtype * value
+  | BoxedS of Fullsyntax.stype * value
   | Shared of shrsrc
 and shrsrc = ShrSrc of cvar * proc * memory * (shrsrc CM.t)
 with sexp, bin_io
@@ -38,10 +37,10 @@ let rec string_of_value v =
                           | v::vs  -> string_of_value v ^ "; " ^ pl vs
                           in pl l)
   | Cypher _ -> "<Cypher>"
-  | Boxed (t,v) -> "<"^string_of_value v^":"^string_of_mtype t^">"
+  | Boxed (t,v) -> "<"^string_of_value v^":"^Fullsyntax.string_of_mtype t^">"
   | Shared (ShrSrc (_,p,_,_)) -> "<Replicable Service "^(loc2str (locP p))^">"
   | BoxedS (t,Shared ((ShrSrc (_,p,_,_)))) -> "<Replicable Service "^(loc2str (locP p))
-                                             ^"::"^string_of_stype t^">"
+                                             ^"::"^Fullsyntax.string_of_stype t^">"
   | BoxedS _ -> failwith "value.ml: string_of_value: non-Shared in BoxedS"
 
 let unbox v =

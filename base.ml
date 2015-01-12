@@ -183,3 +183,4 @@ module TM = Map.Make(
     let t_of_sexp = tyvar_of_sexp
     let sexp_of_t = sexp_of_tyvar
   end)
+let sessionQs : [`M of string | `S of tyvar] list SM.t ref = ref SM.empty

@@ -1,21 +1,23 @@
-I suggest installing ocaml and opam (and maybe the zlib headers) from macports/apt-get.
-From there initialize opam and install core and cyptokit. Questions/difficulties should be
-directed to <dgriffi3@illinois.edu>.  On a fresh Ubuntu VM the following commands
-successfully installed SILL (the last step is optional): 
+I suggest installing ocaml and opam from macports/apt-get.  From there initialize opam and
+install core. Questions/difficulties should be directed to <dgriffi3@illinois.edu>. 
+The easiest way to try sill is to install opam and then use "opam install sill".
+The opam version may be slightly out of date, so you may wish to install from the git repo
+instead.  On a fresh Ubuntu VM the following commands successfully installed SILL (the
+last step is optional): 
 
-   tar xzpf sill.tar.gz
-   cd sill-ocaml
-   sudo apt-get install oasis opam m4 zlib1g-dev
+   git clone https://github.com/ISANobody/sill.git
+   cd sill
+   sudo apt-get install oasis opam m4
    opam init
    <follow opam init instructions>
-   oasis setup
    ocaml setup.ml -configure
    ocaml setup.ml -build
+   sudo ocaml setup.ml -install
    ./tester.sh
 
-After this "./interp.byte [options] <file>.sill"  should be usable for your programs.
+After this "sill [options] <file>.sill"  should be usable for your programs.
 
-Options are passed to interp.byte via the following flags:
+Options are passed to sill via the following flags:
 
 -help    prints out a short usage description
 -?       prints out a short usage description

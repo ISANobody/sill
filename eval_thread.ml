@@ -20,7 +20,7 @@ let maxThreads = ref 0
 module rec Impl_Thread : Impl =
 struct
   type communicable = Chan of channel
-                    | BoxedChan of Puretypes.stype * channel
+                    | BoxedChan of Fullsyntax.stype * channel
                     | Term of Thread.t
                     | Val of value
                     | Lab of label

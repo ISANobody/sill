@@ -35,7 +35,7 @@ type pipe_comm =
   | Term
   | Val of value
   | Chan of (string * string)
-  | BoxedChan of (Puretypes.stype * string * string)
+  | BoxedChan of (Fullsyntax.stype * string * string)
   | Lab of label
   with bin_io
 

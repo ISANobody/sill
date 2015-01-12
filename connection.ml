@@ -64,11 +64,11 @@ let clearmaps (():unit) : unit = vartoptr_map := SM.empty;
    specific type for them. This is probably bad/confusing, but session type declarations
    are treated like typedefs and are expanded at parse time, so I don't see the need to
    clutter up everything by adding SPoly (or something) to types.ml *)
-let sessionDefs : (string list * Dest.stype) SM.t ref = ref SM.empty
+let sessionDefs : ([`M of string | `S of tyvar] list * Dest.stype) SM.t ref = ref SM.empty
 
 let rec puretoptrM (tin : Pure.mtype) : Dest.mtype =
   match tin with
-  | Pure.Var x -> ref (Dest.MVarU x)
+  | Pure.MVar x -> ref (Dest.MVarU x)
   | Pure.Comp (c,args) -> Dest.mkcomp c (List.map args puretoptrM)
   | Pure.MonT (Some sx,ss) -> Dest.mkmon (Some (puretoptrS sx))
                                               (List.map ss (fun x -> puretoptrS x))
@@ -77,10 +77,10 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
   let rec go (tin : Pure.stype) (env : Dest.stype SM.t) : Dest.stype =
     match tin with
     | Pure.Parens s -> go s env
-    | Pure.InD (mode,m,s) -> Dest.mkind mode (puretoptrM m) (go s env)
-    | Pure.OutD (mode,m,s) -> Dest.mkoutd mode (puretoptrM m) (go s env)
-    | Pure.InC (m,s1,s2) -> Dest.mkinc m (go s1 env) (go s2 env)
-    | Pure.OutC (m,s1,s2) -> Dest.mkoutc m (go s1 env) (go s2 env)
+    | Pure.TyInD (mode,m,s) -> Dest.mkind mode (puretoptrM m) (go s env)
+    | Pure.TyOutD (mode,m,s) -> Dest.mkoutd mode (puretoptrM m) (go s env)
+    | Pure.TyInC (m,s1,s2) -> Dest.mkinc m (go s1 env) (go s2 env)
+    | Pure.TyOutC (m,s1,s2) -> Dest.mkoutc m (go s1 env) (go s2 env)
     | Pure.Stop mode -> Dest.mkstop mode
     | Pure.SComp (l,c,args) -> (* This feels like it might be best as a separate function *)
         let (qs,t) = if SM.mem !sessionDefs c
@@ -89,12 +89,38 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
         in if not (List.length args = List.length qs)
            then errr l ("Number of arguments, "^string_of_int (List.length args) ^", to "
                        ^c^" doesn't match its expectation of "^string_of_int (List.length qs)^"");
-           Dest.substS t (SM.of_alist_exn (List.zip_exn qs (List.map args puretoptrM))) TM.empty
-    | Pure.Mu ((_,x),s,name,ms) -> 
-      let a = Dest.mksvar ()
+            let subM,subS = List.fold2_exn qs args ~init:(SM.empty,TM.empty)
+              ~f:(fun (accm,accs) q amb ->
+                 match q,amb with (* TODO wfS/wfM checks here *)
+                 | `S x,`S s -> let s' = puretoptrS s
+                                in (accm,TM.add accs x s')
+                 | `S x,`A a -> let s' = puretoptrS (Fullsyntax.ambigstype a)
+                                in (accm,TM.add accs x s')
+                 | `M x,`A a -> let m' = (puretoptrM (Fullsyntax.ambigmtype a))
+                                in (SM.add accm x m',accs)
+                 | `M x,`M m -> let m' = (puretoptrM m)
+                                in (SM.add accm x m',accs)
+                 | `M _,`S s -> (* TODO print this with a line number *)
+                                failwith ("tried to instantiate data type variable"
+                                                ^" with session type "^Pure.string_of_stype s)
+                 | _ -> failwith "BUG puretoptrS.go SComp"
+                 )
+            in Dest.substS t subM subS
+    | Pure.Mu ((l,x),s,name,args) -> 
+      let qs = (if SM.mem !sessionQs name
+               then SM.find_exn !sessionQs name
+               else failwith ("Undefined session type "^name)) (* TODO print location *)
+      and a = Dest.mksvar ()
       in let t = go s (SM.add env x a)
-         in a := Dest.SComp (t,name,List.map ms puretoptrM);
-            t
+         in let args' = List.map2_exn qs args
+                        ~f:(fun q arg -> match q,arg with
+                                         | `M _,`M x -> `M (puretoptrM x)
+                                         | `M _,`A x -> `M (puretoptrM (Fullsyntax.ambigmtype x))
+                                         | `S _,`A x -> `S (puretoptrS (Fullsyntax.ambigstype x))
+                                         | `S _,`S x -> `S (puretoptrS x)
+                                         | _ -> failwith "BUG puretoptrS.go Mu")
+            in a := Dest.SComp (t,name,args');
+               t
     | Pure.SVar (l,(mode,x)) ->
                 if SM.mem env x
                 then SM.find_exn env x
@@ -111,7 +137,7 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
       | 1  -> ref (Dest.ShftUp (Intuist,puretoptrS s))
       | 0  -> failwith "trying to cast unrestricted to unrestricted" (* TODO Add srcloc *)
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
-    | Pure.At s ->
+    | Pure.TyAt s ->
       (match compare Affine (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Affine,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Affine,puretoptrS s))
@@ -126,11 +152,12 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
 
   in go tin_in SM.empty
 
+(* TODO reconsider having this *)
 let rec ptrtopureM_raw (tin : Dest.mtype) (cache : (Dest.stype * string option ref) list) : Pure.mtype =
   match !(Dest.getMType tin) with
   | Dest.MInd _ -> failwith "ptrtopureM: MInd after getMType"
-  | Dest.MVar -> Pure.Var (ptrtovar tin)
-  | Dest.MVarU _ -> Pure.Var (ptrtovar tin)
+  | Dest.MVar -> Pure.MVar (ptrtovar tin)
+  | Dest.MVarU _ -> Pure.MVar (ptrtovar tin)
   | Dest.Comp(c,args) -> Pure.Comp(c,List.map args (fun x -> ptrtopureM_raw x cache))
   | Dest.MonT(Some c,cs) -> Pure.MonT(Some (ptrtopureS_raw c cache)
                                      ,List.map cs (fun x -> ptrtopureS_raw x cache))
@@ -152,11 +179,11 @@ and ptrtopureS_raw (tin : Dest.stype) (cache : (Dest.stype * string option ref) 
     | Dest.SComp _ -> failwith "ptrtopureS: SComp after getSType"
     | Dest.SVar -> failwith "ptrtopureS: SVar"
     | Dest.SVarU _ -> failwith "ptrtopureS: SVarU"
-    | Dest.InD (mode,m,s) -> Pure.InD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.OutD (mode,m,s) -> Pure.OutD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.InC (m,s1,s2) -> Pure.InC (m,(ptrtopureS_raw s1 ((t,n)::cache))
+    | Dest.InD (mode,m,s) -> Pure.TyInD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
+    | Dest.OutD (mode,m,s) -> Pure.TyOutD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
+    | Dest.InC (m,s1,s2) -> Pure.TyInC (m,(ptrtopureS_raw s1 ((t,n)::cache))
                                        ,(ptrtopureS_raw s2 ((t,n)::cache)))
-    | Dest.OutC (m,s1,s2) -> Pure.OutC (m,(ptrtopureS_raw s1 ((t,n)::cache))
+    | Dest.OutC (m,s1,s2) -> Pure.TyOutC (m,(ptrtopureS_raw s1 ((t,n)::cache))
                                          ,(ptrtopureS_raw s2 ((t,n)::cache)))
     | Dest.Stop mode -> Pure.Stop mode
     | Dest.Intern (mode,lm) -> Pure.Intern (mode,LM.map lm (fun x -> ptrtopureS_raw x ((t,n)::cache)))

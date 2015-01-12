@@ -5,7 +5,6 @@ open Syntax
 open Types
 
 let loc2ast l = { Syntax.Core.linenum = l.lnum; Syntax.Core.charnum = l.cnum; 
-                  Syntax.Core.expType = ref None; Syntax.Core.sesType = ref None;
                   Syntax.Core.affineFrees = ref CS.empty }
 
 let freshMode v = let name = (priv_name ())
@@ -17,8 +16,8 @@ let freshMode v = let name = (priv_name ())
 let rec desugarExp (ein:Full.exp) : Core.exp =
   match ein with
   | Full.Var (i,(_,"not")) -> 
-    desugarExp (Full.Let (i,`M (Puretypes.Comp("->",[Puretypes.Comp("Bool",[])
-                                               ;Puretypes.Comp("Bool",[])]))
+    desugarExp (Full.Let (i,`M (Full.Comp("->",[Full.Comp("Bool",[])
+                                               ;Full.Comp("Bool",[])]))
                            ,(i,"f")
                            ,[(i,"x")]
                            ,Full.If(i
@@ -110,7 +109,7 @@ and desugarProc (this:cvar) (scope:CS.t) (pin:Full.proc) : Core.proc =
                        typing work out we also need an unproductive process. *)
     desugarProc this scope 
     (let tmpc = (i,Lin (priv_name ()))
-    in Full.Bind(i,tmpc,Full.Let(i,`M (Puretypes.MonT (Some (Puretypes.Intern (Linear,LM.empty)),[]))
+    in Full.Bind(i,tmpc,Full.Let(i,`M (Full.MonT (Some (Full.Intern (Linear,LM.empty)),[]))
                                 ,(i,"_abort_"),[]
                                 ,Full.Monad(i,Some tmpc,Full.TailBind(i,tmpc,Full.Var(i,(i,"_abort_")),[]),[])
                                 ,Full.Var (i,(i,"_abort_"))),[]
@@ -119,7 +118,7 @@ and desugarProc (this:cvar) (scope:CS.t) (pin:Full.proc) : Core.proc =
   | Full.IfP (i,e,pt,pf) -> 
     desugarProc this scope (Full.CaseP (i,e,SM.of_alist_exn [("True",([],pt));("False",([],pf))]))
   | Full.Seq (i,e,p) ->
-    desugarProc this scope (Full.LetP (i,`M (Puretypes.Comp ("()",[])),(i,priv_name ()),[],e,p))
+    desugarProc this scope (Full.LetP (i,`M (Full.Comp ("()",[])),(i,priv_name ()),[],e,p))
   | Full.LetP (i,t,x,xs,e,p) ->
     desugarProc this scope (Full.TailBind (i,this,Full.Let(i,t,x,xs,e,Full.Monad(i,Some this,p,CS.to_list scope))
                                           ,CS.to_list scope))
@@ -142,7 +141,7 @@ let rec desugartoplet (tin:Full.toplet) : Full.toplet =
     desugartoplet (Full.TopExp (name,tysig,pats,(Full.Monad (loc,None,proc,cs))))
 
 (* This probably is a reflection of poor design somewhere else *)
-let getLetType (e:Full.toplet) : Puretypes.mtype =
+let getLetType (e:Full.toplet) : Full.mtype =
   match desugartoplet e with
   | Full.TopExp (_,(_,`M t),_,_) -> t
   | _ -> failwith "BUG getLetType of non-TopExp `M"
@@ -200,7 +199,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
       and (* We want a consistent list of the polymorphic variables in our combined type *)
           polymangle = List.map (List.dedup
                                 (List.concat_map (FM.data m) (fun e -> SS.to_list 
-                                          (Puretypes.freeMVarsMPure (getLetType e)))))
+                                          (Full.freeMVarsMPure (getLetType e)))))
                                 (fun x -> ({lnum=0;cnum=0},x))
       and selector : Full.exp = (* The big case statement selecting behavior *)
          (Full.Case({cnum=0;lnum=0}
@@ -237,7 +236,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                            ,[Pure.Comp(prefix^"_selector_",[])
                             ;Pure.Comp(prefix^"_result_"
                                       ,List.map polymangle 
-                                                (fun _ -> Pure.Var (priv_name ())))])))
+                                                (fun _ -> Pure.MVar (priv_name ())))])))
            ,[brvar]
            ,FM.fold m ~f:(fun ~key:f ~data:e acc -> wrapper f e acc) ~init:selector
       )))]@
@@ -271,25 +270,37 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
   | Full.STypeDecl (modedecl,t,fs,s) -> 
     (* First record the mode of the type. This might be able to be merged with some other step. *) 
     Pure.declModes := SM.add !Pure.declModes (snd t) modedecl;
+    sessionQs := SM.add !sessionQs (snd t) fs;
 
     (* If t is mentioned recursively we need to add mu's to it.
        To ensure regularity we enforce that recursive calls cannot have arguments.
        Like with pretty printing we use a reference to denote we actually did something. *)
-    let this : (string*(srcloc * Pure.mtype list) list) option ref = ref None in
-    let getThis (l:srcloc) (params : Pure.mtype list) : string = (match !this with 
-                     | Some (s,argss) -> this := Some (s,((l,params) :: argss)); s 
-                     | None -> let tmp = priv_name() in this := Some (tmp,[(l,params)]); tmp)
+    let this : (string*(srcloc * [`A of Pure.ambig | `M of Pure.mtype | `S of Pure.stype] list) list) option ref = ref None in
+    let getThis (l:srcloc) (params : [`A of Pure.ambig | `M of Pure.mtype | `S of Pure.stype] list) : string = 
+        (match !this with 
+        | Some (s,argss) -> this := Some (s,((l,params) :: argss)); s 
+        | None -> let tmp = priv_name() in this := Some (tmp,[(l,params)]); tmp)
     in let rec goS min sin =
            match sin with
            | Pure.SComp (l,n,args) when n = snd t -> Pure.SVar (l,(Linear,getThis l args)) (* TODO hardcoded mode *)
-           | Pure.SComp (l,n,args) -> Pure.SComp (l,n,List.map args goM)
+           | Pure.SComp (l,n,args) -> (* TODO add a goA *)
+             let args' = List.map args (fun arg -> match arg with
+                                                   | `A x -> `A x
+                                                   | `M x -> `M (goM x)
+                                                   | `S x -> `S (goS min x))
+             in Pure.SComp (l,n,args')
            | Pure.SVar (x,y) -> Pure.SVar (x,y)
            | Pure.Stop _ -> Pure.Stop min
-           | Pure.Mu (x,s,name,ms) -> Pure.Mu (x,goS min s,name,List.map ms goM)
-           | Pure.InD (_,m,s) -> Pure.InD(min,goM m,goS min s)
-           | Pure.OutD (_,m,s) -> Pure.OutD(min,goM m,goS min s)
-           | Pure.InC (_,s1,s2) -> Pure.InC(min,goS min s1,goS min s2)
-           | Pure.OutC (_,s1,s2) -> Pure.OutC(min,goS min s1,goS min s2)
+           | Pure.Mu (x,s,name,args) ->
+             let args' = List.map args (fun arg -> match arg with
+                                                   | `A x -> `A x
+                                                   | `M x -> `M (goM x)
+                                                   | `S x -> `S (goS min x))
+             in Pure.Mu (x,goS min s,name,args')
+           | Pure.TyInD (_,m,s) -> Pure.TyInD(min,goM m,goS min s)
+           | Pure.TyOutD (_,m,s) -> Pure.TyOutD(min,goM m,goS min s)
+           | Pure.TyInC (_,s1,s2) -> Pure.TyInC(min,goS min s1,goS min s2)
+           | Pure.TyOutC (_,s1,s2) -> Pure.TyOutC(min,goS min s1,goS min s2)
            | Pure.Intern (_,lm) -> Pure.Intern (min,LM.map lm (goS min))
            | Pure.Extern (_,lm) -> Pure.Extern (min,LM.map lm (goS min))
            | Pure.Forall (_,x,s) -> Pure.Forall (min,x,goS min s)
@@ -304,11 +315,11 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
              then Pure.ShftDw(m,goS Linear s)
              else failwith ("desugarer expected "^string_of_mode min^" but found "^Pure.string_of_stype s)
            | Pure.Bang s -> failwith "desugar Bang"
-           | Pure.At s -> failwith "desugar At"
+           | Pure.TyAt s -> failwith "desugar At"
            | Pure.Prime s -> failwith "desugar Prime"
-       and goM tin =
+       and goM (tin:Pure.mtype) : Pure.mtype =
            match tin with
-           | Pure.Var x -> Pure.Var x
+           | Pure.MVar x -> Pure.MVar x
            | Pure.Comp (n,args) -> Pure.Comp(n,List.map args goM)
            | Pure.MonT (Some s,ss) -> Pure.MonT(Some (goS Linear s),List.map ss (goS Linear))
            | Pure.MonT (None,ss) -> Pure.MonT (None,List.map ss (goS Linear))
@@ -319,9 +330,18 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                List.iter argss ~f:(fun (l,args) ->
                  if not (List.length fs = List.length args)
                  then errr l "Recursive calls must have identical parameters";
-                 List.iter2_exn fs args ~f:(fun x mt -> 
-                   match mt with
-                   | Pure.Var v when snd x = v -> ()
+                 List.iter2_exn fs args ~f:(fun q mt -> 
+                   match q,mt with
+                   | `M x,`M (Pure.MVar y) when x = y -> ()
+                   | `M x,`A a -> (match (Pure.ambigmtype a) with
+                                  | Pure.MVar y when x = y -> ()
+                                  | _ -> errr (Pure.ambigl a) "Recursive calls much have identical paramters")
+                   | `S x,`A a -> (match (Pure.ambigstype a) with
+                                  | Pure.SVar (l,y) when x = y -> ()
+                                  | _ -> errr l "Recursive calls much have identical paramters")
                    | _ -> errr l "Recursive calls much have identical paramters"));
-               [Core.STypeDecl (t,fs,Pure.Mu((Linear,x),s',snd t,List.map fs (fun (_,x) -> Pure.Var x)))] (* TODO hardcoded mode *)
+              let qs' = List.map fs (fun q -> match q with 
+                                              | `M x -> `M (Pure.MVar x)
+                                              | `S x -> `S (Pure.SVar (fst t,x)))
+              in [Core.STypeDecl (t,fs,Pure.Mu((Linear,x),s',snd t,qs'))] (* TODO hardcoded mode *)
              | None -> [Core.STypeDecl (t,fs,s')]

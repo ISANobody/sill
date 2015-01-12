@@ -28,7 +28,7 @@ and stype = stype_raw ref
 and stype_raw =
    | SVar
    | SInd of stype
-   | SComp of stype * string * mtype list
+   | SComp of stype * string * [`M of mtype | `S of stype] list
    | InD of modality * mtype * stype
    | OutD of modality * mtype * stype
    | InC of modality * stype * stype
@@ -140,7 +140,10 @@ and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
      else let n = ref "" in
           match !t with
           | SInd _ -> failwith "string_of_stype: SInd after getSType"
-          | SComp (_,name,ms) -> name^" "^intercal string_of_mtype " " ms
+          | SComp (_,name,ms) -> name^" "^intercal (fun x -> match x with
+                                                             | `M m -> string_of_mtype m
+                                                             | `S s -> string_of_stype_raw s ((t,n)::vs)) 
+                                                   " " ms
           | SVar -> "?"^svarName t
           | Stop _ -> "1"
           | OutD(_,m,s) -> 
@@ -399,7 +402,9 @@ and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype TM.t)
     let a = mksvar ()
     in a := SInd (ref (SComp (substS_ s subM subS vm ((t,a)::vs)
                              ,name
-                             ,List.map args (fun x -> substM_ x subM subS vm ((t,a)::vs)))));
+                             ,List.map args (fun x -> match x with
+                                                      | `M y -> `M (substM_ y subM subS vm ((t,a)::vs))
+                                                      | `S y -> `S (substS_ y subM subS vm ((t,a)::vs))))));
        a
   | Stop m -> mkstop m
   | SVarU x ->

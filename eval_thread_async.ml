@@ -15,7 +15,7 @@ let threadLock = Mutex.create ()
 module rec Impl_Thread : Impl =
 struct
   type communicable = Chan of channel
-                    | BoxedChan of Puretypes.stype * channel
+                    | BoxedChan of Fullsyntax.stype * channel
                     | Term
                     | Val of value
                     | Lab of label
