@@ -1,4 +1,7 @@
 type Bool = True | False;;
 type Maybe a = Just a | Nothing;;
 type Either a b = Left a | Right b;;
+type State a b = State (a,b);;
+type Funz = Funz (Bool -> ());;
+type Funz = Funz (Bool -> State [a->b] String -> Int);;
 ltype Stream a = 'x;;

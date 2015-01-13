@@ -13,15 +13,9 @@ let rec list_ne_lazy (sep : string) (p : ('a,'s) MParser.t Lazy.t) : ('a list,'s
        | Some tail -> return (a::tail)
        | None      -> return [a])
 
-let rec list_ne (sep : string) (p : ('a,'s) MParser.t) : ('a list,'s) MParser.t =
-  let sep' = if sep = " " then zero else skip_symbol sep in
-  perform
-    a <-- p;
-    (perform
-       o <-- option (sep' >> list_ne sep p);
-       match o with
-       | Some tail -> return (a::tail)
-       | None      -> return [a])
+let chain_left1_lazy p op =
+  (Lazy.force p) >>= fun x ->
+  many_fold_left (fun x (f, y) -> f x y) x (pair op (Lazy.force p))
 
 let id_lower : (string,'s) MParser.t =
   (perform
@@ -65,11 +59,13 @@ let datavar = id_lower <?> "data-level type variable"
 let rec tyapp_ = lazy (
   perform
     name <-- id_upper;
-    m    <-- many (attempt (Lazy.force mtype_ <|> Lazy.force stype_));
+    m    <-- many (attempt (Lazy.force mtype_no_arr_ <|> Lazy.force stype_));
     return (name^" "^intercal (fun x -> x) " " m)
 )
-and mtype_ = lazy(
+and mtype_no_arr_ = lazy(
   datavar
+  <|>
+  Lazy.force tyapp_
   <|>
   (perform
     skip_symbol "()";
@@ -95,9 +91,25 @@ and mtype_ = lazy(
   <|>
   (perform
     skip_symbol "(";
-    t <-- Lazy.force mtype_;
-    skip_symbol ")";
-    return ("("^t^")"))
+    t1 <-- Lazy.force mtype_;
+    (perform
+       skip_symbol ",";
+       t2 <-- Lazy.force mtype_;
+       skip_symbol ")";
+       return ("("^t1^", "^t2^")"))
+    <|>
+     (skip_symbol ")" >> return ("("^t1^")")))
+  <?> "data-level type"
+)
+and mtype_ = lazy(
+  (perform
+     t1 <-- Lazy.force mtype_no_arr_;
+     arr <-- try_skip (skip_symbol "->");
+     if arr
+     then perform
+            t2 <-- Lazy.force mtype_;
+            return ("("^t1^") -> "^t2)
+     else return t1)
   <?> "data-level type"
 )
 and stype_ = lazy(
