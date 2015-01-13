@@ -1,0 +1,4 @@
+type Bool = True | False;;
+type Maybe a = Just a | Nothing;;
+type Either a b = Left a | Right b;;
+ltype Stream a = 'x;;

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9d7300ba3362a321dbed89b4eaa33ddb)
+# DO NOT EDIT (digest: ec1ba09ff9fd93ea42f435d36e3ff63f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -18,6 +18,8 @@ true: annot, bin_annot
 "sill.byte": package(bin_prot)
 "sill.byte": package(bin_prot.syntax)
 "sill.byte": package(core)
+"sill.byte": package(monad-custom)
+"sill.byte": package(mparser)
 "sill.byte": package(sexplib)
 "sill.byte": package(sexplib.syntax)
 "sill.byte": package(threads)
@@ -26,6 +28,8 @@ true: annot, bin_annot
 "sshstub.byte": package(bin_prot)
 "sshstub.byte": package(bin_prot.syntax)
 "sshstub.byte": package(core)
+"sshstub.byte": package(monad-custom)
+"sshstub.byte": package(mparser)
 "sshstub.byte": package(sexplib)
 "sshstub.byte": package(sexplib.syntax)
 "sshstub.byte": package(threads)
@@ -33,6 +37,8 @@ true: annot, bin_annot
 <*.ml{,i,y}>: package(bin_prot)
 <*.ml{,i,y}>: package(bin_prot.syntax)
 <*.ml{,i,y}>: package(core)
+<*.ml{,i,y}>: package(monad-custom)
+<*.ml{,i,y}>: package(mparser)
 <*.ml{,i,y}>: package(sexplib)
 <*.ml{,i,y}>: package(sexplib.syntax)
 <*.ml{,i,y}>: package(threads)

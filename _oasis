@@ -9,7 +9,8 @@ Maintainers:  Dennis Griffith <isanobody@gmail.com>
 License:      GPL-3 with OCaml linking exception
 OCamlVersion: >= 4.0
 Plugins:      StdFiles (0.3), DevFiles (0.3), META (0.3)
-BuildDepends: unix, threads, core, sexplib, bin_prot, sexplib.syntax, bin_prot.syntax
+BuildDepends: unix, threads, core, sexplib, bin_prot, sexplib.syntax, bin_prot.syntax,
+              monad-custom, mparser
 BuildTools:   ocamlbuild, camlp4, camlp4o
 
 Executable sill
