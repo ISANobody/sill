@@ -3,5 +3,84 @@ type Maybe a = Just a | Nothing;;
 type Either a b = Left a | Right b;;
 type State a b = State (a,b);;
 type Funz = Funz (Bool -> ());;
+type Funz = Funz [a->b];;
+type Funz = Funz (State String);;
+type Funz = Funz (State a);;
+type Funz = Funz (State 'a);;
+type Funz = Funz (State ());;
+type Funz = Funz (State [a]);;
+type Funz = Funz (State [a->b]);;
+type Funz = Funz (State [a->b] String);;
 type Funz = Funz (Bool -> State [a->b] String -> Int);;
-ltype Stream a = 'x;;
+ltype Stream a = 1;;
+ltype Stream a = Stream ;;
+ltype Stream a = a /\ 1 ;;
+ltype Stream a = a /\ (1 * 1) ;;
+ltype Stream a = a /\ 1 * 1 ;;
+ltype Stream a = a /\ !Stream ;;
+ltype Stream a = a /\ !1 ;;
+ltype Stream a = a /\ Stream ;;
+ltype Stream a = a /\ Stream a ;;
+ltype Stream' a = a => Stream' a;;
+ltype ChanStream 'a = 'a * ChanStream 'a;;
+ltype ChanStream 'a = 'a * 'a * ChanStream 'a;;
+ltype ChanStream 'a = Int * 'a * ChanStream 'a;;
+ltype ChanStream 'a = 'a * ChanStream 'a;;
+ltype ChanStream 'a = 'a * 'a -o ChanStream 'a;;
+ltype ChanStream 'a = Int -o 'a * ChanStream 'a;;
+ltype ChanStream 'a = Int -o 'a * ! ChanStream 'a;;
+atype Foo = forall 'a. 1 * 1;;
+utype Foo = exists 'a. 1 * 1;;
+utype Foo = +{};;
+utype Foo = +{red:1};;
+utype Foo = +{red:Stream a; blue:Steam};;
+utype Foo = +{red:Stream a; blue:1};;
+utype Foo = +{red:Stream a; blue:1*Stream};;
+utype Foo = +{red:Stream a; blue:()=>Stream};;
+utype Foo = +{red:Stream a; blue:[Int]/\Steam};;
+utype Foo = &{};;
+utype Foo = &{red:1};;
+utype Foo = &{red:Stream a; blue:Steam};;
+utype Foo = &{red:Stream a; blue:1};;
+utype Foo = &{red:Stream a; blue:1*Stream};;
+utype Foo = &{red:Stream a; blue:()=>Stream};;
+utype Foo = &{red:Stream a; blue:[Int]/\Steam};;
+
+f : ();;
+f = 5;;
+
+f : forall a 'b !c. ();;
+f = 5;;
+
+f : forall . ();;
+f = 5;;
+
+f : ();;
+'c <- f = close 'c;;
+
+f : ();;
+'c <- f -< = close 'c;;
+
+f : ();;
+'c <- f -< 'a @b !c = close 'c;;
+
+f : forall . ();;
+f x _ = 5;;
+
+f : ();;
+'c <- f x _ = close 'c;;
+
+f : ();;
+'c <- f x _ -< = close 'c;;
+
+f : ();;
+f = 45
+and
+g : Int;;
+g = 8;;
+
+'top <- close 'top;;
+
+'t1 <- close 't1
+and
+'t2 <- close 't2;;

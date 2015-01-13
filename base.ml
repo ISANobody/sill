@@ -66,6 +66,8 @@ let rec intercal (f : 'a -> string) (sep : string) (l : 'a list) : string =
   | [x] -> f x
   | x::xs -> f x ^ sep ^ intercal f sep xs
 
+let intersperse = intercal (fun x -> x)
+
 (* Convert integers to variable strings. 
    Should this be parametric over a list of characters? *)
 let rec varstr_of_int (n : int) : string =
