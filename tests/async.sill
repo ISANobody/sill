@@ -1,5 +1,0 @@
-'c <- 'd <- <'d <-{ print_str "1\n"; send 'd (); print_str "2\n"; close 'd }:{()/\1}>;
-      x <- recv 'd;
-      print_str "3\n";
-      wait 'd;
-      close 'c;;

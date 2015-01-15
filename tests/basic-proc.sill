@@ -1,8 +1,8 @@
 ltype Foo a = a /\1;;
 
 t2 : a -> {Int/\1};; 
-'c <- t2 x = send 'c 4; 
-close 'c;;
+'c <- t2 x = send 'c 4 ; 
+close 'c ;;
 
 t3 : a -> {b=>1};; 'c <- t3 x = y <- recv 'c; close 'c;;
 

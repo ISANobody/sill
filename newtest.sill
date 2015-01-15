@@ -77,10 +77,42 @@ f : ();;
 f = 45
 and
 g : Int;;
-g = 8;;
+g = 8.8 7;;
 
 'top <- close 'top;;
 
 't1 <- close 't1
 and
 't2 <- close 't2;;
+
+t2 : a -> {Int/\1};; 
+'c <- t2 x = 
+send 'c 4 ; 
+close 'c ;;
+
+
+ppl : List Int -> {1};;
+'c <- ppl l =
+case l of
+| Nil -> wait 'c; 8 + 8
+| Cons x k -> print 1;
+              print_str " ";
+              'c <- ppl k
+;;  
+(* (* *) *)
+ppl : List Int -> {1};;
+'c <- ppl l =
+case 'l of
+| nil -> "asdf"; 8 + 8
+| cons -> print 2;
+              print_str " ";
+              'c <- ppl k
+;; 
+ppl : List Int -> {1};;
+'c <- ppl l =
+case l of
+| Nil -> "asdf"; 8 + 8
+| Cons x k -> print 3;
+              print_str " ";
+              'c <- ppl k
+;; 
