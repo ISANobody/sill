@@ -49,10 +49,13 @@ utype Foo = &{red:Stream a; blue:[Int]/\Steam};;
 f : ();;
 f = 5;;
 
-f : forall a 'b !c. ();;
+f : ();;
+f = 5 < 8;;
+
+f : forall <a,'b,!c> . ();;
 f = 5;;
 
-f : forall . ();;
+f : forall <> . ();;
 f = 5;;
 
 f : ();;
@@ -64,7 +67,7 @@ f : ();;
 f : ();;
 'c <- f -< 'a @b !c = close 'c;;
 
-f : forall . ();;
+f : forall <> . ();;
 f x _ = 5;;
 
 f : ();;
@@ -111,7 +114,7 @@ case 'l of
 ppl : List Int -> {1};;
 'c <- ppl l =
 case l of
-| Nil -> "asdf"; 8 + 8
+| Nil -> "asdf"; 8 < 8
 | Cons x k -> print 3;
               print_str " ";
               'c <- ppl k

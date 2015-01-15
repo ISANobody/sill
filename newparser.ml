@@ -628,11 +628,11 @@ and exp_atom_ = lazy(
   <|>
   attempt string_literal
   <|>
-  (perform
-    (attempt (char '<' >> not_followed_by (  char '=' 
+  attempt (perform
+    (char '<' >> not_followed_by (  char '=' 
                                          <|> char '''
                                          <|> char '@'
-                                         <|> char '!') "" >> spaces));
+                                         <|> char '!') "" >> spaces);
     e <-- Lazy.force exp_;
     skip_symbol ":";
     t <-- mtype;
