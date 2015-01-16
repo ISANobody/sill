@@ -2,26 +2,26 @@ open Base
 open Core.Std
 open MParser
 open MParser.Tokens
+open Vars
+open Fullsyntax
 
 let keywords = ["fun"; "and"; "if"; "then"; "else"; "forall"; "exists"
                ;"let"; "in"; "send"; "recv"; "case"; "of"; "wait"
-               ;"close"]
+               ;"close"; "abort"]
 
 (* This is pretty ugly. The correct way to handle arbitrary paired comments is to treat
    eat them while consume spare white space. Of course, this isn't actually modularized
    so we need to rebind 'spaces' and some functions from MParser that use it. Ugh. *)
 
 let rec comment_go_ : (unit,'s) MParser.t Lazy.t = lazy(
-  (perform 
-    skip_many_until any_char (attempt (skip_string "*)")
+  (skip_many_until skip_any_char_or_nl (attempt (skip_symbol "*)")
                              <|>
                              (perform
                                attempt (skip_string "(*");
                                Lazy.force comment_go_;
-                               Lazy.force comment_go_)
-                             );
-    spaces)
-  <?> "")
+                               Lazy.force comment_go_)))
+  <?> ""
+)
 and comment_ = lazy((skip_string "(*" >> Lazy.force comment_go_) <?> "")
 let comment = Lazy.force comment_
 let spaces = MParser.spaces >> skip_many comment
@@ -83,18 +83,25 @@ let string_literal s =
      <?> "string literal") s
 
 let integer s =
-    (regexp (make_regexp "-?\\d+") >>= fun digits ->
+    (regexp (make_regexp "\\d+") >>= fun digits ->
      spaces           >>
      try_return int_of_string digits "Integer value out of range" s
      <?> "integer value") s
 
 let float_tok s =
-     (regexp (make_regexp "-?\\d+(\\.\\d*)?((e|E)?(\\+|-)?\\d+)?") >>= fun digits ->
+     (regexp (make_regexp "-?\\d+\\.(\\d*)?((e|E)?(\\+|-)?\\d+)?") >>= fun digits ->
      spaces         >>
      try_return Float.of_string digits "Not a valid float value" s
      <?> "float value") s
 
 (* END OF COPIED JUNK *)
+
+(* TODO Why is this here? It's from parse.mly but needs a better long term home *)
+let chan2tyvar (c:cvar) : tyvar =
+  match c with
+  | (_,Lin x) -> (Linear,x)
+  | (_,Aff x) -> (Affine,x)
+  | (_,Shr x) -> (Intuist,x)
 
 (* Because OCaml isn't lazy by default, we'll need to do some knot-tying via OCaml's
    Lazy module. This means that several of the combinators need lazy variants. :/ *)
@@ -121,53 +128,75 @@ let parens_lazy p = between_lazy '(' ')' p
 
 (* END LAZY DUPLICATES *)
 
+(* Since there was an earlier ocamllex/ocamlyacc version of this we need to convert
+   between MParser's notion of a location and the one that the rest of SILL uses.
+   TODO remove this conversion.
+   TODO provide positional spans and not just start points for srclocs. *)
+
+let getSloc =
+  perform
+    (_,l,c) <-- get_pos;
+    return ({lnum = l; cnum = c})
+
 (* We allow one case where identifiers cannot be followed by spaces: branch selection.
    As a result some of these identifier parsers will have id_ versions that do not consume
    trailing spaces. *)
 
-let id_lower_ : (string,'s) MParser.t =
+let id_lower_ : (fvar,'s) MParser.t =
   attempt (perform
+    sloc <-- getSloc;
     c <-- lowercase;
     cs <-- many_chars (alphanum <|> char '_' <|> char ''');
     let name = ((String.make 1 c) ^ cs)
     in if List.mem keywords name
        then zero
-       else return name)
+       else return (sloc,name))
   <?> "lowercase identifier"
 
 let id_lower = id_lower_ >>= fun s -> spaces >> return s
 
-let id_upper : (string,'s) MParser.t =
+let id_upper : ((srcloc * string),'s) MParser.t =
   (perform
+    sloc <-- getSloc;
     c <-- uppercase;
     cs <-- many_chars (alphanum <|> char '_' <|> char ''');
     _ <-- spaces;
-    return ((String.make 1 c) ^ cs))
+    return (sloc,((String.make 1 c) ^ cs)))
   <?> "uppercase identifier"
 
-let patvar = id_lower <|> symbol "_" <?> "pattern variable"
-
-let id_lin_ =
+let patvar : (fvar,'s) MParser.t = 
+  id_lower 
+  <|>
   (perform
+    sloc <-- getSloc;
+    skip_symbol "_";
+    return (sloc,"_"))
+  <?> "pattern variable"
+
+let id_lin_ : (cvar,'s) MParser.t =
+  (perform
+    sloc <-- getSloc;
     skip_char ''';
     x <-- id_lower_;
-    return ("'"^x))
+    return (sloc,Lin (snd x)))
 
 let id_lin = id_lin_ >>= fun s -> spaces >> return s
 
-let id_aff_ =
+let id_aff_ : (cvar,'s) MParser.t =
   (perform
+    sloc <-- getSloc;
     skip_char '@';
     x <-- id_lower_;
-    return ("@"^x))
+    return (sloc,Aff (snd x)))
 
 let id_aff = id_aff_ >>= fun s -> spaces >> return s
 
-let id_shr_ =
+let id_shr_ : (cvar,'s) MParser.t =
   (perform
+    sloc <-- getSloc;
     skip_char '!';
     x <-- id_lower_;
-    return ("!"^x))
+    return (sloc,Shr (snd x)))
 
 let id_shr = id_shr_ >>= fun s -> spaces >> return s
 
@@ -177,46 +206,50 @@ let shrchan = id_shr <?> "unrestricted channel"
 let subchan = id_lin <|> id_aff <?> "substructural channel"
 let anychan_ = id_lin_ <|> id_aff_ <|> id_shr_ <?> "channel"
 let anychan = id_lin <|> id_aff <|> id_shr <?> "channel"
-let sesvar  = id_lin <|> id_aff <|> id_shr <?> "session type variable"
+let sesvar  = (id_lin <|> id_aff <|> id_shr <?> "session type variable") |>> chan2tyvar
 let datavar = id_lower <?> "data-level type variable"
+let quant   = (sesvar |>> fun x -> `S x) <|> (datavar |>> fun x -> `M (snd x))
+            <?> "quantifier"
 
-let rec tyapp_ = lazy (
+let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
   perform
     name <-- id_upper;
-    m    <-- many (  id_upper 
-                 <|> attempt (Lazy.force mtype_atom_)
-                 <|> attempt (Lazy.force stype_atom_)
+    args <-- many (  (id_upper |>> (fun x -> (`A x)))
+                 <|> (attempt (Lazy.force mtype_atom_) |>> (fun x -> `M x))
+                 <|> (attempt (Lazy.force stype_atom_) |>> (fun x -> `S x))
                  <?> "data-level or session type");
-    return (name^" "^intersperse " " m)
+    return (TyApp (name,args))
 )
-and mtype_atom_ = lazy(
-  datavar
-  <|>
-  id_upper
+and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
+  (perform
+    (_,x) <-- datavar;
+    return (MVar x))
   <|>
   (perform
-    skip_symbol "()";
-    return "()")
+    (_,x) <-- id_upper;
+    return (Comp (x,[])))
+  <|>
+  (skip_symbol "()" >> return (Comp ("()",[])))
   <|>
   (perform
     skip_symbol "[";
     t <-- Lazy.force mtype_;
     skip_symbol "]";
-    return ("["^t^"]"))
+    return (Comp ("[]",[t])))
   <|>
   (perform
      skip_symbol "{";
-     (skip_symbol "}" >> return "{ }")
+     (skip_symbol "}" >> return (MonT(None,[])))
      <|>
      (perform
        t <-- Lazy.force stype_;
-       (skip_symbol "}" >> return ("{ "^t^" }"))
+       (skip_symbol "}" >> return (MonT(Some t,[])))
        <|>
        (perform
          skip_symbol "<-";
          ts <-- sep_by1_lazy (skip_symbol ";") stype_;
          skip_symbol "}";
-         return ("{ "^t^" <- "^intersperse ":" ts^" }"))))
+         return (MonT(Some t,ts)))))
   <|>
   (perform
     skip_symbol "(";
@@ -225,103 +258,115 @@ and mtype_atom_ = lazy(
        skip_symbol ",";
        t2 <-- Lazy.force mtype_;
        skip_symbol ")";
-       return ("("^t1^", "^t2^")"))
+       return (Comp(",",[t1;t2])))
     <|>
-     (skip_symbol ")" >> return ("("^t1^")")))
+     (skip_symbol ")" >> return t1))
   <?> "data-level type"
 )
-and mtype_basic_ = lazy(
-   Lazy.force tyapp_
+and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
+   attempt (perform
+     TyApp (name,args) <-- Lazy.force tyapp_;
+     if List.exists args (function
+                         | `S _ -> true
+                         | `M _ -> false
+                         | `A _ -> false)
+     then zero
+     else return (tyapp2mtype (TyApp (name,args))))
    <|>
    Lazy.force mtype_atom_
   <?> "data-level type"
 )
-and mtype_ = lazy(
+and mtype_ : (mtype,'s) MParser.t Lazy.t = lazy(
   (perform
      t1 <-- Lazy.force mtype_basic_;
      arr <-- try_skip (skip_symbol "->");
      if arr
      then perform
             t2 <-- Lazy.force mtype_;
-            return ("("^t1^") -> "^t2)
+            return (Comp("->",[t1;t2]))
      else return t1)
   <?> "data-level type"
 )
-and stype_ = lazy(
+and stype_ : (stype,'s) MParser.t Lazy.t = lazy(
   (perform
      attempt (skip_char '!' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return ("!"^t))
+     return (Bang t))
   <|>
   (perform
      attempt (skip_char '@' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return ("@"^t))
+     return (TyAt t))
   <|>
   (perform
      attempt (skip_char ''' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return ("'"^t))
+     return (Prime t))
   <|>
   attempt (perform
      m <-- Lazy.force mtype_;
      (perform
         skip_symbol "/\\";
         s <-- Lazy.force stype_;
-        return (m^" /\\ "^s))
+        return (TyOutD (Linear,m,s)))
      <|>
      (perform
         skip_symbol "=>";
         s <-- Lazy.force stype_;
-        return (m^" => "^s)))
+        return (TyInD (Linear,m,s))))
   <|>
   (perform
     skip_symbol "forall";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
-    return ("forall "^q^" . "^s))
+    return (Forall (Linear,q,s)))
   <|>
   (perform
     skip_symbol "exists";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
-    return ("exists "^q^" . "^s))
+    return (Exists (Linear,q,s)))
   <|>
   Lazy.force stype_times_
   <?> "session type"
 )
-and stype_times_ = lazy(
+and stype_times_ : (stype,'s) MParser.t Lazy.t = lazy(
   (perform
     s1 <-- Lazy.force stype_basic_;
     (perform 
       skip_symbol "*";
       s2 <-- Lazy.force stype_;
-      return (s1^" * "^s2))
+      return (TyOutC (Linear,s1,s2)))
     <|>
     (perform 
       skip_symbol "-o";
       s2 <-- Lazy.force stype_;
-      return (s1^" -o "^s2))
+      return (TyInC (Linear,s1,s2)))
     <|>
     (return s1))
   <?> "session type"
 )
-and stype_basic_ = lazy(
-  Lazy.force tyapp_
+and stype_basic_ : (stype,'s) MParser.t Lazy.t = lazy(
+  Lazy.force tyapp_ |>> tyapp2stype
   <|>
   Lazy.force stype_atom_
   <?> "session type"
 )
-and stype_atom_ = lazy(
-  sesvar
+and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
+  (perform
+    l <-- getSloc;
+    x <-- sesvar;
+    return (SVar (l,x)))
   <|>
-  id_upper
+  (perform
+    (l,x) <-- id_upper;
+    return (SComp (l,x,[])))
   <|>
   (perform
      skip_symbol "1";
-     return "1")
+     return (Stop Linear))
   <|>
   (perform
     skip_symbol "+{";
@@ -332,7 +377,8 @@ and stype_atom_ = lazy(
                      return (label,t)) 
                   (skip_symbol ";");
     skip_symbol "}";
-    return ("+{ "^intercal (fun (l,t) -> l^":"^t) "; " ts ^" }"))
+    (* TODO don't use the _exn version *)
+    return (Intern (Linear,LM.of_alist_exn ts)))
   <|>
   (perform
     skip_symbol "&{";
@@ -343,7 +389,8 @@ and stype_atom_ = lazy(
                      return (label,t)) 
                   (skip_symbol ";");
     skip_symbol "}";
-    return ("&{ "^intercal (fun (l,t) -> l^":"^t) "; " ts ^" }"))
+    (* TODO don't use the _exn version *)
+    return (Extern (Linear,LM.of_alist_exn ts)))
   <|>
   parens_lazy stype_
   <?> "session type"
@@ -358,42 +405,43 @@ let constructor =
   perform
     name <-- id_upper;
     args <-- many mtype_atom;
-    return (name^" "^intersperse " " args)
+    return (snd name,args)
   
-let mtypedec =
+let mtypedec : (toplvl,'s) MParser.t =
   perform
     skip_symbol "type";
     id <-- id_upper;
-    qs <-- many (sesvar <|> datavar);
+    qs <-- many datavar; (* TODO generalize to sesvars too *)
     skip_symbol "=";
-    t <-- sep_by constructor (skip_symbol "|");
+    ts <-- sep_by constructor (skip_symbol "|");
     skip_symbol ";;";
-    return (id^" "^intersperse " " qs
-           ^" = "^intersperse "\n| " t)
+    return (MTypeDecl (id,qs,SM.of_alist_exn ts))
 
-let stypedec =
+let stypedec : (toplvl,'s) MParser.t =
   perform
-    (skip_symbol "ltype" <|> skip_symbol "atype" <|> skip_symbol "utype");
+    mode <-- (  (skip_symbol "ltype" >> return Linear)
+            <|> (skip_symbol "atype" >> return Affine)
+            <|> (skip_symbol "utype" >> return Intuist));
     id <-- id_upper;
-    qs <-- many (sesvar <|> datavar);
+    qs <-- many quant;
     skip_symbol "=";
     t <-- stype;
     skip_symbol ";;";
-    return (id^" "^intersperse " " qs^" = "^t)
+    return (STypeDecl (mode,id,qs,t))
 
-let data_pattern =
+let data_pattern : ((string * fvar list),'s) MParser.t =
   (perform
     skip_symbol "|";
     (perform
       name <-- id_upper;
       pats <-- many patvar;
       skip_symbol "->";
-      return ("| "^name^" "^intersperse " " pats^" -> "))
+      return (snd name,pats))
     <|>
     (perform
       skip_symbol "[]";
       skip_symbol "->";
-      return ("| [] -> "))
+      return ("[]",[]))
     <|>
     (perform
       skip_symbol "(";
@@ -402,195 +450,209 @@ let data_pattern =
       x2 <-- patvar;
       skip_symbol ")";
       skip_symbol "->";
-      return ("| ("^x1^","^x2^") -> "))
+      return (",",[x1;x2]))
     <|>
     (perform
       x1 <-- patvar;
       skip_symbol "::";
       x2 <-- patvar;
       skip_symbol "->";
-      return ("| "^x1^"::"^x2^" -> ")))
+      return ("::",[x1;x2])))
   <?> "pattern match"
 
-let rec exp_ = lazy(
+let rec exp_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform 
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_and_;
     (perform
       skip_symbol "||";
       e2 <-- Lazy.force exp_;
-      return (e1^" || "^e2))
+      return (Bin (sloc,Or,e1,e2)))
     <|>
     (return e1))
   <?> "expression"
 )
-and exp_and_ = lazy(
+and exp_and_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_eq_;
     (perform
       skip_symbol "&&";
       e2 <-- Lazy.force exp_and_;
-      return (e1^" && "^e2))
+      return (Bin (sloc,And,e1,e2)))
     <|>
     (return e1))
 )
-and exp_eq_ = lazy(
+and exp_eq_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_compare_;
     (perform
       skip_symbol "=";
       e2 <-- Lazy.force exp_eq_;
-      return (e1^" = "^e2))
+      return (Bin (sloc,Eq,e1,e2)))
     <|>
     (return e1))
 )
-and exp_compare_ = lazy(
+and exp_compare_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_cons_;
     (perform
       skip_symbol "<=";
       e2 <-- Lazy.force exp_eq_;
-      return (e1^" <= "^e2))
+      return (Bin (sloc,LE,e1,e2)))
     <|>
     (perform
       skip_symbol ">=";
       e2 <-- Lazy.force exp_eq_;
-      return (e1^" => "^e2))
+      return (Bin (sloc,GE,e1,e2)))
     <|>
     (perform
       skip_symbol "<";
       e2 <-- Lazy.force exp_eq_;
-      return (e1^" < "^e2))
+      return (Bin (sloc,Less,e1,e2)))
     <|>
     (perform
       skip_symbol ">";
       e2 <-- Lazy.force exp_eq_;
-      return (e1^" > "^e2))
+      return (Bin (sloc,GT,e1,e2)))
     <|>
     (return e1))
 )
-and exp_cons_ = lazy(
+and exp_cons_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_add_;
     (perform
       skip_symbol "::";
       e2 <-- Lazy.force exp_;
-      return (e1^" :: "^e2))
+      return (Sat(sloc,"::",[e1;e2])))
     <|>
     (return e1))
 )
-and exp_add_ = lazy(
+and exp_add_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_times_;
     (perform
       skip_symbol "+.";
       e2 <-- Lazy.force exp_;
-      return (e1^" +. "^e2))
+      return (Bin (sloc,FAdd,e1,e2)))
     <|>
     (perform
       skip_symbol "-.";
       e2 <-- Lazy.force exp_;
-      return (e1^" -. "^e2))
+      return (Bin (sloc,FSub,e1,e2)))
     <|>
     (perform
       skip_symbol "+";
       e2 <-- Lazy.force exp_;
-      return (e1^" + "^e2))
+      return (Bin (sloc,Add,e1,e2)))
     <|>
     (perform
       (attempt (char '-' >> not_followed_by (char '<') "" >> spaces));
       e2 <-- Lazy.force exp_;
-      return (e1^" - "^e2))
+      return (Bin (sloc,Sub,e1,e2)))
     <|>
     (perform
       skip_symbol "^";
       e2 <-- Lazy.force exp_;
-      return (e1^" ^ "^e2))
+      return (Bin (sloc,Concat,e1,e2)))
     <|>
     (return e1))
 )
-and exp_times_ = lazy(
+and exp_times_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_exp_;
     (perform
       skip_symbol "*.";
       e2 <-- Lazy.force exp_times_;
-      return (e1^" *. "^e2))
+      return (Bin (sloc,FMul,e1,e2)))
     <|>
     (perform
       skip_symbol "/.";
       e2 <-- Lazy.force exp_times_;
-      return (e1^" /. "^e2))
+      return (Bin (sloc,FDiv,e1,e2)))
     <|>
     (perform
       skip_symbol "*";
       e2 <-- Lazy.force exp_times_;
-      return (e1^" * "^e2))
+      return (Bin (sloc,Mul,e1,e2)))
     <|>
     (perform
       skip_symbol "/";
       e2 <-- Lazy.force exp_times_;
-      return (e1^" / "^e2))
+      return (Bin (sloc,Div,e1,e2)))
     <|>
     (return e1))
   <?> "expression"
 )
-and exp_exp_ = lazy(
+and exp_exp_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     e1 <-- Lazy.force exp_app_;
     (perform
       skip_symbol "**";
       e2 <-- Lazy.force exp_exp_;
-      return (e1^" ** "^e2))
+      return (Bin (sloc,Exp,e1,e2)))
     <|>
     (return e1))
   <?> "expression"
 )
-and exp_app_ = lazy(
+and exp_app_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
     es <-- many1 (Lazy.force exp_basic_);
-    return (intersperse " " es))
+    return (List.reduce_exn es ~f:(fun ea e' -> App (locE ea,ea,e'))))
   <?> "expression"
 )
-and exp_basic_ = lazy(
+and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     skip_symbol "fun";
-    vars <-- many1 patvar;
+    (x::xs) <-- many1 patvar;
     skip_symbol "->";
     e <-- Lazy.force exp_;
-    return ("fun "^intersperse " " vars^" -> "^e))
+    return (Fun(sloc,x,xs,e)))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "let";
     name <-- id_lower;
-    vars <-- many patvar;
+    pats <-- many patvar;
     skip_symbol ":";
     t <-- mtype;
     skip_symbol "=";
     e1 <-- Lazy.force exp_;
     skip_symbol "in";
     e2 <-- Lazy.force exp_;
-    return (name^" "^intersperse " " vars^" : "^t^" = "^e1^"\n in "^e2))
+    return (Let (sloc,`M t,name,pats,e1,e2)))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "if";
     ec <-- Lazy.force exp_;
     skip_symbol "then";
     et <-- Lazy.force exp_;
     skip_symbol "else";
     ef <-- Lazy.force exp_;
-    return ("if "^ec^" then "^et^" else "^ef))
+    return (If (sloc,ec,et,ef)))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "case";
     e <-- Lazy.force exp_;
     skip_symbol "of";
     es <-- many1 (perform
-                   pat <-- data_pattern;
+                   (c,pat) <-- data_pattern;
                    ep <-- Lazy.force exp_;
-                   return (pat^ep));
-    return ("case "^e^" of "^intersperse "\n" es))
+                   return (c,(pat,ep)));
+    (* TODO don't use _exn version *)
+    return (Case (sloc,e,SM.of_alist_exn es)))
   <|>
   (perform
+    sloc <-- getSloc;
     c <-- anychan;
     skip_symbol "<-";
     skip_symbol "{";
@@ -599,75 +661,117 @@ and exp_basic_ = lazy(
     (perform
       skip_symbol "-<";
       cs <-- many anychan;
-      return (c^" <-{ "^p^" }-< "^intersperse " " cs))
+      return (Monad (sloc,Some c,p,cs)))
     <|>
-    (return (c^" <-{ "^p^" }")))
+    (return (Monad (sloc,Some c,p,[]))))
   <|>
   Lazy.force exp_atom_
   <?> "expression"
 )
-and exp_atom_ = lazy(
+and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
     x <-- id_lower_;
     (perform
-      skip_char '<';
-      ts <-- sep_by (attempt stype <|> attempt mtype) (symbol ",");
+      skip_char '<'; (* TODO generalize to handle mtypes *)
+      ts <-- sep_by (  attempt (perform
+                                 t <--tyapp;
+                                 followed_by (skip_symbol "," <|> skip_char '>') "";
+                                 return (`A t))
+                   <|> attempt (perform
+                                 t <-- stype;
+                                 followed_by (skip_symbol "," <|> skip_char '>') "";
+                                 return (`S t))
+                   <|> attempt (perform
+                                 t <-- mtype;
+                                 followed_by (skip_symbol "," <|> skip_char '>') "";
+                                 return (`M t))) (skip_symbol ",");
       skip_char '>';
       spaces;
-      return (x^"<"^intersperse "," ts^">"))
+      return (PolyApp (sloc,x,ts)))
     <|>
-    (spaces >> return x))
+    (spaces >> return (Var (sloc,x))))
   <|>
-  id_upper
-  <|>
-  attempt (float_tok |>> Float.to_string)
-  <|>
-  attempt (integer |>> string_of_int)
-  <|>
-  attempt (skip_symbol "()" >> return "()")
-  <|>
-  attempt string_literal
+  (perform
+    sloc <-- getSloc;
+    x <-- id_upper;
+    return (Var (sloc,x)))
   <|>
   attempt (perform
+    sloc <-- getSloc;
+    f <-- attempt float_tok;
+    return (Con (sloc,Float f)))
+  <|>
+  (perform
+    sloc <-- getSloc;
+    i <-- attempt integer;
+    return (Con (sloc,Int i)))
+  <|>
+  (perform
+    sloc <-- getSloc;
+    skip_symbol "()";
+    return (Sat(sloc,"()",[])))
+  <|>
+  (perform
+    sloc <-- getSloc;
+    s <-- attempt string_literal;
+    return (Con (sloc,String s)))
+  <|> (* TODO is attempt needed here? *)
+  attempt (perform
+    sloc <-- getSloc;
     (char '<' >> not_followed_by (  char '=' 
-                                         <|> char '''
-                                         <|> char '@'
-                                         <|> char '!') "" >> spaces);
+                                <|> char '''
+                                <|> char '@'
+                                <|> char '!') "" >> spaces);
     e <-- Lazy.force exp_;
     skip_symbol ":";
     t <-- mtype;
     skip_symbol ">";
-    return ("< "^e^" : "^t^" >"))
+    return (Cast (sloc,e,t)))
   <|>
   (perform
      skip_symbol "[";
      es <-- sep_by_lazy (skip_symbol ";") exp_;
      skip_symbol "]";
-     return ("["^intersperse "; " es^"]"))
+     sloc_end <-- getSloc;
+     return (List.fold_right es ~init:(Sat(sloc_end,"[]",[]))
+                                ~f:(fun e acc -> Sat(locE e,"::",[e;acc]))))
   <|>
   (perform
+     sloc <-- getSloc;
      skip_symbol "(";
      e1 <-- Lazy.force exp_;
      (perform
        skip_symbol ",";
        e2 <-- Lazy.force exp_;
        skip_symbol ")";
-       return ("("^e1^", "^e2^")"))
+       return (Sat(sloc,",",[e1;e2])))
      <|>
-     (skip_symbol ")" >> return ("("^e1^")")))
+     (skip_symbol ")" >> return e1))
   <?> "expression"
 )
-and proc_inst_ = lazy(
+and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   (perform
+    sloc <-- getSloc;
+    skip_symbol "abort";
+    return (function
+      | None -> Abort sloc
+      | Some cont -> errr (locP cont) "'abort' must end its process"))
+  <|>
+  (perform
+    sloc <-- getSloc;
     skip_symbol "if";
     ec <-- Lazy.force exp_;
     skip_symbol "then";
     pt <-- Lazy.force proc_;
     skip_symbol "else";
     pf <-- Lazy.force proc_;
-    return ("if "^ec^" then "^pt^" else "^pf))
+    return (function
+      | None -> IfP (sloc,ec,pt,pf)
+      | Some p -> errr (locP p) "BUG process if-then-else cannot be followed a process"))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "case";
     (perform
       c <-- subchan;
@@ -677,40 +781,61 @@ and proc_inst_ = lazy(
                        l <-- id_lower;
                        skip_symbol "->";
                        p <-- Lazy.force proc_;
-                       return ("| "^l^" -> "^p));
-      return ("case "^c^" of\n"^intersperse "\n" cases))
+                       return (l,p));
+      return (function
+                  (* TODO _exn *)
+        | None -> External (sloc,c,LM.of_alist_exn cases)
+        | Some p -> errr (locP p) "BUG external choice cannot be followed a process"))
     <|>
     (perform
       e <-- Lazy.force exp_;
       skip_symbol "of";
       cases <-- many1 (perform
-                         pat <-- data_pattern;
+                         (c,pat) <-- data_pattern;
                          p <-- Lazy.force proc_;
-                         return (pat^p));
-    return ("case "^e^" of\n"^intersperse "\n" cases)))
-  <|>
-  attempt (Lazy.force exp_)
+                         return (c,(pat,p)));
+    return (function
+                  (* TODO _exn *)
+      | None -> CaseP (sloc,e,SM.of_alist_exn cases)
+      | Some p -> errr (locP p) "BUG process case cannot be followed a process")))
   <|>
   (perform
+    sloc <-- getSloc;
+    e <-- attempt (Lazy.force exp_);
+    return (function
+      | Some cont -> Seq(sloc,e,cont)
+      | None -> errr sloc "Cannot end a process with a sequencing statement"))
+  <|>
+  (perform
+    sloc <-- getSloc;
     skip_symbol "<";
     x <-- sesvar;
     skip_symbol ">";
     skip_symbol "<-";
     skip_symbol "recv";
     c <-- subchan;
-    return ("<"^x^"> <- recv "^c))
+    return (function
+      | Some cont -> InTy(sloc,x,c,cont)
+      | None -> errr sloc "Cannot end a process by receiving a session type"))
   <|>
   (perform 
+    sloc <-- getSloc;
     skip_symbol "close";
     c <-- subchan;
-    return ("close "^c))
+    return (function
+      | None -> Close (sloc,c)
+      | Some p -> errr (locP p) "Cannot have a process after a close statement"))
   <|>
   (perform 
+    sloc <-- getSloc;
     skip_symbol "wait";
     c <-- subchan;
-    return ("wait "^c))
+    return (function
+      | Some cont -> Wait(sloc,c,cont)
+      | None -> errr sloc "Cannot end a process by waiting"))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "let";
     name <-- id_lower;
     pats <-- many patvar;
@@ -718,18 +843,25 @@ and proc_inst_ = lazy(
     t <-- mtype;
     skip_symbol "=";
     e <-- Lazy.force exp_;
-    return ("let "^name^" "^intersperse " " pats^" : "^t^" = "^e))
+    return (function
+      | Some cont -> LetP (sloc,`M t,name,pats,e,cont)
+      | None -> errr sloc "Cannot end a process with a let binding"))
   <|>
   (perform 
+    sloc <-- getSloc;
     skip_symbol "send";
     c <-- subchan;
     (perform
       e <-- attempt (Lazy.force exp_);
-      return ("send "^c^" "^e))
+      return (function
+        | Some cont -> OutD(sloc,c,e,cont)
+        | None -> errr sloc "Cannot end a process by sending a value"))
     <|>
     (perform
       c' <-- subchan;
-      return ("send "^c^" "^c'))
+      return (function
+        | Some cont -> Throw (sloc,c,c',cont)
+        | None -> errr sloc "Cannot end a process by sending a channel"))
     <|>
     (perform
       skip_symbol "(";
@@ -737,45 +869,62 @@ and proc_inst_ = lazy(
       skip_symbol "<-";
       p <-- Lazy.force proc_;
       skip_symbol ")";
-      return ("send "^c^" ("^c2^" <- "^p^")"))
+      return (function
+        | Some cont -> OutC (sloc,c,c2,p,cont)
+        | None -> ShftDwR (sloc,c,c2,p)))
     <|>
     (perform
       skip_symbol "<";
       t <-- stype;
       skip_symbol ">";
-      return ("send "^c^" <"^t^">"))
+      return (function
+        | Some cont -> OutTy (sloc,c,t,cont)
+        | None -> errr sloc "Cannot end a process by sending a type"))
   )
   <|>
   (perform
+    sloc <-- getSloc;
     x <-- id_lower;
     skip_symbol "<-";
     skip_symbol "recv";
     c <-- subchan;
-    return (x^" <- recv "^c))
+    return (function
+      | Some cont -> InD (sloc,x,c,cont)
+      | None -> errr sloc "Cannot end a process by receiving a value"))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "_";
     skip_symbol "<-";
     (perform
       skip_symbol "recv";
       c <-- subchan;
-      return ("_ <- recv "^c))
+      return (function
+        | Some cont -> InD (sloc,(sloc,priv_name ()),c,cont)
+        | None -> errr sloc "Cannot end a process by receiving a value"))
     <|>
     (perform
       e <-- Lazy.force exp_;
       (perform
         skip_symbol "-<";
         cs <-- many anychan;
-        return ("_ <- "^e^" -< "^intersperse " " cs))
+        return (function
+          | Some cont -> Detached (sloc,e,cs,cont)
+          | None -> errr sloc "Cannot end a process with a monadic bind"))
       <|>
-      (return ("_ <- "^e))))
+      (return (function
+         | Some cont -> Detached (sloc,e,[],cont)
+         | None -> errr sloc "Cannot end a process with a monadic bind"))))
   <|>
   (perform
+    sloc <-- getSloc;
     c1 <-- anychan_;
     (perform
       skip_char '.';
       l <-- id_lower;
-      return (c1^"."^l))
+      return (function
+        | Some cont -> Internal (sloc,c1,l,cont)
+        | None -> errr sloc "Cannot end a process with an internal choice"))
     <|>
     (perform
       spaces;
@@ -783,34 +932,50 @@ and proc_inst_ = lazy(
       (skip_symbol "recv" >>
         (perform
           c2 <-- anychan;
-          return (c1^" <- recv "^c2)))
+          return (function
+            | Some cont -> InC (sloc,c1,c2,cont)
+            | None -> errr sloc "Cannot end a process with an internal choice")))
       <|>
       (perform
         c2 <-- subchan;
-        return (c1^" <- "^c2))
+        return (function
+          | None -> Fwd (sloc,c1,c2)
+          | Some cont -> errr (locP cont) "Forwarding must end its process"))
       <|>
       (perform
         e <-- Lazy.force exp_;
         (perform
           skip_symbol "-<";
           cs <-- many anychan;
-          return (c1^" <- "^e^" -< "^intersperse " "cs))
+          return (function
+            | Some cont -> Bind (sloc,c1,e,cs,cont)
+            | None -> TailBind (sloc,c1,e,cs)))
         <|>
-        (return (c1^" <- "^e)))
+        (return (function
+           | Some cont -> Bind (sloc,c1,e,[],cont)
+           | None -> TailBind (sloc,c1,e,[]))))
       <|>
       (perform
         skip_symbol "send";
         c2 <-- anychan;
-        return (c1^" <- send "^c2)))
+        return (function
+          | Some cont -> ShftUpL (sloc,c1,c2,cont)
+          | None -> errr sloc "Cannot end a process with an upcast")))
   )
   <|>
-  parens_lazy proc_
+  (perform
+    p <-- parens_lazy proc_;
+    return (function
+      | None -> p
+      | Some cont -> errr (locP cont) "A parenthesised process must be the end of a process"))
   <?> "process statement"
 )
-and proc_ = lazy(
+and proc_ : (proc,'s) MParser.t Lazy.t = lazy(
   (perform
     pis <-- sep_by1_lazy (attempt (char ';' >> not_followed_by (char ';') "" >> spaces)) proc_inst_;
-    return (intersperse ";\n" pis))
+    (match (List.fold_right pis ~init:None ~f:(fun stmt acc -> Some (stmt acc))) with
+    | None -> zero
+    | Some p -> return p))
   <?> "process"
 )
 
@@ -824,15 +989,15 @@ let topsig =
     (perform
       skip_symbol "forall";
       skip_symbol "<";
-      qs <-- sep_by (datavar <|> sesvar) (skip_symbol ",");
+      qs <-- sep_by quant (skip_symbol ",");
       skip_symbol ">";
       skip_symbol ".";
       t <-- mtype;
-      return (name^" : forall "^intersperse " " qs^" . "^t))
+      return (name,`P (Poly (qs,t))))
     <|>
     (perform
       t <-- mtype;
-      return (name^" : "^t))
+      return (name,`M t))
 
 let topdef_ = 
   perform
@@ -843,53 +1008,71 @@ let topdef_ =
       pats <-- many patvar;
       skip_symbol "=";
       e <-- exp;
-      return (t^"\n"^name^" "^intersperse " " pats^" = "^e))
+      return (name,TopExp (name,t,pats,e)))
     <|>
     (perform
-       c <-- (anychan <|> symbol "_");
+       c <-- anychan;
        skip_symbol "<-";
        name <-- id_lower;
        pats <-- many patvar;
        (perform
          skip_symbol "=";
          p <-- proc;
-         return (t^"\n"^c^" <- "^name^" = "^p))
+         return (name,TopMon (name,t,pats,c,p,[])))
        <|>
        (perform
           skip_symbol "-<";
           cs <-- many anychan;
           skip_symbol "=";
           p <-- proc;
-          return (t^"\n"^c^" <- "^name^" "^intersperse " " pats^" -< "
-                 ^intersperse " " cs^" = "^p)))
+          return (name,TopMon (name,t,pats,c,p,cs))))
+    <|>
+    (perform
+       sloc <-- getSloc;
+       c <-- skip_symbol "_";
+       skip_symbol "<-";
+       name <-- id_lower;
+       pats <-- many patvar;
+       (perform
+         skip_symbol "=";
+         p <-- proc;
+         return (name,TopDet (name,t,pats,sloc,p,[])))
+       <|>
+       (perform
+          skip_symbol "-<";
+          cs <-- many anychan;
+          skip_symbol "=";
+          p <-- proc;
+          return (name,TopDet (name,t,pats,sloc,p,cs))))
 
-let topdef = 
+let topdef : (toplvl,'s) MParser.t = 
   perform
     defs <-- sep_by topdef_ (skip_symbol "and");
     skip_symbol ";;";
-    return (intersperse "\nand\n" defs)
+                  (* TODO _exn *)
+    return (TopLets (FM.of_alist_exn defs))
 
 let topproc_ =
   perform
     c <-- linchan;
     skip_symbol "<-";
     p <-- proc;
-    return (c^" <- "^p)
+    return (c,p)
 
-let topproc =
+let topproc : (toplvl,'s) MParser.t =
   perform
     procs <-- sep_by topproc_ (skip_symbol "and");
     skip_symbol ";;";
-    return (intersperse "\nand\n" procs)
+    return (TopProc procs)
 
 let entrypoint =
   perform
-    skip_many comment;
+    spaces;
     bindings <-- many (mtypedec <|> stypedec <|> topdef <|> topproc);
-    return (print_endline (intersperse "\n" bindings));
-    eof
+    eof;
+    return bindings
 
-let main (file: string) : unit =
+let main (file: string) : toplvl list =
   match MParser.parse_channel entrypoint (open_in file) () with
-    | Success _ -> ()
+    | Success prog -> prog
     | Failed (msg, _) -> print_endline msg; Pervasives.exit 1

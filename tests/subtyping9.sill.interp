@@ -11,7 +11,7 @@
    @44:8 close
 3: @26:3 bound from 2
    @26:3 internal next
-   @27:8 input 0
+   @27:3 input 0
    @28:3 internal stop
    @29:3 close
 4: @15:3 bound from 2
@@ -28,7 +28,7 @@
    @44:8 close
 6: @33:3 bound from 5
    @33:3 internal next
-   @34:8 input 0
+   @34:3 input 0
    @35:3 internal skip
    @36:3 internal stop
    @37:3 close

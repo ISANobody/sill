@@ -15,12 +15,11 @@ let main =
            +> flag "interpstats" ~doc:" enable statistics gathering" no_arg
            +> flag "dynchecks" ~doc:" enable dynamic type checking" no_arg
            +> flag "parseonly" ~doc:" stop after parsing" no_arg
-           +> flag "newparser" ~doc:" use the new monadic parser" no_arg
            +> Spec.flag "gkind" ~doc:"linear|one_weaken|affine select global channel kind"
                                 (optional_with_default "linear" string)
            +> (anon ("<program>" %: file)))
   and realMain (backend:string) (eval_trace:bool) (live_trace:bool) (infer_trace:bool) (sub_trace:bool) 
-               (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool) (newparser:bool)
+               (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool) 
                (gkind:string) (prog:string)  () = 
       eval_trace_flag := eval_trace;
       live_trace_flag := live_trace;
@@ -32,19 +31,7 @@ let main =
       backend_choice := backend;
       global_channel_kind := gkind;
       reinit();
-      if newparser
-      then (Newparser.main prog; Pervasives.exit 0);
-      let p = try (Parse.main Lex.token (Lexing.from_channel (open_in prog)))
-              with exn ->
-              begin
-              (match exn with
-              | Failure e -> print_endline e
-              | Lex.CloseComm p -> errr p "Close of non-existent comment"
-              | Lex.SuperCloseComm p -> errr p "Close of non-existent comment"
-              | Lex.OpenComm p -> errr p "Unclosed comment"
-              | _ -> ());
-              errr !curloc "Unknown parse error. Complain. This message should be more specific."
-              end
+      let p = Newparser.main prog
       in if parseonly
          then ()
          else

@@ -17,7 +17,7 @@
    @17:13 close
 3: @27:3 bound from 1
    @27:3 internal next
-   @28:8 input 0
+   @28:3 input 0
    @29:3 internal stop
    @30:3 wait
    @31:3 close
@@ -29,7 +29,7 @@
    @7:13 close
 5: @27:3 bound from 1
    @27:3 internal next
-   @28:8 input 0
+   @28:3 input 0
    @29:3 internal stop
    @30:3 wait
    @31:3 close
@@ -43,7 +43,7 @@
    @17:13 close
 7: @35:3 bound from 1
    @35:3 internal next
-   @36:8 input 0
+   @36:3 input 0
    @37:3 internal skip
    @38:3 internal stop
    @39:3 wait

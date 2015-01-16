@@ -94,9 +94,9 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
                  match q,amb with (* TODO wfS/wfM checks here *)
                  | `S x,`S s -> let s' = puretoptrS s
                                 in (accm,TM.add accs x s')
-                 | `S x,`A a -> let s' = puretoptrS (Fullsyntax.ambigstype a)
+                 | `S x,`A a -> let s' = puretoptrS (Pure.SComp (fst a,snd a,[]))
                                 in (accm,TM.add accs x s')
-                 | `M x,`A a -> let m' = (puretoptrM (Fullsyntax.ambigmtype a))
+                 | `M x,`A a -> let m' = (puretoptrM (Pure.Comp (snd a,[])))
                                 in (SM.add accm x m',accs)
                  | `M x,`M m -> let m' = (puretoptrM m)
                                 in (SM.add accm x m',accs)
@@ -115,8 +115,8 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
          in let args' = List.map2_exn qs args
                         ~f:(fun q arg -> match q,arg with
                                          | `M _,`M x -> `M (puretoptrM x)
-                                         | `M _,`A x -> `M (puretoptrM (Fullsyntax.ambigmtype x))
-                                         | `S _,`A x -> `S (puretoptrS (Fullsyntax.ambigstype x))
+                                         | `M _,`A x -> `M (puretoptrM (Pure.Comp (snd x,[])))
+                                         | `S _,`A x -> `S (puretoptrS (Pure.SComp (fst x,snd x,[])))
                                          | `S _,`S x -> `S (puretoptrS x)
                                          | _ -> failwith "BUG puretoptrS.go Mu")
             in a := Dest.SComp (t,name,args');
@@ -151,50 +151,3 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
 
   in go tin_in SM.empty
-
-(* TODO reconsider having this *)
-let rec ptrtopureM_raw (tin : Dest.mtype) (cache : (Dest.stype * string option ref) list) : Pure.mtype =
-  match !(Dest.getMType tin) with
-  | Dest.MInd _ -> failwith "ptrtopureM: MInd after getMType"
-  | Dest.MVar -> Pure.MVar (ptrtovar tin)
-  | Dest.MVarU _ -> Pure.MVar (ptrtovar tin)
-  | Dest.Comp(c,args) -> Pure.Comp(c,List.map args (fun x -> ptrtopureM_raw x cache))
-  | Dest.MonT(Some c,cs) -> Pure.MonT(Some (ptrtopureS_raw c cache)
-                                     ,List.map cs (fun x -> ptrtopureS_raw x cache))
-  | Dest.MonT(None,cs) -> Pure.MonT(None
-                                     ,List.map cs (fun x -> ptrtopureS_raw x cache))
-and ptrtopureS_raw (tin : Dest.stype) (cache : (Dest.stype * string option ref) list) : Pure.stype =
-  if ass_memq (Dest.getSType tin) cache
-  then match !(assq (Dest.getSType tin) cache) with
-       | Some x -> Pure.SVar (Syntax.Core.nullloc,(Linear,x)) (* TODO hardcoded mode *)
-       | None -> let x = sptrtovar (Dest.getSType tin)
-                 in (assq (Dest.getSType tin) cache) := Some x;
-                    Pure.SVar (Syntax.Core.nullloc,(Linear,x)) (* TODO hardcoded mode *)
-  else 
-  let t = Dest.getSType tin
-  and n = ref None in
-  let body = 
-    match !t with (* TODO Actually account for modalities *)
-    | Dest.SInd _ -> failwith "ptrtopureS: SInd after getSType"
-    | Dest.SComp _ -> failwith "ptrtopureS: SComp after getSType"
-    | Dest.SVar -> failwith "ptrtopureS: SVar"
-    | Dest.SVarU _ -> failwith "ptrtopureS: SVarU"
-    | Dest.InD (mode,m,s) -> Pure.TyInD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.OutD (mode,m,s) -> Pure.TyOutD (mode,(ptrtopureM_raw m ((t,n)::cache)),(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.InC (m,s1,s2) -> Pure.TyInC (m,(ptrtopureS_raw s1 ((t,n)::cache))
-                                       ,(ptrtopureS_raw s2 ((t,n)::cache)))
-    | Dest.OutC (m,s1,s2) -> Pure.TyOutC (m,(ptrtopureS_raw s1 ((t,n)::cache))
-                                         ,(ptrtopureS_raw s2 ((t,n)::cache)))
-    | Dest.Stop mode -> Pure.Stop mode
-    | Dest.Intern (mode,lm) -> Pure.Intern (mode,LM.map lm (fun x -> ptrtopureS_raw x ((t,n)::cache)))
-    | Dest.Extern (mode,lm) -> Pure.Extern (mode,LM.map lm (fun x -> ptrtopureS_raw x ((t,n)::cache)))
-    | Dest.Forall (m,x,s) -> Pure.Forall (m,x,(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.Exists (m,x,s) -> Pure.Exists (m,x,(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.ShftUp (m,s) -> Pure.ShftUp (m,(ptrtopureS_raw s ((t,n)::cache)))
-    | Dest.ShftDw (m,s) -> Pure.ShftDw (m,(ptrtopureS_raw s ((t,n)::cache)))
-  in match !n with
-     | None -> body
-     | Some x -> Pure.Mu ((Linear,x),body,"BUG",[]) (* TODO this is clearly wrong *)
-
-let ptrtopureM tin = ptrtopureM_raw tin []
-let ptrtopureS tin = ptrtopureS_raw tin []

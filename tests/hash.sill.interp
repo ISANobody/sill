@@ -11,11 +11,11 @@
    @136:1 output "Cow"
    @138:1 internal lookup
    @139:1 output Cons(4; Cons(1; Nil()))
-   @140:6 input Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
+   @140:1 input Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
    @141:1 tail-bind
    @143:1 internal lookup
    @144:1 output Cons(2; Cons(3; Nil()))
-   @145:6 input Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
+   @145:1 input Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
    @146:1 tail-bind
    @148:1 internal stop
    @149:1 wait
@@ -33,117 +33,117 @@
    @165:1 output "Cow"
    @167:1 internal lookup
    @168:1 output Cons(4; Cons(1; Nil()))
-   @169:6 input Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
+   @169:1 input Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
    @170:1 tail-bind
    @172:1 internal lookup
    @173:1 output Cons(2; Cons(3; Nil()))
-   @174:6 input Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
+   @174:1 input Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
    @175:1 tail-bind
    @177:1 internal stop
    @178:1 wait
    @180:1 close
 2: @72:3 bound from 1
    @72:3 external insert
-   @73:20 input 1
-   @74:20 input "Dog"
+   @73:15 input 1
+   @74:15 input "Dog"
    @75:15 tail-bind
    @72:3 external insert
-   @73:20 input 2
-   @74:20 input "Cat"
+   @73:15 input 2
+   @74:15 input "Cat"
    @75:15 tail-bind
    @72:3 external insert
-   @73:20 input 3
-   @74:20 input "Cow"
+   @73:15 input 3
+   @74:15 input "Cow"
    @75:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(4; Cons(1; Nil()))
+   @76:15 input Cons(4; Cons(1; Nil()))
    @77:15 output Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
    @78:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(2; Cons(3; Nil()))
+   @76:15 input Cons(2; Cons(3; Nil()))
    @77:15 output Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
    @78:15 tail-bind
    @72:3 external stop
    @79:13 close
 3: @72:3 bound from 1
    @72:3 external insert
-   @73:20 input 2
-   @74:20 input "Cat"
+   @73:15 input 2
+   @74:15 input "Cat"
    @75:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(4; Nil())
+   @76:15 input Cons(4; Nil())
    @77:15 output Cons(Pair(4; None()); Nil())
    @78:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(2; Nil())
+   @76:15 input Cons(2; Nil())
    @77:15 output Cons(Pair(2; Some("Cat")); Nil())
    @78:15 tail-bind
    @72:3 external stop
    @79:13 close
 4: @72:3 bound from 1
    @72:3 external insert
-   @73:20 input 1
-   @74:20 input "Dog"
+   @73:15 input 1
+   @74:15 input "Dog"
    @75:15 tail-bind
    @72:3 external insert
-   @73:20 input 3
-   @74:20 input "Cow"
+   @73:15 input 3
+   @74:15 input "Cow"
    @75:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(1; Nil())
+   @76:15 input Cons(1; Nil())
    @77:15 output Cons(Pair(1; Some("Dog")); Nil())
    @78:15 tail-bind
    @72:3 external lookup
-   @76:20 input Cons(3; Nil())
+   @76:15 input Cons(3; Nil())
    @77:15 output Cons(Pair(3; Some("Cow")); Nil())
    @78:15 tail-bind
    @72:3 external stop
    @79:13 close
 5: @96:3 bound from 1
    @96:3 external insert
-   @97:20 input 1
-   @98:20 input "Dog"
+   @97:15 input 1
+   @98:15 input "Dog"
    @99:16 tail-bind
    @104:26 internal insert
    @105:22 output 1
    @106:22 output "Dog"
    @107:22 tail-bind
    @96:3 external insert
-   @97:20 input 2
-   @98:20 input "Cat"
+   @97:15 input 2
+   @98:15 input "Cat"
    @99:16 tail-bind
    @100:25 internal insert
    @101:22 output 2
    @102:22 output "Cat"
    @103:22 tail-bind
    @96:3 external insert
-   @97:20 input 3
-   @98:20 input "Cow"
+   @97:15 input 3
+   @98:15 input "Cow"
    @99:16 tail-bind
    @104:26 internal insert
    @105:22 output 3
    @106:22 output "Cow"
    @107:22 tail-bind
    @96:3 external lookup
-   @111:20 input Cons(4; Cons(1; Nil()))
+   @111:15 input Cons(4; Cons(1; Nil()))
    @112:15 tail-bind
    @113:15 internal lookup
    @114:15 output Cons(4; Nil())
    @115:15 internal lookup
    @116:15 output Cons(1; Nil())
-   @117:27 input Cons(Pair(4; None()); Nil())
-   @118:27 input Cons(Pair(1; Some("Dog")); Nil())
+   @117:15 input Cons(Pair(4; None()); Nil())
+   @118:15 input Cons(Pair(1; Some("Dog")); Nil())
    @119:15 output Cons(Pair(4; None()); Cons(Pair(1; Some("Dog")); Nil()))
    @120:15 tail-bind
    @96:3 external lookup
-   @111:20 input Cons(2; Cons(3; Nil()))
+   @111:15 input Cons(2; Cons(3; Nil()))
    @112:15 tail-bind
    @113:15 internal lookup
    @114:15 output Cons(2; Nil())
    @115:15 internal lookup
    @116:15 output Cons(3; Nil())
-   @117:27 input Cons(Pair(2; Some("Cat")); Nil())
-   @118:27 input Cons(Pair(3; Some("Cow")); Nil())
+   @117:15 input Cons(Pair(2; Some("Cat")); Nil())
+   @118:15 input Cons(Pair(3; Some("Cow")); Nil())
    @119:15 output Cons(Pair(2; Some("Cat")); Cons(Pair(3; Some("Cow")); Nil()))
    @120:15 tail-bind
    @96:3 external stop

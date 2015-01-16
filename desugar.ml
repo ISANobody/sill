@@ -72,7 +72,14 @@ let rec desugarExp (ein:Full.exp) : Core.exp =
                                 in Core.Monad (loc2ast i,None,desugarProc tmpc (CS.of_list cs) p,cs,None)
   | Full.Cast (i,e,t) -> Core.Cast (loc2ast i,desugarExp e,t)
   | Full.Box (i,e,t) -> Core.Box (loc2ast i,desugarExp e,t)
-  | Full.PolyApp (i,x,s) -> Core.PolyApp(loc2ast i,x,s)
+  | Full.PolyApp (i,x,args) -> (* TODO better disambiguation/error reporting here *)
+    let args' = List.map args (function
+                              | `A (Pure.TyApp (name,a)) when SM.mem !sessionQs (snd name) -> 
+                                    `S (Pure.tyapp2stype (Pure.TyApp (name,a)))
+                              | `A a -> `M (Pure.tyapp2mtype a)
+                              | `M m -> `M m
+                              | `S s -> `S s)
+    in Core.PolyApp(loc2ast i,x,args')
 
 (* Some of our desugaring requires knowledge of the currently provided channel and all
    those in scope. *)
@@ -275,8 +282,8 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
     (* If t is mentioned recursively we need to add mu's to it.
        To ensure regularity we enforce that recursive calls cannot have arguments.
        Like with pretty printing we use a reference to denote we actually did something. *)
-    let this : (string*(srcloc * [`A of Pure.ambig | `M of Pure.mtype | `S of Pure.stype] list) list) option ref = ref None in
-    let getThis (l:srcloc) (params : [`A of Pure.ambig | `M of Pure.mtype | `S of Pure.stype] list) : string = 
+    let this : (string*(srcloc * [`A of fvar | `M of Pure.mtype | `S of Pure.stype] list) list) option ref = ref None in
+    let getThis (l:srcloc) (params : [`A of fvar | `M of Pure.mtype | `S of Pure.stype] list) : string = 
         (match !this with 
         | Some (s,argss) -> this := Some (s,((l,params) :: argss)); s 
         | None -> let tmp = priv_name() in this := Some (tmp,[(l,params)]); tmp)
@@ -333,13 +340,8 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                  List.iter2_exn fs args ~f:(fun q mt -> 
                    match q,mt with
                    | `M x,`M (Pure.MVar y) when x = y -> ()
-                   | `M x,`A a -> (match (Pure.ambigmtype a) with
-                                  | Pure.MVar y when x = y -> ()
-                                  | _ -> errr (Pure.ambigl a) "Recursive calls much have identical paramters")
-                   | `S x,`A a -> (match (Pure.ambigstype a) with
-                                  | Pure.SVar (l,y) when x = y -> ()
-                                  | _ -> errr l "Recursive calls much have identical paramters")
-                   | _ -> errr l "Recursive calls much have identical paramters"));
+                   | `S x,`S (Pure.SVar (_,y)) when x = y -> ()
+                   | _ -> errr l "Recursive calls must have identical paramters"));
               let qs' = List.map fs (fun q -> match q with 
                                               | `M x -> `M (Pure.MVar x)
                                               | `S x -> `S (Pure.SVar (fst t,x)))

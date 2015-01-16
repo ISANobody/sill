@@ -11,7 +11,7 @@
    @44:1 internal push
    @45:1 output 4
    @46:1 internal pop
-   @47:9 input Just(4)
+   @47:1 input Just(4)
    @48:1 tail-bind
    @53:13 tail-bind
    @53:22 tail-bind
@@ -21,7 +21,7 @@
    @57:11 close
 2: @25:1 bound from 1
    @25:1 external push
-   @26:16 input 0.
+   @26:11 input 0.
    @27:11 bind
    @28:11 tail-bind
    @12:1 external dealloc
@@ -33,11 +33,11 @@
    @31:14 close
 4: @25:1 bound from 1
    @25:1 external push
-   @26:16 input 3
+   @26:11 input 3
    @27:11 bind
    @28:11 tail-bind
    @12:1 external push
-   @13:16 input 4
+   @13:11 input 4
    @14:11 bind
    @15:11 tail-bind
    @12:1 external pop

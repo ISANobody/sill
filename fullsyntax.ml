@@ -4,6 +4,7 @@ open Vars
 
 (* The purpose of this is to allow for parsing and desugaring to occur at different times.
    It is assumed that you'll use the fully qualified names with this. *)
+(* TODO consider just making these applications of _building_or_ or something *)
 type binop = Add | Sub | Mul | Div | Exp | FAdd | FSub | FMul | FDiv 
            | Concat | Eq | Less 
            | And | Or | GT | GE | LE
@@ -16,7 +17,7 @@ type exp =
    | Var of srcloc * fvar
    | Con of srcloc * const
    | Bin of srcloc * binop * exp * exp
-   | Sat of srcloc * string * exp list
+   | Sat of srcloc * string * exp list (* TODO make constructors just a variable lookup *)
    | If of srcloc * exp * exp * exp
    | Case of srcloc * exp * ((fvar list * exp) SM.t)
    | Fun of srcloc * fvar * fvar list * exp
@@ -25,7 +26,7 @@ type exp =
    | Monad of srcloc * cvar option * proc * cvar list
    | Cast of srcloc * exp * mtype
    | Box of srcloc * exp * mtype
-   | PolyApp of srcloc * fvar * [`A of ambig | `S of stype] list (* x<S> *)
+   | PolyApp of srcloc * fvar * [`A of tyapp | `M of mtype | `S of stype] list (* x<S> *)
 and proc =
   | Bind of srcloc * cvar * exp * cvar list * proc
   | Detached of srcloc  * exp * cvar list * proc
@@ -52,22 +53,7 @@ and proc =
   | OutTy of srcloc * cvar * stype * proc
   | ShftUpL of srcloc * cvar * cvar * proc (* c1 <- send c2; P *)
   | ShftDwR of srcloc * cvar * cvar * proc (* send c1 (c2 <- P) *)
-(* While this isn't syntax exactly, circularity needs to be broken *)
-and ambig = Seqq of ambig list
-          | Tyname of srcloc * string
-          | Funname of srcloc * string
-          | Unit   of srcloc
-          | MAtom  of mtype
-          | EAtom  of exp
-          | TYVar  of srcloc * tyvar
-          | Int of srcloc * int
-          | Paren  of ambig
-          | List of ambig (* lists like [...] *)
-          | Times of ambig * ambig 
-          | Loli  of ambig * ambig
-          | Pair of ambig * ambig
-          | At of ambig
-          | Arrow of ambig * ambig
+ and tyapp = TyApp of fvar * [`A of fvar | `M of mtype | `S of stype] list
  and mtype = Comp of string * mtype list
            | MonT of stype option * stype list
            | MVar  of string
@@ -78,20 +64,35 @@ and ambig = Seqq of ambig list
            | Stop of modality
            | Intern of modality * stype LM.t
            | Extern of modality * stype LM.t
-           | Mu of tyvar * stype * string * [`A of ambig | `M of mtype | `S of stype] list (* Second two record data for printing *)
+           | Mu of tyvar * stype * string * [`A of fvar | `M of mtype | `S of stype] list (* Second two record data for printing *)
            | SVar of srcloc * tyvar (* Session type variables *)
-           | SComp of srcloc * string * [`A of ambig | `M of mtype | `S of stype] list
+           | SComp of srcloc * string * [`A of fvar | `M of mtype | `S of stype] list
            | Forall of modality * tyvar * stype
            | Exists of modality * tyvar * stype
            | ShftUp of modality * stype (* Only need the target modality explicit *)
            | ShftDw of modality * stype (* Only need the target modality explicit *) 
-           | Parens of stype (* This is pretty ugly :/ *)
-           | TyAt of stype
+           | Parens of stype (* TODO This is pretty ugly :/ *)
+           | TyAt of stype (* TODO is this ugly name needed? *)
            | Prime of stype
            | Bang of stype
 and ptype = Poly of [`M of string | `S of tyvar] list * mtype (* first one is mtype
 quantifier, second session *)
 with sexp, bin_io 
+
+(* TODO Disambiguate more intelligently *)
+(* TODO get a real error location for the `S case *)
+let tyapp2mtype (TyApp (name,args)) : mtype =
+  Comp (snd name,List.map args (function
+                               | `M x -> x
+                               | `S x -> errr (fst name) "BUG didn't expect session type here"
+                               | `A x -> Comp (snd x,[])))
+
+(* TODO Disambiguate more intelligently *)
+let tyapp2stype (TyApp (name,args)) : stype =
+  SComp (fst name,snd name,List.map args (function
+                                         | `M x -> `M x
+                                         | `S x -> `S x
+                                         | `A x -> `M (Comp (snd x,[]))))
 
 let locE (e:exp) : srcloc =
   match e with
@@ -109,29 +110,13 @@ let locE (e:exp) : srcloc =
   | Box (i,_,_) -> i
   | PolyApp (i,_,_) -> i
 
-
-let rec ambig2str (ain:ambig) : string =
-  match ain with
-  | Seqq l -> "Seq ["^intercal ambig2str "; " l^"]"
-  | Tyname _ -> "Tyname"
-  | Funname _ -> "Funname"
-  | Unit _ -> "Unit"
-  | MAtom _ -> "MAtom"
-  | EAtom _ -> "EAtom"
-  | Paren a -> "Paren "^ambig2str a
-  | List a -> "List "^ambig2str a
-  | Times (a1,a2) -> "Times ("^ambig2str a1^","^ambig2str a2^")"
-  | Loli (a1,a2) -> "Loli ("^ambig2str a1^","^ambig2str a2^")"
-  | Pair (a1,a2) -> "Pair ("^ambig2str a1^","^ambig2str a2^")"
-  | Arrow (a1,a2) -> "Arrow ("^ambig2str a1^","^ambig2str a2^")"
-  | Int _ -> "Int"
-  | At a -> "At "^ambig2str a
-  | TYVar _ -> "TYVar"
-
 (* Some printing functions *)
 let rec string_of_mtype (tin:mtype) : string =
   match tin with
   | MVar x -> x
+  | Comp ("[]",[a]) -> "["^string_of_mtype a^"]"
+  | Comp (",",[a;b]) -> "("^string_of_mtype a^", "^string_of_mtype b^")"
+  | Comp ("->",[a;b]) -> "("^string_of_mtype a^") -> ("^string_of_mtype b^")"
   | Comp (c,args) -> if List.length args = 0
                      then c
                      else c^"("^intercal string_of_mtype "," args^")"
@@ -158,7 +143,7 @@ and string_of_stype (tin : stype) : string =
   | SComp (_,c,args) -> if List.length args = 0
                       then c
                       else c^"("^intercal (fun x -> match x with
-                                                    | `A a -> ambig2str a
+                                                    | `A a -> string_of_fvar a
                                                     | `M m -> string_of_mtype m
                                                     | `S s -> string_of_stype s)
                                            "," args^")"
@@ -200,91 +185,6 @@ let rec getmode (tin:stype) : modality =
   | TyAt _ -> Affine
   | Prime _ -> Linear
 
-let checkStop n = if snd n = 1 
-                  then Stop Linear 
-                  else errr (fst n) ("Expected the session type 1 found "^string_of_int (snd n))
-
-let ambigcons (x:ambig) (lin:ambig) : ambig =
-  match lin with
-  | Seqq l -> Seqq (x::l)
-  | _ -> failwith "BUG. ambigcons of non-Seq"
-
-let ambigcat (lin1:ambig) (lin2:ambig) : ambig =
-  match lin1,lin2 with
-  | Seqq l1,Seqq l2 -> Seqq (l1 @ l2)
-  | _ -> failwith "BUG. ambigcat of non-Seq"
-
-let ambigsnoc (lin:ambig) (x:ambig) : ambig =
-  match lin with
-  | Seqq l -> Seqq (l@[x])
-  | _ -> failwith "BUG. ambigsnoc of non-Seq"
-
-let rec ambigl (ain: ambig) : srcloc =
-  match ain with
-  | Seqq [] -> failwith "BUG ambigl []"
-  | Seqq (h::_) -> ambigl h
-  | Unit sloc -> sloc
-  | Tyname (sloc,_) -> sloc
-  | Funname (sloc,_) -> sloc
-  | EAtom e -> locE e
-  | MAtom _ -> failwith "BUG ambigl MAtom"
-  | Times (a,_) -> ambigl a
-  | Int (sloc,_) -> sloc
-  | List a -> ambigl a
-  | Pair (a,_) -> ambigl a
-  | Paren a -> ambigl a
-  | Arrow (a,_) -> ambigl a
-  | Loli (a,_) -> ambigl a
-  | At a -> ambigl a
-  | TYVar (l,_) -> l
-
-let rec ambigstype (ain: ambig) : stype =
-  match ain with
-  | Seqq (Tyname (sloc,n)::l) -> SComp (sloc,n,List.map l (fun a -> `A (Seqq [a])))
-  | Seqq [Int (sloc,n)] -> checkStop (sloc,n)
-  | Times (a1,a2) -> TyOutC(Linear,ambigstype a1,ambigstype a2) (* TODO Modes *)
-  | Seqq [Paren a] -> ambigstype a
-  | At (Times (a1,a2)) -> TyOutC(Affine,ambigstype a1,ambigstype a2)
-  | At Seqq [Int (sloc,n)] -> TyAt (checkStop (sloc,n))
-  | Seqq [TYVar (l,x)] -> SVar (l,x)
-  | _ -> errr (ambigl ain) "Expected a session type here"
-
-and ambigmtype (ain: ambig) : mtype = 
-  match ain with
-  | Seqq (Tyname (_,n)::l) -> Comp (n,List.map l (fun a -> ambigmtype (Seqq [a])))
-  | Seqq [Funname (_,n)] -> MVar n
-  | Seqq [Unit _] -> Comp ("()",[])
-  | Seqq [MAtom m] -> m
-  | Seqq [Paren a] -> ambigmtype a
-  | Seqq [List a] -> Comp ("[]",[ambigmtype a])
-  | Seqq [Pair (a1,a2)] -> Comp (",",[ambigmtype a1;ambigmtype a2])
-  | Arrow (a1,a2) -> Comp ("->",[ambigmtype a1; ambigmtype a2])
-  | _ -> errr (ambigl ain) "Expected a data-level type here"
-
-and ambigconst (ain: ambig) : string * mtype list = 
-  (* print_endline ("ambigconst: "^ambig2str ain); *)
-  match ain with
-  | Seqq (Tyname (_,n)::l) -> (n,List.map l (fun a -> ambigmtype (Seqq [a])))
-  | Arrow _ -> failwith "Constructors must start with an uppercase identifier"
-  | _ -> failwith ("BUG ambigconst match failure: "^ambig2str ain)
-
-let rec ambigexp (ain: ambig) : exp =
-  match ain with
-  | Seqq [] -> failwith "BUG: ambigexp (Seq [])"
-  | Seqq (h::t) -> List.fold_left ~f:(fun acc a -> App(locE acc,acc,ambigexp a)) ~init:(ambigexp h) t
-  | Unit sloc -> Sat (sloc,"()",[])
-  | Tyname (sloc,x) -> Var (sloc,(sloc,x))
-  | Funname (sloc,x) -> Var (sloc,(sloc,x))
-  | EAtom e -> e
-  | MAtom _ -> failwith "Type where expression expected"
-  | Paren a -> ambigexp a
-  | Int (sloc,n) -> Con(sloc,Int n)
-  | Times (a1,a2) -> Bin((ambigl a1),Mul,ambigexp a1,ambigexp a2)
-  | List a -> Sat(ambigl ain,"::",[ambigexp a;Sat(ambigl a,"[]",[])])
-  | Pair (a1,a2) -> Sat(ambigl ain,",",[ambigexp a1;ambigexp a2])
-  | _ -> failwith ("ambigexp match failure "^ambig2str ain)
-(* TODO check that these are well formed? *)
-
 (* Free variables *)
 (* TODO Better name *)
 let rec freeMVarsMPure (tin:mtype) : SS.t =
@@ -325,8 +225,7 @@ and freeMVarsSPure (tin:stype) : SS.t =
            ~init:SS.empty
            ~f:(fun s q a -> match q,a with
                         | `M _,`M x -> SS.union s (freeMVarsMPure x)
-                        | `M _,`A x -> SS.union s (freeMVarsMPure (ambigmtype x))
-                        | `S _,`A x -> SS.union s (freeMVarsSPure (ambigstype x))
+                        |  _  ,`A _ -> SS.empty (* Types with no arguments can't have free vars *)
                         | `S _,`S x -> SS.union s (freeMVarsSPure x)
                         | _ -> failwith "BUG freeMVarsSPure.1")
     | None -> errr l ("Undefined session type "^name))
@@ -392,7 +291,7 @@ type toplvl =
   | TopProc of (cvar * proc) list
   | MTypeDecl of fvar * fvar list * mtype list SM.t (* C a = C a b c *)
   | STypeDecl of modality * fvar * [`M of string | `S of tyvar] list * stype (* C a = s *)
-  | ServDecl of fvar * stype
+  | ServDecl of fvar * stype (* TODO Is this still used? *)
 
 let locP (p:proc) : srcloc =
   match p with

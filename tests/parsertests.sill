@@ -93,7 +93,7 @@ foo : Int;; foo = fun x -> 1;;
 foo : Int;; foo = case fun x -> x of 
                   | [] -> fun x -> x
                   | Foo _ -> fun x -> x
-                  | Foo -> fun x -> x
+                  | Bar -> fun x -> x
                   | (x,y) -> fun x -> x
                   | h :: t -> fun x -> x;;
 
@@ -143,3 +143,4 @@ foo : {1 * 1};; foo = ();;
 
 foo : { [a] /\ 1 };; foo = ();;
 foo : { {'a <- 'a} /\ 1 };; foo = ();;
+foo : { {'a <- 'a} /\ 1 };; foo = foo<Bool -> Bool>;;

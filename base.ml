@@ -168,7 +168,8 @@ let string_of_mode m : string = match m with
                               | Linear -> "linear"
                               | Intuist -> "shared"
 
-(* Maybe this should go in vars.ml instead? *)
+(* TODO Maybe this should go in vars.ml instead? *)
+(* TODO Channels record modality too. Why not combine them? *)
 type tyvar = modality * string with sexp, bin_io
 let string_of_tyvar (m,x) = modetag m ^ x
 module TS = Set.Make(

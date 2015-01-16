@@ -402,10 +402,10 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
                  match q,amb with
                  | `S x,`S s -> let s' = puretoptrS s
                                 in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
-                 | `S x,`A a -> let s' = puretoptrS (Fullsyntax.ambigstype a)
-                                in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
-                 | `M x,`A a -> let m' = (puretoptrM (Fullsyntax.ambigmtype a))
+                 | `M x,`M m -> let m' = (puretoptrM m)
                                 in wfM (locE ein) wfms wfss m'; (SM.add accm x m',accs)
+                 | `S _,`M m -> errr (locE ein) ("tried to instantiate session type variable"
+                                                ^" with data type "^Fullsyntax.string_of_mtype m)
                  | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
                                                 ^" with session type "^Fullsyntax.string_of_stype s)
                  )

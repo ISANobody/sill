@@ -75,7 +75,7 @@ type exp =
    | Monad of astinfo * cvar option * proc * cvar list * procType option (* c <-{P}<- cs *)
    | Cast of astinfo * exp * Fullsyntax.mtype (* <e:t> *)
    | Box of astinfo * exp * Fullsyntax.mtype (* [e:t] *)
-   | PolyApp of astinfo * fvar * [`A of Fullsyntax.ambig | `S of Fullsyntax.stype] list (* x<S,S,...> *)
+   | PolyApp of astinfo * fvar * [`M of Fullsyntax.mtype | `S of Fullsyntax.stype] list (* x<S,S,...> *)
 and proc =
    | Bind of astinfo * cvar * exp * cvar list * proc (* c <- e -< cs; P *)
    | TailBind of astinfo * cvar * exp * cvar list (* c <- e -< cs *)

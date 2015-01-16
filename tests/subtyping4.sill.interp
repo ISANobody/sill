@@ -7,7 +7,7 @@
 2: @44:8 bound from 1
    @44:8 bind
    @45:9 internal next
-   @46:14 input 0
+   @46:9 input 0
    @47:8 bind
    @48:8 wait
    @49:8 close
@@ -22,14 +22,14 @@
    @7:13 close
 4: @27:3 bound from 2
    @27:3 internal next
-   @28:8 input 1
+   @28:3 input 1
    @29:3 internal stop
    @30:3 wait
    @31:3 close
 5: @44:8 bound from 1
    @44:8 bind
    @45:9 internal next
-   @46:14 input 0
+   @46:9 input 0
    @47:8 bind
    @48:8 wait
    @49:8 close
@@ -44,7 +44,7 @@
    @17:13 close
 7: @27:3 bound from 5
    @27:3 internal next
-   @28:8 input 1
+   @28:3 input 1
    @29:3 internal stop
    @30:3 wait
    @31:3 close
