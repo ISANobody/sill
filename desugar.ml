@@ -312,7 +312,6 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
            | Pure.Extern (_,lm) -> Pure.Extern (min,LM.map lm (goS min))
            | Pure.Forall (_,x,s) -> Pure.Forall (min,x,goS min s)
            | Pure.Exists (_,x,s) -> Pure.Exists (min,x,goS min s)
-           | Pure.Parens s -> Pure.Parens (goS min s)
            | Pure.ShftUp (m,s) -> 
              if m = min
              then Pure.ShftUp(m,goS Linear s)

@@ -83,7 +83,6 @@ let rec puretoptrM (tin : Pure.mtype) : Dest.mtype =
 and puretoptrS (tin_in : Pure.stype) : Dest.stype = 
   let rec go (tin : Pure.stype) (env : Dest.stype SM.t) : Dest.stype =
     match tin with
-    | Pure.Parens s -> go s env
     | Pure.TyInD (mode,m,s) -> Dest.mkind mode (puretoptrM m) (go s env)
     | Pure.TyOutD (mode,m,s) -> Dest.mkoutd mode (puretoptrM m) (go s env)
     | Pure.TyInC (m,s1,s2) -> Dest.mkinc m (go s1 env) (go s2 env)

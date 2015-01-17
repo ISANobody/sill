@@ -71,7 +71,6 @@ and proc =
            | Exists of modality * tyvar * stype
            | ShftUp of modality * stype (* Only need the target modality explicit *)
            | ShftDw of modality * stype (* Only need the target modality explicit *) 
-           | Parens of stype (* TODO This is pretty ugly :/ *)
            | TyAt of stype (* TODO is this ugly name needed? *)
            | Prime of stype
            | Bang of stype
@@ -148,7 +147,6 @@ and string_of_stype (tin : stype) : string =
   | SVar (_,(_,x)) -> "$"^x
   | Forall (_,x,s) -> "forall "^string_of_tyvar x^"."^string_of_stype s
   | Exists (_,x,s) -> "exists "^string_of_tyvar x^"."^string_of_stype s
-  | Parens s -> "("^string_of_stype s^")"
   | ShftUp _ -> failwith "string_of_stype ShftUp"
   | ShftDw _ -> failwith "string_of_stype ShftDw"
   | TyAt s -> "@"^string_of_stype s
@@ -173,7 +171,6 @@ let rec getmode (tin:stype) : modality =
   | SComp (l,c,_) -> if SM.mem !declModes c
                      then SM.find_exn !declModes c
                      else errr l ("Undefined session type "^c)
-  | Parens s -> getmode s
   | Forall (m,_,_) -> m
   | Exists (m,_,_) -> m
   | ShftUp (m,_) -> m
@@ -231,7 +228,6 @@ and freeMVarsSPure (tin:stype) : SS.t =
     | None -> errr l ("Undefined session type "^name))
   | Forall (_,_,s) -> freeMVarsSPure s
   | Exists (_,_,s) -> freeMVarsSPure s
-  | Parens s -> freeMVarsSPure s
   | ShftUp (_,s) -> freeMVarsSPure s
   | ShftDw (_,s) -> freeMVarsSPure s
   | Bang s -> freeMVarsSPure s
@@ -277,7 +273,6 @@ and freeSVarsSPure (tin:stype) : TS.t =
                                                     | `S x -> TS.union s (freeSVarsSPure x))
   | Forall (_,x,s) -> TS.remove (freeSVarsSPure s) x
   | Exists (_,x,s) -> TS.remove (freeSVarsSPure s) x
-  | Parens s -> freeSVarsSPure s
   | ShftUp (_,s) -> freeSVarsSPure s
   | ShftDw (_,s) -> freeSVarsSPure s
   | Bang s -> freeSVarsSPure s
