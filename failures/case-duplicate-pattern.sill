@@ -1,0 +1,5 @@
+f : Int;;
+f = case True of
+    | True -> 5
+    | False -> 3
+    | True -> 8;;

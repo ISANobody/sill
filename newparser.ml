@@ -377,8 +377,9 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
                      return (label,t)) 
                   (skip_symbol ";");
     skip_symbol "}";
-    (* TODO don't use the _exn version *)
-    return (Intern (Linear,LM.of_alist_exn ts)))
+    match LM.of_alist ts with
+    | `Ok m -> return (Intern (Linear,m))
+    | `Duplicate_key l -> errr (fst l) ("duplicate label "^string_of_label l))
   <|>
   (perform
     skip_symbol "&{";
@@ -389,8 +390,9 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
                      return (label,t)) 
                   (skip_symbol ";");
     skip_symbol "}";
-    (* TODO don't use the _exn version *)
-    return (Extern (Linear,LM.of_alist_exn ts)))
+    match LM.of_alist ts with
+    | `Ok m -> return (Extern (Linear,m))
+    | `Duplicate_key l -> errr (fst l) ("duplicate label "^string_of_label l))
   <|>
   parens_lazy stype_
   <?> "session type"
@@ -409,13 +411,16 @@ let constructor =
   
 let mtypedec : (toplvl,'s) MParser.t =
   perform
+    sloc <-- getSloc;
     skip_symbol "type";
     id <-- id_upper;
     qs <-- many datavar; (* TODO generalize to sesvars too *)
     skip_symbol "=";
     ts <-- sep_by constructor (skip_symbol "|");
     skip_symbol ";;";
-    return (MTypeDecl (id,qs,SM.of_alist_exn ts))
+    match SM.of_alist ts with
+    | `Ok m -> return (MTypeDecl (id,qs,m))
+    | `Duplicate_key k -> errr sloc ("duplicate constructor name "^k)
 
 let stypedec : (toplvl,'s) MParser.t =
   perform
@@ -648,8 +653,9 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
                    (c,pat) <-- data_pattern;
                    ep <-- Lazy.force exp_;
                    return (c,(pat,ep)));
-    (* TODO don't use _exn version *)
-    return (Case (sloc,e,SM.of_alist_exn es)))
+    match SM.of_alist es with
+    | `Ok m -> return (Case (sloc,e,m))
+    | `Duplicate_key k -> errr sloc ("duplicate pattern for "^k))
   <|>
   (perform
     sloc <-- getSloc;
@@ -673,7 +679,7 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     x <-- id_lower_;
     (perform
-      skip_char '<'; (* TODO generalize to handle mtypes *)
+      skip_char '<';
       ts <-- sep_by (  attempt (perform
                                  t <--tyapp;
                                  followed_by (skip_symbol "," <|> skip_char '>') "";
@@ -716,7 +722,7 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     s <-- attempt string_literal;
     return (Con (sloc,String s)))
-  <|> (* TODO is attempt needed here? *)
+  <|>
   attempt (perform
     sloc <-- getSloc;
     (char '<' >> not_followed_by (  char '=' 
@@ -783,8 +789,9 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
                        p <-- Lazy.force proc_;
                        return (l,p));
       return (function
-                  (* TODO _exn *)
-        | None -> External (sloc,c,LM.of_alist_exn cases)
+        | None -> (match LM.of_alist cases with
+                  | `Ok m -> External (sloc,c,m)
+                  | `Duplicate_key l -> errr (fst l) ("duplicate case for label "^string_of_label l))
         | Some p -> errr (locP p) "BUG external choice cannot be followed a process"))
     <|>
     (perform
@@ -795,8 +802,9 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
                          p <-- Lazy.force proc_;
                          return (c,(pat,p)));
     return (function
-                  (* TODO _exn *)
-      | None -> CaseP (sloc,e,SM.of_alist_exn cases)
+      | None -> (match SM.of_alist cases with
+                | `Ok m -> CaseP (sloc,e,m)
+                | `Duplicate_key k -> errr sloc ("duplicate pattern for "^k))
       | Some p -> errr (locP p) "BUG process case cannot be followed a process")))
   <|>
   (perform
@@ -1049,8 +1057,9 @@ let topdef : (toplvl,'s) MParser.t =
   perform
     defs <-- sep_by topdef_ (skip_symbol "and");
     skip_symbol ";;";
-                  (* TODO _exn *)
-    return (TopLets (FM.of_alist_exn defs))
+    match FM.of_alist defs with
+    | `Ok m -> return (TopLets m)
+    | `Duplicate_key k -> errr (fst k) ("duplicate binding for "^string_of_fvar k)
 
 let topproc_ =
   perform

@@ -1,0 +1,5 @@
+f : { &{red:1}};;
+'c <- f =
+  case 'c of
+  | red -> close 'c
+  | red -> close 'c;;
