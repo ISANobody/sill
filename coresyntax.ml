@@ -110,7 +110,7 @@ with sexp, bin_io (* TODO Do we use procType? *)
 
 type toplvl = TopLet of (fvar * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype] * exp) (* let f : tau = ... ;; *)
             | TopProc of cvar * proc
-            | MTypeDecl of fvar * fvar list * Fullsyntax.mtype list SM.t
+            | MTypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.mtype list SM.t
             | STypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.stype
             | Pass
             | ServDecl of fvar * Fullsyntax.stype

@@ -187,6 +187,7 @@ let modeCompatable (m1:modality) (m2:modality) : bool =
 
 (* Check that a type is well formed wrt a set of mtype variables and session type
    variables. Should this be in destypes.ml? *)
+(* TODO better error locations *)
 let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit =
   match !(getMType tin) with
   | MInd _ -> errr loc "BUG wfM_ MInd"
@@ -194,7 +195,9 @@ let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) 
   | MVarU x -> if not (SS.mem wfms x) then errr loc (x^" is not in scope")
   | MonT (Some s,args) -> wfS_ vs loc wfms wfss s; List.iter args (wfS_ vs loc wfms wfss)
   | MonT (None,args) -> List.iter args (wfS_ vs loc wfms wfss)
-  | Comp (_,args) -> List.iter args (wfM_ vs loc wfms wfss)
+  | Comp (_,args) -> List.iter args (function
+                                    | `M m -> wfM_ vs loc wfms wfss m
+                                    | `S s -> wfS_ vs loc wfms wfss s)
 and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
   if memq tin vs then () else
   let go (mode:modality) (s:stype) : unit =
@@ -288,11 +291,11 @@ and varcommon (env:funenv) (x:fvar) : mtype =
             | "flush" -> mkfun unittype unittype
             | "i2s" -> mkfun inttype stringtype
             | "sexp2s" -> let a = mkvar () in mkfun a stringtype
-            | "newkey" -> mkfun unittype (mkcomp "," [mkcomp "Key" [];mkcomp "Key" []])
+            | "newkey" -> mkfun unittype (mkcomp "," [`M (mkcomp "Key" []);`M (mkcomp "Key" [])])
             | "encrypt" -> let a = mkvar () in 
-              mkfun (mkcomp "Key" []) (mkfun a (mkcomp "<>" [a]))
+              mkfun (mkcomp "Key" []) (mkfun a (mkcomp "<>" [`M a]))
             | "decrypt" -> let a = mkvar () in 
-              mkfun (mkcomp "Key" []) (mkfun (mkcomp "<>" [a]) a)
+              mkfun (mkcomp "Key" []) (mkfun (mkcomp "<>" [`M a]) a)
             | "aesenc" -> let a = mkvar () in
               (mkfun a (mkfun (mkcomp "AESKey" []) stringtype))
             | "aesdec" -> let a = mkvar () in
@@ -504,7 +507,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
     then errr (fst c) ("Tailbind of incorrect variable. Expected: "^string_of_cvar cpr
                       ^" Found: "^string_of_cvar c)
 
-    (* Check for unsafe duplications, I have no clue with this throws a warning *)
+    (* Check for unsafe duplications, I have no clue why this throws a warning *)
     (match List.find_a_dup ~compare:(fun x y -> Pervasives.compare (snd x) (snd y))
                            (List.filter cs (fun x -> not (is_shr x))) with
     | Some x -> errr (fst x) ("Duplicate usage of channel "^string_of_cvar x)
@@ -1075,8 +1078,10 @@ let toplevel (ds:toplvl list) : unit=
             Types.Dest.conTypeNames := SM.add !Types.Dest.conTypeNames c (snd t);
             Types.Dest.conArities := SM.add !Types.Dest.conArities c (List.length a);
             Types.Dest.conTypes := SM.add !Types.Dest.conTypes c 
-           (List.map fs snd
-           ,List.map a Connection.puretoptrM,ref(Comp(snd t,List.map fs (fun (_,x) -> ref (MVarU x))))));
+           (fs
+           ,List.map a Connection.puretoptrM,ref(Comp(snd t,List.map fs (function 
+                                                                        | `M x -> `M (ref (MVarU x))
+                                                                        | `S s -> `S (ref (SVarU s)))))));
            env
         | STypeDecl (t,fs,s) -> 
           let s' = Connection.puretoptrS s

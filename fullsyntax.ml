@@ -54,7 +54,7 @@ and proc =
   | ShftUpL of srcloc * cvar * cvar * proc (* c1 <- send c2; P *)
   | ShftDwR of srcloc * cvar * cvar * proc (* send c1 (c2 <- P) *)
  and tyapp = TyApp of fvar * [`A of fvar | `M of mtype | `S of stype] list
- and mtype = Comp of string * mtype list
+ and mtype = Comp of string * [`A of fvar | `M of mtype | `S of stype] list
            | MonT of stype option * stype list
            | MVar  of string
  and stype = TyInD  of modality * mtype * stype
@@ -79,13 +79,7 @@ and ptype = Poly of [`M of string | `S of tyvar] list * mtype (* first one is mt
 quantifier, second session *)
 with sexp, bin_io 
 
-(* TODO Disambiguate more intelligently *)
-(* TODO get a real error location for the `S case *)
-let tyapp2mtype (TyApp (name,args)) : mtype =
-  Comp (snd name,List.map args (function
-                               | `M x -> x
-                               | `S x -> errr (fst name) "BUG didn't expect session type here"
-                               | `A x -> Comp (snd x,[])))
+let tyapp2mtype (TyApp (name,args)) : mtype = Comp (snd name,args)
 
 (* TODO Disambiguate more intelligently *)
 let tyapp2stype (TyApp (name,args)) : stype =
@@ -114,12 +108,15 @@ let locE (e:exp) : srcloc =
 let rec string_of_mtype (tin:mtype) : string =
   match tin with
   | MVar x -> x
-  | Comp ("[]",[a]) -> "["^string_of_mtype a^"]"
-  | Comp (",",[a;b]) -> "("^string_of_mtype a^", "^string_of_mtype b^")"
-  | Comp ("->",[a;b]) -> "("^string_of_mtype a^") -> ("^string_of_mtype b^")"
+  | Comp ("[]",[`M a]) -> "["^string_of_mtype a^"]"
+  | Comp (",",[`M a;`M b]) -> "("^string_of_mtype a^", "^string_of_mtype b^")"
+  | Comp ("->",[`M a;`M b]) -> "("^string_of_mtype a^") -> ("^string_of_mtype b^")"
   | Comp (c,args) -> if List.length args = 0
                      then c
-                     else c^"("^intercal string_of_mtype "," args^")"
+                     else c^"("^intercal (function
+                                         | `A a -> snd a
+                                         | `M m -> string_of_mtype m
+                                         | `S s -> string_of_stype s) "," args^")"
   | MonT (Some s,ss) -> let go sx = string_of_stype sx
                         in if List.length ss = 0 
                            then "{"^go s^"}"
@@ -192,7 +189,10 @@ let rec freeMVarsMPure (tin:mtype) : SS.t =
   | MVar x -> SS.singleton x
   | Comp (_,args) -> List.fold_left args 
                                         ~init:SS.empty
-                                        ~f:(fun s a -> SS.union s (freeMVarsMPure a))
+                                        ~f:(fun s -> (function
+                                                     | `A _ -> s
+                                                     | `M a -> SS.union s (freeMVarsMPure a)
+                                                     | `S a -> SS.union s (freeMVarsSPure a)))
   | MonT (Some s,ss) -> SS.union (freeMVarsSPure s)
                                      (List.fold_left ss
                                         ~init:SS.empty
@@ -243,7 +243,10 @@ let rec freeSVarsMPure (tin:mtype) : TS.t =
   | MVar _ -> TS.empty
   | Comp (_,args) -> List.fold_left args
                                     ~init:TS.empty
-                                    ~f:(fun m a -> TS.union m (freeSVarsMPure a))
+                                    ~f:(fun m -> function
+                                                 | `A _ -> TS.empty
+                                                 | `M a -> TS.union m (freeSVarsMPure a)
+                                                 | `S a -> TS.union m (freeSVarsSPure a))
   | MonT (Some s,ss) -> TS.union (freeSVarsSPure s)
                                      (List.fold_left ss
                                         ~init:TS.empty
@@ -289,7 +292,7 @@ type toplet =
 type toplvl =
   | TopLets of toplet FM.t
   | TopProc of (cvar * proc) list
-  | MTypeDecl of fvar * fvar list * mtype list SM.t (* C a = C a b c *)
+  | MTypeDecl of fvar * [`M of string | `S of tyvar] list * mtype list SM.t (* C a = C a b c *)
   | STypeDecl of modality * fvar * [`M of string | `S of tyvar] list * stype (* C a = s *)
   | ServDecl of fvar * stype (* TODO Is this still used? *)
 

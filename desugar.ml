@@ -16,8 +16,8 @@ let freshMode v = let name = (priv_name ())
 let rec desugarExp (ein:Full.exp) : Core.exp =
   match ein with
   | Full.Var (i,(_,"not")) -> 
-    desugarExp (Full.Let (i,`M (Full.Comp("->",[Full.Comp("Bool",[])
-                                               ;Full.Comp("Bool",[])]))
+    desugarExp (Full.Let (i,`M (Full.Comp("->",[`M (Full.Comp("Bool",[]))
+                                               ;`M (Full.Comp("Bool",[]))]))
                            ,(i,"f")
                            ,[(i,"x")]
                            ,Full.If(i
@@ -207,7 +207,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
           polymangle = List.map (List.dedup
                                 (List.concat_map (FM.data m) (fun e -> SS.to_list 
                                           (Full.freeMVarsMPure (getLetType e)))))
-                                (fun x -> ({lnum=0;cnum=0},x))
+                                (fun x -> `M x)
       and selector : Full.exp = (* The big case statement selecting behavior *)
          (Full.Case({cnum=0;lnum=0}
                    ,Full.Var({lnum=0;cnum=0},brvar)
@@ -240,10 +240,10 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
         (Full.TopExp (({lnum=0;cnum=0},prefix^"_recursor_")
            ,(({lnum=0;cnum=0},prefix^"_recursor_")
            ,`M (Pure.Comp("->"
-                           ,[Pure.Comp(prefix^"_selector_",[])
-                            ;Pure.Comp(prefix^"_result_"
+                           ,[`M (Pure.Comp(prefix^"_selector_",[]))
+                            ;`M (Pure.Comp(prefix^"_result_"
                                       ,List.map polymangle 
-                                                (fun _ -> Pure.MVar (priv_name ())))])))
+                                                (fun _ -> `M (Pure.MVar (priv_name ())))))])))
            ,[brvar]
            ,FM.fold m ~f:(fun ~key:f ~data:e acc -> wrapper f e acc) ~init:selector
       )))]@
@@ -290,7 +290,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
     in let rec goS min sin =
            match sin with
            | Pure.SComp (l,n,args) when n = snd t -> Pure.SVar (l,(Linear,getThis l args)) (* TODO hardcoded mode *)
-           | Pure.SComp (l,n,args) -> (* TODO add a goA *)
+           | Pure.SComp (l,n,args) ->
              let args' = List.map args (fun arg -> match arg with
                                                    | `A x -> `A x
                                                    | `M x -> `M (goM x)
@@ -327,7 +327,10 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
        and goM (tin:Pure.mtype) : Pure.mtype =
            match tin with
            | Pure.MVar x -> Pure.MVar x
-           | Pure.Comp (n,args) -> Pure.Comp(n,List.map args goM)
+           | Pure.Comp (n,args) -> Pure.Comp(n,List.map args (function
+                                                              | `A a -> `A a
+                                                              | `M m -> `M (goM m)
+                                                              | `S s -> `S (goS Linear s)))
            | Pure.MonT (Some s,ss) -> Pure.MonT(Some (goS Linear s),List.map ss (goS Linear))
            | Pure.MonT (None,ss) -> Pure.MonT (None,List.map ss (goS Linear))
        in let s' = goS modedecl s

@@ -69,7 +69,14 @@ let sessionDefs : ([`M of string | `S of tyvar] list * Dest.stype) SM.t ref = re
 let rec puretoptrM (tin : Pure.mtype) : Dest.mtype =
   match tin with
   | Pure.MVar x -> ref (Dest.MVarU x)
-  | Pure.Comp (c,args) -> Dest.mkcomp c (List.map args puretoptrM)
+  | Pure.Comp (c,args) -> Dest.mkcomp c (List.map args 
+                                                  (function
+                                                  | `A a -> 
+                                                    if SM.mem !sessionQs (snd a)
+                                                    then `S (puretoptrS (Pure.SComp(fst a,snd a,[])))
+                                                    else `M (puretoptrM (Pure.Comp(snd a,[])))
+                                                  | `M m -> `M (puretoptrM m)
+                                                  | `S s -> `S (puretoptrS s)))
   | Pure.MonT (Some sx,ss) -> Dest.mkmon (Some (puretoptrS sx))
                                               (List.map ss (fun x -> puretoptrS x))
   | Pure.MonT (None,ss) -> Dest.mkmon (None) (List.map ss (fun x -> puretoptrS x))

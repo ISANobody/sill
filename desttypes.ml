@@ -22,7 +22,7 @@ and mtype_raw =
    | MVar
    | MVarU of string
    | MInd of mtype
-   | Comp of string * mtype list
+   | Comp of string * [`M of mtype | `S of stype] list
    | MonT of stype option * stype list
 and stype = stype_raw ref
 and stype_raw =
@@ -101,18 +101,16 @@ let rec string_of_mtype (tin : mtype) : string =
   | MInd _ -> failwith "string_of_mtype: MInd after getMType"
   | MVar -> "?"^mvarName (getMType tin)
   | MVarU s -> s
-  | Comp(c,args) -> let rec go l =
-                      match l with
-                      | [] -> ")"
-                      | [x] -> string_of_mtype x ^ ")"
-                      | x::xs -> string_of_mtype x ^ ", " ^ go xs
-                    in (match c,args with
-                       | "[]",[a] -> "["^string_of_mtype a^"]"
-                       | ",",[a;b] -> "("^string_of_mtype a^","^string_of_mtype b^")"
-                       | "->",[a;b] -> "("^string_of_mtype a^")->("^string_of_mtype b^")"
-                       | _ -> if List.length args = 0
-                              then c
-                              else c^"("^go args)
+  | Comp(c,args) ->
+    (match c,args with
+    | "[]",[`M a] -> "["^string_of_mtype a^"]"
+    | ",",[`M a;`M b] -> "("^string_of_mtype a^","^string_of_mtype b^")"
+    | "->",[`M a;`M b] -> "("^string_of_mtype a^")->("^string_of_mtype b^")"
+    | _ -> if List.length args = 0
+           then c
+           else c^"("^intercal (function
+                               | `M m -> string_of_mtype m
+                               | `S s -> string_of_stype_raw s []) ", " args^")")
   | MonT(Some s,sm) -> let rec go l =
                     match l with
                     | [] -> "}"
@@ -218,7 +216,7 @@ let getMode (sin:stype) : modality =
 let mkvar () = ref MVar
 let mksvar () = ref SVar
 let mkcomp c args = ref (Comp (c,args))
-let mkfun a b = mkcomp "->" [a;b]
+let mkfun a b : mtype = mkcomp "->" [`M a;`M b]
 let inttype = mkcomp "Int" []
 let floattype = mkcomp "Float" []
 let booltype = mkcomp "Bool" []
@@ -242,7 +240,9 @@ let rec freeMVars (tin : mtype) : mtype list =
   | MInd _ -> failwith "freeMVars: MInd after getMType"
   | MVar -> [getMType tin]
   | MVarU _ -> [getMType tin]
-  | Comp(_,args) -> List.concat_map args freeMVars
+  | Comp(_,args) -> List.concat_map args (function
+                                         | `M m -> freeMVars m
+                                         | `S s -> freeMVars_S s [])
   | MonT (s1,sm) -> (Option.value_map s1 ~default:[] ~f:(fun x -> freeMVars_S x []) )
                     @ List.concat_map sm (fun s -> freeMVars_S s [])
 
@@ -271,7 +271,8 @@ and freeMVars_S (tin : stype) (vs : stype list) : mtype list =
 (* We cannot just replace the bound variables with new ones
    since that would make our reference type get overwritten
    in future unifications *)
-let rec instantiate (t : mtype) (vs : (mtype * mtype) list) (ss : (stype * stype) list): mtype =
+(* TODO Remove this *)
+(* let rec instantiate (t : mtype) (vs : (mtype * mtype) list) (ss : (stype * stype) list): mtype =
   match !(getMType t) with
   | MInd _ -> failwith "instantiate: MInd after getMType"
   | MVar -> if ass_memq (getMType t) vs
@@ -336,6 +337,7 @@ and instantiate_S (tin:stype) (vs:(mtype * mtype) list) (ss:(stype*stype) list) 
           | ShftDw (m,s) -> let a = mksvar()
                             in a := SInd (ref (ShftDw (m,(instantiate_S s vs ([t,a]@ss)))));
                                a
+*)
   
 (* Do we need to avoid capturing in instantiate_P?  Currently we don't try. *)
 (* and instantiate_P (t : ptype) (vs : (mtype * mtype) list) 
@@ -351,7 +353,9 @@ let rec freeSUM_ (min:mtype) (vm: mtype list) (vs: stype list) : string list =
   let t = getMType min in if memq t vm then [] else
   match !t with
   | MInd _ -> failwith "BUG. freeSUM_ MInd"
-  | Comp (_,args) -> List.fold_left args ~init:[] ~f:(fun acc a -> freeSUM_ a (t::vm) vs @ acc)
+  | Comp (_,args) -> List.fold_left args ~init:[] ~f:(fun acc -> function
+                                                     | `M m -> freeSUM_ m (t::vm) vs @ acc
+                                                     | `S s -> freeSUS_ s (t::vm) vs @ acc)
   | MVarU _ -> []
   | MVar -> []
   | MonT (Some s,ss) -> (freeSUS_ s (t::vm) vs) @ (List.concat_map ss (fun x -> freeSUS_ x (t::vm) vs))
@@ -383,7 +387,9 @@ let rec substM_ (min:mtype) (subM:mtype SM.t) (subS:stype TM.t)
   let t = getMType min in if ass_memq t vm then assq t vm else
   match !t with
   | MInd _ -> failwith "BUG. substM MInd"
-  | Comp (c,args) -> ref (Comp(c,List.map args (fun a -> substM_ a subM subS vm vs)))
+  | Comp (c,args) -> ref (Comp(c,List.map args (function
+                                               | `M a -> `M (substM_ a subM subS vm vs)
+                                               | `S a -> `S (substS_ a subM subS vm vs))))
   | MonT (Some t,ts) -> ref (MonT(Some (substS_ t subM subS vm vs)
                             ,List.map ts (fun s -> substS_ s subM subS vm vs)))
   | MonT (None,ts) -> ref (MonT(None
@@ -477,15 +483,15 @@ let conArities_init : int SM.t =
 
 (* TODO Why is this split into an explicit init phase? *)
 (* fields are: mvaru names, argument types (list) * result type *)
-let conTypes : (string list * mtype list * mtype) SM.t ref = ref SM.empty
-let conTypes_init : (string list * mtype list * mtype) SM.t = 
+let conTypes : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t ref = ref SM.empty
+let conTypes_init : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t = 
   SM.of_alist_exn
   [("True",([],[],ref (Comp("Bool",[]))));
    ("False",([],[],ref (Comp("Bool",[]))));
    ("()",([],[],ref (Comp("()",[]))));
-   ("::",(["a"],[ref (MVarU "a");ref (Comp("[]",[ref (MVarU "a")]))],ref (Comp("[]",[ref (MVarU "a")]))));
-   ("[]",(["a"],[],ref (Comp("[]",[ref (MVarU "a")]))));
-   (",",(["a";"b"],[ref (MVarU "a");ref (MVarU "b")],ref (Comp(",",[ref (MVarU "a");ref (MVarU "b")]))))]
+   ("::",([`M "a"],[ref (MVarU "a");ref (Comp("[]",[`M (ref (MVarU "a"))]))],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
+   ("[]",([`M "a"],[],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
+   (",",([`M "a";`M "b"],[ref (MVarU "a");ref (MVarU "b")],ref (Comp(",",[`M (ref (MVarU "a"));`M (ref (MVarU "b"))]))))]
 
 let conTypeNames : string SM.t ref = ref SM.empty
 let conTypeNames_init : string SM.t =
@@ -509,6 +515,8 @@ let reinit () : unit =
 let conInstance (c : string) : (mtype list * mtype) =
   if not (SM.mem !conTypes c) then failwith ("BUG unbound constructor: "^c);
   let (qs,args,result) = SM.find_exn !conTypes c
-  in let subM = SM.of_alist_exn (List.map qs (fun v -> (v,ref MVar)))
+  in let subM = SM.of_alist_exn (List.map qs (function
+                                             | `M v -> (v,ref MVar)
+                                             | `S _ -> failwith "BUG conInstance `S"))
      in (List.map args (fun a -> substM a subM TM.empty)
         ,substM result subM TM.empty)

@@ -235,7 +235,7 @@ and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
     skip_symbol "[";
     t <-- Lazy.force mtype_;
     skip_symbol "]";
-    return (Comp ("[]",[t])))
+    return (Comp ("[]",[`M t])))
   <|>
   (perform
      skip_symbol "{";
@@ -258,7 +258,7 @@ and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
        skip_symbol ",";
        t2 <-- Lazy.force mtype_;
        skip_symbol ")";
-       return (Comp(",",[t1;t2])))
+       return (Comp(",",[`M t1;`M t2])))
     <|>
      (skip_symbol ")" >> return t1))
   <?> "data-level type"
@@ -283,7 +283,7 @@ and mtype_ : (mtype,'s) MParser.t Lazy.t = lazy(
      if arr
      then perform
             t2 <-- Lazy.force mtype_;
-            return (Comp("->",[t1;t2]))
+            return (Comp("->",[`M t1;`M t2]))
      else return t1)
   <?> "data-level type"
 )
@@ -414,7 +414,7 @@ let mtypedec : (toplvl,'s) MParser.t =
     sloc <-- getSloc;
     skip_symbol "type";
     id <-- id_upper;
-    qs <-- many datavar; (* TODO generalize to sesvars too *)
+    qs <-- many quant;
     skip_symbol "=";
     ts <-- sep_by constructor (skip_symbol "|");
     skip_symbol ";;";
