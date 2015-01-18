@@ -1082,8 +1082,12 @@ let entrypoint =
     return bindings
 
 (* TODO use In_channel.with_file. It should be safer *)
+(* TODO figure how to read from stdin more sanely *)
 let main (file: string) : toplvl list =
-  let chan = if file = "-" then In_channel.stdin else (open_in file) in
-  match MParser.parse_channel entrypoint chan () with
-    | Success prog -> prog
-    | Failed (msg, _) -> print_endline msg; Pervasives.exit 1
+  if file = "-" 
+  then match MParser.parse_string entrypoint (In_channel.input_all In_channel.stdin) () with
+       | Success prog -> prog
+       | Failed (msg, _) -> print_endline msg; Pervasives.exit 1
+  else match MParser.parse_channel entrypoint (open_in file) () with
+       | Success prog -> prog
+       | Failed (msg, _) -> print_endline msg; Pervasives.exit 1

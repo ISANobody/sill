@@ -1,33 +1,27 @@
 #!/usr/bin/env bash
-TMP=`mktemp -d /tmp/sill.parseerrors.XXXXXX`
 cat failures/parseerrors | (
-  cd $TMP
-  I=0;
-  echo -n"">file0.sill;
+  PROG="";
   while read -r line;
   do
     if [ "$line" == '%%%%' ];
     then
       read -r line;
-      echo "$line" > file$I.error;
-      sill -parseonly file$I.sill &> file$I.output;
-      if ! diff -q file$I.output file$I.error;
+      ERRR="$line";
+      OUTP="$(echo $PROG | sill -parseonly -)";
+      if true;
       then
         echo "Program:";
-        cat file$I.sill;
+        echo "$PROG"
         echo "";
         echo "Expected output:";
-        cat file$I.error;
+        echo "$ERRR"
         echo "";
         echo "SILL's output:";
-        cat file$I.output;
+        echo "$OUTP"
         exit 1;
       fi
-      I=$[I+1];
-      echo -n "" > file$I.sill;
     else
-      echo "$line" >> file$I.sill;
+      PROG="$PROG$line";
     fi;
   done;
 )
-rm -rf $TMP
