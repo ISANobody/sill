@@ -1081,7 +1081,9 @@ let entrypoint =
     eof;
     return bindings
 
+(* TODO use In_channel.with_file. It should be safer *)
 let main (file: string) : toplvl list =
-  match MParser.parse_channel entrypoint (open_in file) () with
+  let chan = if file = "-" then In_channel.stdin else (open_in file) in
+  match MParser.parse_channel entrypoint chan () with
     | Success prog -> prog
     | Failed (msg, _) -> print_endline msg; Pervasives.exit 1

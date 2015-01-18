@@ -81,11 +81,7 @@ with sexp, bin_io
 let tyapp2mtype (TyApp (name,args)) : mtype = Comp (snd name,args)
 
 (* TODO Disambiguate more intelligently *)
-let tyapp2stype (TyApp (name,args)) : stype =
-  SComp (fst name,snd name,List.map args (function
-                                         | `M x -> `M x
-                                         | `S x -> `S x
-                                         | `A x -> `M (Comp (snd x,[]))))
+let tyapp2stype (TyApp (name,args)) : stype = SComp (fst name,snd name,args)
 
 let locE (e:exp) : srcloc =
   match e with
