@@ -264,14 +264,7 @@ and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
   <?> "data-level type"
 )
 and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
-   attempt (perform
-     TyApp (name,args) <-- Lazy.force tyapp_;
-     if List.exists args (function
-                         | `S _ -> true
-                         | `M _ -> false
-                         | `A _ -> false)
-     then zero
-     else return (tyapp2mtype (TyApp (name,args))))
+   attempt (Lazy.force tyapp_ |>> tyapp2mtype)
    <|>
    Lazy.force mtype_atom_
   <?> "data-level type"
@@ -410,7 +403,7 @@ let constructor =
     return (snd name,args)
   
 let mtypedec : (toplvl,'s) MParser.t =
-  perform
+  (perform
     sloc <-- getSloc;
     skip_symbol "type";
     id <-- id_upper;
@@ -420,10 +413,11 @@ let mtypedec : (toplvl,'s) MParser.t =
     skip_symbol ";;";
     match SM.of_alist ts with
     | `Ok m -> return (MTypeDecl (id,qs,m))
-    | `Duplicate_key k -> errr sloc ("duplicate constructor name "^k)
+    | `Duplicate_key k -> errr sloc ("duplicate constructor name "^k))
+  <?> "data-level type declaration"
 
 let stypedec : (toplvl,'s) MParser.t =
-  perform
+  (perform
     mode <-- (  (skip_symbol "ltype" >> return Linear)
             <|> (skip_symbol "atype" >> return Affine)
             <|> (skip_symbol "utype" >> return Intuist));
@@ -432,7 +426,8 @@ let stypedec : (toplvl,'s) MParser.t =
     skip_symbol "=";
     t <-- stype;
     skip_symbol ";;";
-    return (STypeDecl (mode,id,qs,t))
+    return (STypeDecl (mode,id,qs,t)))
+  <?> "session type declaration"
 
 let data_pattern : ((string * fvar list),'s) MParser.t =
   (perform
@@ -991,7 +986,7 @@ let exp = Lazy.force exp_
 let proc = Lazy.force proc_
 
 let topsig =
-  perform
+  (perform
     name <-- id_lower;
     skip_symbol ":";
     (perform
@@ -1005,7 +1000,8 @@ let topsig =
     <|>
     (perform
       t <-- mtype;
-      return (name,`M t))
+      return (name,`M t)))
+  <?> "type signature"
 
 let topdef_ = 
   perform
@@ -1054,12 +1050,13 @@ let topdef_ =
           return (name,TopDet (name,t,pats,sloc,p,cs))))
 
 let topdef : (toplvl,'s) MParser.t = 
-  perform
-    defs <-- sep_by topdef_ (skip_symbol "and");
+  (perform
+    defs <-- sep_by1 topdef_ (skip_symbol "and");
     skip_symbol ";;";
     match FM.of_alist defs with
     | `Ok m -> return (TopLets m)
-    | `Duplicate_key k -> errr (fst k) ("duplicate binding for "^string_of_fvar k)
+    | `Duplicate_key k -> errr (fst k) ("duplicate binding for "^string_of_fvar k))
+  <?> "top level definition"
 
 let topproc_ =
   perform
@@ -1069,10 +1066,11 @@ let topproc_ =
     return (c,p)
 
 let topproc : (toplvl,'s) MParser.t =
-  perform
-    procs <-- sep_by topproc_ (skip_symbol "and");
+  (perform
+    procs <-- sep_by1 topproc_ (skip_symbol "and");
     skip_symbol ";;";
-    return (TopProc procs)
+    return (TopProc procs))
+  <?> "top level process"
 
 let entrypoint =
   perform

@@ -483,6 +483,8 @@ let conArities_init : int SM.t =
 
 (* TODO Why is this split into an explicit init phase? *)
 (* fields are: mvaru names, argument types (list) * result type *)
+(* TODO Consider adding a map from type names to quantifiers. Bidir.ml's case for 'case'
+        could benefit. *)
 let conTypes : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t ref = ref SM.empty
 let conTypes_init : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t = 
   SM.of_alist_exn
@@ -512,6 +514,7 @@ let reinit () : unit =
 (* After generating a fresh instance we return the list of its argument types
    and its ADT. All of which have had fresh unifiable variables
    substituted for the bound variables. *)
+(* TODO the `S error message is terrible *)
 let conInstance (c : string) : (mtype list * mtype) =
   if not (SM.mem !conTypes c) then failwith ("BUG unbound constructor: "^c);
   let (qs,args,result) = SM.find_exn !conTypes c

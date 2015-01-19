@@ -121,3 +121,13 @@ nil : forall <'a>. {List 'a};;
     'c.nil;
     close 'c
 ;;
+
+type Foo 'a b = Foo a
+              | Bar {'a}
+              | Baz {'a <- 'a} b;;
+
+(* f : Foo 1 Int;;
+f = Foo 5;;
+
+f : Foo 1 Int;;
+f = Bar 'c <- { close 'c };; *)

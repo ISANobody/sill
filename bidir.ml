@@ -308,18 +308,38 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
   if !infer_trace_flag
   then print_endline (loc2str (locE ein)^" checkM :: "^string_of_mtype tin);
    match ein with
-   | Var (_,x) -> prettyUnifM "var" (fst x) (varcommon env x) tin
+   | Var (_,x) -> prettyUnifM ("var ("^snd x^")") (fst x) (varcommon env x) tin
    | Con _ -> subsumeM "con" wfms wfss env ein tin
    | Bin (_,b,e1,e2) -> subsumeM "bin" wfms wfss env ein tin
    | Mon _ -> failwith "BUG checkM MonExp"
    | Sat (_,c,args) ->
-     let argts,t = conInstance c
-     in prettyUnifM "ADT" (locE ein) t tin;
-        if not (List.length args = List.length argts)
-        then errr (locE ein) ("Wrong number of arguments to "^c^" expected "
-                             ^string_of_int (List.length argts)^" got "
-                             ^string_of_int (List.length args))
-        else List.iter2_exn args argts (checkM wfms wfss env)
+     (match !(getMType tin) with
+     | Comp (name,argts) ->
+       (match SM.find !conTypes c with (* TODO check for type agreement here? *)
+       | Some (qs,cargts,_) -> 
+         if not (List.length args = List.length cargts)
+         then errr (locE ein) ("Wrong number of arguments to "^c^" expected "
+                              ^string_of_int (List.length cargts)^" got "
+                              ^string_of_int (List.length args));
+         if not (List.length qs = List.length argts)
+         then errr (locE ein) ("Wrong number of arguments to "^name^" expected "
+                              ^string_of_int (List.length qs)^" got "
+                              ^string_of_int (List.length argts));
+         let subM,subS = (* TODO better error locations *)
+           List.fold2_exn qs argts ~init:(SM.empty,TM.empty)
+                ~f:(fun (aM,aS) q t -> match q,t with
+                                       | `M x,`M m -> (SM.add aM x m,aS)
+                                       | `S x,`S s -> (aM,TM.add aS x s)
+                                       | `M x,`S s -> errr (locE ein)
+                                                      ("Tried to instantiate data type variable "
+                                                      ^x^" with session type " ^string_of_stype s)
+                                       | `S x,`M m -> errr (locE ein)
+                                                      ("Tried to instantiate session type variable "
+                                                      ^string_of_tyvar x^" with data type "
+                                                      ^string_of_mtype m))
+         in List.iter2_exn args cargts (fun a t -> checkM wfms wfss env a (substM t subM subS))
+       | None -> errr (locE ein) ("Unbound constructor "^c))
+     | _ -> errr (locE ein) "Fully applied constructor doesn't have a data type type")
    | Fun (_,x,e) ->
      let a,b = mkvar(),mkvar()
      in prettyUnifM "fun" (locE ein) (mkfun a b) (tin);
@@ -327,13 +347,35 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
    | App _ -> subsumeM "app" wfms wfss env ein tin
    | Let (_,t,x,e1,e2) ->
        checkM wfms wfss (FM.add env x (letcommon (locE ein) wfms wfss env t x e1)) e2 tin
-   | Cas (_,eb,es) ->
-     let et = synthM wfms wfss env eb
-     in SM.iter es (fun ~key:c ~data:(vs,e) ->
-                   let argts,t = conInstance c
-                   in prettyUnifM "case" (locE eb) t et;
-                      checkM wfms wfss (List.fold2_exn vs argts ~init:env
-                             ~f:(fun m x xt -> FM.add m x (Poly([],xt)))) e tin)
+   | Cas (_,eb,es) -> 
+     (* TODO confirm that types here don't have any anonymous session type variables? *)
+     (match !(getMType (synthM wfms wfss env eb)) with
+     | Comp (name,argts) ->
+       SM.iter es (fun ~key:c ~data:(vs,e) ->
+         (* TODO Confirm that this is a constructor for the right type *)
+         match SM.find !conTypes c with
+         | Some (qs,cargts,_) ->
+           (* TODO combine this with other similar instances *)
+           let subM,subS = (* TODO better error locations *)
+           List.fold2_exn qs argts ~init:(SM.empty,TM.empty)
+                ~f:(fun (aM,aS) q t -> match q,t with
+                                       | `M x,`M m -> (SM.add aM x m,aS)
+                                       | `S x,`S s -> (aM,TM.add aS x s)
+                                       | `M x,`S s -> errr (locE ein)
+                                                      ("Tried to instantiate data type variable "
+                                                      ^x^" with session type " ^string_of_stype s)
+                                       | `S x,`M m -> errr (locE ein)
+                                                      ("Tried to instantiate session type variable "
+                                                      ^string_of_tyvar x^" with data type "
+                                                      ^string_of_mtype m))
+          in checkM wfms wfss 
+                    (List.fold2_exn vs cargts ~init:env
+                          ~f:(fun m x xt -> FM.add m x (Poly([],substM xt subM subS))))
+                    e tin
+         | None -> (* TODO Better error location needed *)
+                   errr (locE e) ("Unknown constructor "^c))
+     | _ -> (* TODO Add the discovered type to this error message? *)
+            errr (locE ein) "Expected data typed expression argument to case.")
    | Monad (_,Some c,p,cs,_) -> (* TODO More tests where providing shared service *)
      (match !(getMType tin) with
      | MonT (Some t,ts) -> 
@@ -459,7 +501,8 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
         b
    | Let (_,t,x,e1,e2) ->
      synthM wfms wfss (FM.add env x (letcommon (locE ein) wfms wfss env t x e1)) e2
-   | Cas (_,eb,es) -> 
+   | Cas (_,eb,es) ->
+     (* TODO confirm et has no free SVars *)
      let et  = synthM wfms wfss env eb
      and ret = mkvar ()
      in SM.iter es (fun ~key:c ~data:(vs,e) ->
