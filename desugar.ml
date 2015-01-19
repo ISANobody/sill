@@ -189,8 +189,18 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                create local copies of the wrappers that present a mutually recursive view
                to the outside world.
             4) Reproduce the wrappers as top level bindings *)
+
       (* Normalize all the definitions *)
       let defs = FM.map defs desugartoplet in
+
+      (* Mutually recursive non-functions explode a run time, so prohibit them. *)
+      (* TODO test case for this error *)
+      FM.iter defs (fun ~key:name ~data:tmp -> match tmp with
+                   | TopExp (_,(_,`M (Comp("->",_))),_,_) -> ()
+                   | TopExp (_,(_,`P (Poly (_,(Comp("->",_))))),_,_) -> ()
+                   | _ -> errr (fst name) ("Mutually recursive bindings must be functions. "
+                                          ^snd name^" isn't."));
+
       (* Define a common name prefix to, hopefully, avoid clashes with other code *)
       let prefix = "_mutual-recursion-desugar_" ^intercal string_of_fvar "_" (FM.keys defs)
       and (* We want a consistent list of the polymorphic variables in our combined type *)
@@ -220,6 +230,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
             tweaked slightly to conform with syntax restrictions. This pulls out the 
             common bits. *)
       let wrapperLet (f:fvar) (econt : Pure.exp) : Pure.exp =
+        (* TODO confirm that t and args expect the same number of args *)
         let Pure.TopExp (_,(_,t),args,_) = FM.find_exn defs f in
         Full.Let (fst f
                  ,t
