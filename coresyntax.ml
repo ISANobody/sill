@@ -108,6 +108,7 @@ and proc =
 and procType = ProcType of SS.t * (proc * Fullsyntax.mtype) list * (proc * Fullsyntax.stype) list
 with sexp, bin_io (* TODO Do we use procType? *)
 
+(* TODO check these for well-formedness *)
 type toplvl = TopLet of (fvar * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype] * exp) (* let f : tau = ... ;; *)
             | TopProc of cvar * proc
             | MTypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.mtype list SM.t

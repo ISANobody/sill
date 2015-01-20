@@ -269,40 +269,42 @@ and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv)
          checkM wfms' wfss' (FM.add env x (Poly(qs,t'))) e t';
          Poly(qs,t')
 
+and lookupcommon (env:funenv) (x:fvar) : ptype =
+  match FM.find env x with
+  | Some t -> t
+  | None -> 
+   (match SM.find !conTypes (snd x) with
+   | Some (qs,args,t) -> Poly(qs,List.fold_right args ~init:t ~f:(fun xt et -> mkfun xt et))
+   | None ->
+     (match snd x with
+     | "assert" -> Poly ([],mkfun booltype unittype)
+     | "sleep" -> Poly ([],mkfun inttype unittype)
+     | "print" -> Poly ([],mkfun inttype unittype)
+     | "print_str" -> Poly ([],mkfun stringtype unittype)
+     | "flush" -> Poly ([],mkfun unittype unittype)
+     | "i2s" -> Poly ([],mkfun inttype stringtype)
+     | "sexp2s" -> Poly ([`M "a"],mkfun (ref (MVarU "a")) stringtype)
+     | "newkey" -> Poly ([],mkfun unittype (mkcomp "," [`M (mkcomp "Key" []);`M (mkcomp "Key" [])]))
+     | "encrypt" -> Poly ([`M "a"],
+       mkfun (mkcomp "Key" []) (mkfun (ref (MVarU "a")) (mkcomp "<>" [`M (ref (MVarU "a"))])))
+     | "decrypt" -> Poly ([`M "a"],
+       mkfun (mkcomp "Key" []) (mkfun (mkcomp "<>" [`M (ref (MVarU "a"))]) (ref (MVarU "a"))))
+     | "aesenc" -> Poly ([`M "a"],
+       (mkfun (ref (MVarU "a")) (mkfun (mkcomp "AESKey" []) stringtype)))
+     | "aesdec" -> Poly ([`M "a"],
+       mkfun stringtype (mkfun (mkcomp "AESKey" []) (ref (MVarU "a"))))
+     | "aeskey" -> Poly([],mkfun unittype (mkcomp "AESKey" []))
+     | _ -> errr (fst x) ("Variable "^string_of_fvar x^" not found")))
+
 and varcommon (env:funenv) (x:fvar) : mtype =
-  if FM.mem env x
-  then match (FM.find_exn env x) with
-       | Poly (qs,t) -> 
-         substM t (List.fold qs ~init:SM.empty
-                  ~f:(fun acc q -> match q with
-                  | `M v -> SM.add acc v (mkvar ())
-                  | `S _ -> errr (fst x) (string_of_fvar x^" has session polymorphism in its type " 
-                                         ^string_of_ptype (Poly(qs,t)) ^" Use "
-                                         ^string_of_fvar x^"<...> instead")))
-                TM.empty
-  else if SM.mem !conTypes (snd x)
-       then let argts,t = conInstance (snd x)
-            in List.fold_right argts ~init:t ~f:(fun xt et -> mkfun xt et)
-       else (match snd x with
-            | "assert" -> mkfun booltype unittype
-            | "sleep" -> mkfun inttype unittype
-            | "print" -> mkfun inttype unittype
-            | "print_str" -> mkfun stringtype unittype
-            | "flush" -> mkfun unittype unittype
-            | "i2s" -> mkfun inttype stringtype
-            | "sexp2s" -> let a = mkvar () in mkfun a stringtype
-            | "newkey" -> mkfun unittype (mkcomp "," [`M (mkcomp "Key" []);`M (mkcomp "Key" [])])
-            | "encrypt" -> let a = mkvar () in 
-              mkfun (mkcomp "Key" []) (mkfun a (mkcomp "<>" [`M a]))
-            | "decrypt" -> let a = mkvar () in 
-              mkfun (mkcomp "Key" []) (mkfun (mkcomp "<>" [`M a]) a)
-            | "aesenc" -> let a = mkvar () in
-              (mkfun a (mkfun (mkcomp "AESKey" []) stringtype))
-            | "aesdec" -> let a = mkvar () in
-              mkfun stringtype (mkfun (mkcomp "AESKey" []) a)
-            | "aeskey" -> mkfun unittype (mkcomp "AESKey" [])
-            | _ -> errr (fst x) ("Variable "^string_of_fvar x^" not found"))
-  
+  let Poly (qs,t) = lookupcommon env x
+  in substM t (List.fold qs ~init:SM.empty
+              ~f:(fun acc q -> match q with
+                 | `M v -> SM.add acc v (mkvar ())
+                 | `S _ -> errr (fst x) (string_of_fvar x^" has session polymorphism in its type " 
+                                        ^string_of_ptype (Poly(qs,t)) ^" Use "
+                                        ^string_of_fvar x^"<...> instead")))
+              TM.empty
 
 and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
   if !infer_trace_flag
@@ -434,28 +436,25 @@ and synthM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
 and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
    match ein with
    | PolyApp (_,x,ss) -> 
-     if FM.mem env x
-     then match (FM.find_exn env x) with
-          | Poly (qs,t) -> 
-            if not ((List.length qs) = (List.length ss))
-            then errr (locE ein) (string_of_fvar x ^ " has "^string_of_int (List.length qs)
-                                 ^" quantifier(s) in its type "^string_of_ptype (FM.find_exn env x)
-                                 ^" but "^string_of_int (List.length ss)^" type(s) were supplied");
+     let Poly (qs,t) = lookupcommon env x
+     in if not ((List.length qs) = (List.length ss))
+        then errr (locE ein) (string_of_fvar x ^ " has "^string_of_int (List.length qs)
+                             ^" quantifier(s) in its type "^string_of_ptype (FM.find_exn env x)
+                             ^" but "^string_of_int (List.length ss)^" type(s) were supplied");
 
-            let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)
-              ~f:(fun (accm,accs) q amb ->
-                 match q,amb with
-                 | `S x,`S s -> let s' = puretoptrS s
-                                in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
-                 | `M x,`M m -> let m' = (puretoptrM m)
-                                in wfM (locE ein) wfms wfss m'; (SM.add accm x m',accs)
-                 | `S _,`M m -> errr (locE ein) ("tried to instantiate session type variable"
-                                                ^" with data type "^Fullsyntax.string_of_mtype m)
-                 | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
-                                                ^" with session type "^Fullsyntax.string_of_stype s)
-                 )
-            in substM t subM subS
-     else errr (fst x) ("Unbound variable "^string_of_fvar x)
+        let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)
+          ~f:(fun (accm,accs) q amb ->
+             match q,amb with
+             | `S x,`S s -> let s' = puretoptrS s
+                            in wfS (locE ein) wfms wfss s'; (accm,TM.add accs x s')
+             | `M x,`M m -> let m' = (puretoptrM m)
+                            in wfM (locE ein) wfms wfss m'; (SM.add accm x m',accs)
+             | `S _,`M m -> errr (locE ein) ("tried to instantiate session type variable"
+                                            ^" with data type "^Fullsyntax.string_of_mtype m)
+             | `M _,`S s -> errr (locE ein) ("tried to instantiate data type variable"
+                                            ^" with session type "^Fullsyntax.string_of_stype s)
+             )
+        in substM t subM subS
    | Var (_,x) -> varcommon env x
    | Con (_,c) -> 
      (match c with

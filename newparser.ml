@@ -155,14 +155,18 @@ let id_lower_ : (fvar,'s) MParser.t =
 
 let id_lower = id_lower_ >>= fun s -> spaces >> return s
 
-let id_upper : ((srcloc * string),'s) MParser.t =
-  (perform
+let id_upper_ : (fvar,'s) MParser.t =
+  attempt (perform
     sloc <-- getSloc;
     c <-- uppercase;
     cs <-- many_chars (alphanum <|> char '_' <|> char ''');
-    _ <-- spaces;
-    return (sloc,((String.make 1 c) ^ cs)))
+    let name = ((String.make 1 c) ^ cs)
+    in if List.mem keywords name
+       then zero
+       else return (sloc,name))
   <?> "uppercase identifier"
+
+let id_upper = id_upper_ >>= fun s -> spaces >> return s
 
 let patvar : (fvar,'s) MParser.t = 
   id_lower 
@@ -672,7 +676,7 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
 and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
     sloc <-- getSloc;
-    x <-- id_lower_;
+    x <-- id_lower_ <|> id_upper_;
     (perform
       skip_char '<';
       ts <-- sep_by (  attempt (perform
