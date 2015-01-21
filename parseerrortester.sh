@@ -3,11 +3,11 @@ cat failures/parseerrors | (
   PROG="";
   ERRR="";
   OUTP="";
-  while read -r line;
+  while IFS='' read -r line;
   do
     if [ "$line" == '%%%%' ];
     then
-      while read -r line;
+      while IFS='' read -r line;
       do
         if [ "$line" == '%%%%' ];
         then 
@@ -19,18 +19,18 @@ cat failures/parseerrors | (
         fi;
       done;
 # silly but gets newlines correct
-      OUTP="$(echo $PROG | sill -parseonly -)
+      OUTP="$(set -f; echo $PROG | sill -parseonly -)
 ";
       if [ "$OUTP" != "$ERRR" ];
       then
         echo "Program:";
-        echo "$PROG"
+        echo -n "$PROG"
         echo "";
         echo "Expected output:";
-        echo "$ERRR"
+        echo -n "$ERRR"
         echo "";
         echo "SILL's output:";
-        echo "$OUTP"
+        echo -n "$OUTP"
         exit 1;
       fi
       PROG="";

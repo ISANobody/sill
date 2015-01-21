@@ -367,11 +367,11 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     skip_symbol "+{";
-    ts <-- sep_by (perform
+    ts <-- sep_by ((perform
                      label <-- id_lower;
                      skip_symbol ":"; 
                      t <-- Lazy.force stype_;
-                     return (label,t)) 
+                     return (label,t)) <?> "mapping from label to session type (e.g., foo:1)")
                   (skip_symbol ";");
     skip_symbol "}";
     match LM.of_alist ts with
@@ -380,11 +380,11 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     skip_symbol "&{";
-    ts <-- sep_by (perform
+    ts <-- sep_by ((perform
                      label <-- id_lower;
                      skip_symbol ":"; 
                      t <-- Lazy.force stype_;
-                     return (label,t)) 
+                     return (label,t)) <?> "mapping from label to session type (e.g., foo:1)")
                   (skip_symbol ";");
     skip_symbol "}";
     match LM.of_alist ts with
@@ -461,7 +461,8 @@ let data_pattern : ((string * fvar list),'s) MParser.t =
       skip_symbol "::";
       x2 <-- patvar;
       skip_symbol "->";
-      return ("::",[x1;x2])))
+      return ("::",[x1;x2]))
+    <?> "pattern match")
   <?> "pattern match"
 
 let rec exp_ : (exp,'s) MParser.t Lazy.t = lazy(
@@ -679,7 +680,7 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
     x <-- id_lower_ <|> id_upper_;
     (perform
       skip_char '<';
-      ts <-- sep_by (  attempt (perform
+      ts <-- (sep_by (  attempt (perform
                                  t <--tyapp;
                                  followed_by (skip_symbol "," <|> skip_char '>') "";
                                  return (`A t))
@@ -690,7 +691,8 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
                    <|> attempt (perform
                                  t <-- mtype;
                                  followed_by (skip_symbol "," <|> skip_char '>') "";
-                                 return (`M t))) (skip_symbol ",");
+                                 return (`M t))) (skip_symbol ",")
+             <?> "','-separated lists of types");
       skip_char '>';
       spaces;
       return (PolyApp (sloc,x,ts)))
@@ -995,9 +997,11 @@ let topsig =
     skip_symbol ":";
     (perform
       skip_symbol "forall";
-      skip_symbol "<";
-      qs <-- sep_by quant (skip_symbol ",");
-      skip_symbol ">";
+      qs <-- (perform
+        skip_symbol "<";
+        qs <-- sep_by quant (skip_symbol ",");
+        skip_symbol ">";
+        return qs) <?> "quantifier list (e.g., <a,'b,@c>)";
       skip_symbol ".";
       t <-- mtype;
       return (name,`P (Poly (qs,t))))
@@ -1052,6 +1056,7 @@ let topdef_ =
           skip_symbol "=";
           p <-- proc;
           return (name,TopDet (name,t,pats,sloc,p,cs))))
+    <?> ("definition for "^snd (fst t))
 
 let topdef : (toplvl,'s) MParser.t = 
   (perform

@@ -229,8 +229,6 @@ let mkoutd m p s = ref (OutD (m,p,s))
 let mkind m p s = ref (InD (m,p,s))
 let mkoutc m p s = ref (OutC (m,p,s))
 let mkinc m p s = ref (InC (m,p,s))
-let mkmu (f : stype -> stype) =
-  let a = mksvar() in let b = f a in a := !b; b
 let mkint m c = ref (Intern (m,c))
 let mkext m c = ref (Extern (m,c))
 
@@ -264,88 +262,6 @@ and freeMVars_S (tin : stype) (vs : stype list) : mtype list =
       | Exists (_,_,s) -> freeMVars_S s (tin::vs)
       | ShftUp (_,s) -> freeMVars_S s (tin::vs)
       | ShftDw (_,s) -> freeMVars_S s (tin::vs)
-(* and freeMVars_P (tin : ptype) : mtype list = 
-  match tin with
-  | Poly (vs,_,t) -> diffq (freeMVars t) vs *)
-
-(* We cannot just replace the bound variables with new ones
-   since that would make our reference type get overwritten
-   in future unifications *)
-(* TODO Remove this *)
-(* let rec instantiate (t : mtype) (vs : (mtype * mtype) list) (ss : (stype * stype) list): mtype =
-  match !(getMType t) with
-  | MInd _ -> failwith "instantiate: MInd after getMType"
-  | MVar -> if ass_memq (getMType t) vs
-            then assq (getMType t) vs
-            else getMType t
-  | MVarU _ -> if ass_memq (getMType t) vs
-               then assq (getMType t) vs
-               else getMType t
-  | Comp (c,args) -> ref (Comp(c,List.map args (fun a -> instantiate a vs ss)))
-  | MonT (Some s,sargs) -> ref (MonT(Some (instantiate_S s vs ss)
-                                    ,List.map sargs (fun a -> instantiate_S a vs ss)))
-  | MonT (None,sargs) -> ref (MonT(None ,List.map sargs (fun a -> instantiate_S a vs ss)))
-(* To avoid unfolding mu's too much this gets super ugly *)
-(* I'm pretty sure the case for SVar is wrong, but I don't
-   know what I should do. *)
-and instantiate_S (tin:stype) (vs:(mtype * mtype) list) (ss:(stype*stype) list) : stype =
-  if List.length vs = 0 && List.length ss = 0
-  then tin
-  else 
-  let t = getSType tin
-  in if ass_memq t ss
-     then assq t ss
-     else match !t with
-          | SInd _ -> failwith "BUG instantiate_S: SInd after getSType"
-          | SComp _ -> failwith "BUG instantiate_S: SInd after getSType"
-          | Stop m -> mkstop m
-          | SVar -> t
-          | SVarU _ -> t
-          | OutD (mode,m,s) -> 
-                          let a = mksvar()
-                          in let b = mkoutd mode (instantiate m vs ss) a
-                          in a := SInd (instantiate_S s vs ((t,b)::ss));
-                             b
-          | InD (mode,m,s)  -> 
-                          let a = mksvar()
-                          in let b = mkind mode (instantiate m vs ss) a
-                          in a := SInd (instantiate_S s vs ((t,b)::ss));
-                             b
-          | OutC (m,x,y) -> let a,b = mksvar(),mksvar()
-                            in b := SInd (mkoutc m (instantiate_S x vs ([t,b]@ss)) a);
-                               a := SInd (instantiate_S y vs ([t,b]@ss));
-                               b
-          | InC  (m,x,y) -> let a,b = mksvar(),mksvar()
-                            in b := SInd (mkinc m (instantiate_S x vs ([t,b]@ss)) a);
-                               a := SInd (instantiate_S y vs ([t,b]@ss));
-                               b
-          | Intern (m,c) -> let b = mksvar()
-                        in b := SInd (mkint m (LM.map c (fun x -> instantiate_S x vs ([t,b]@ss))));
-                           b
-          | Extern (m,c) -> let b = mksvar()
-                        in b := SInd (mkext m (LM.map c (fun x -> instantiate_S x vs ([t,b]@ss))));
-                           b
-          | Forall (m,x,s) -> let a = mksvar()
-                            in a := SInd (ref (Forall (m,x,(instantiate_S s vs ([t,a]@ss)))));
-                               a
-          | Exists (m,x,s) -> let a = mksvar()
-                            in a := SInd (ref (Exists (m,x,(instantiate_S s vs ([t,a]@ss)))));
-                               a
-          | ShftUp (m,s) -> let a = mksvar()
-                            in a := SInd (ref (ShftUp (m,(instantiate_S s vs ([t,a]@ss)))));
-                               a
-          | ShftDw (m,s) -> let a = mksvar()
-                            in a := SInd (ref (ShftDw (m,(instantiate_S s vs ([t,a]@ss)))));
-                               a
-*)
-  
-(* Do we need to avoid capturing in instantiate_P?  Currently we don't try. *)
-(* and instantiate_P (t : ptype) (vs : (mtype * mtype) list) 
-                              (ss : (stype * stype) list) : ptype =
-  match t with
-  | Poly (qs,m) -> (Poly (qs,instantiate m (List.fold_left qs ~init:vs ~f:(fun l x -> ass_removeq x l))
-                                             ss))
-*)
 
 (* Find the free session type variables. TODO this looks incomplete. *)
 (* TODO why does this returns a list and not a set? *)
