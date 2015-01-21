@@ -357,6 +357,7 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
          (* TODO Confirm that this is a constructor for the right type *)
          match SM.find !conTypes c with
          | Some (qs,cargts,_) ->
+           (* TODO confirm that vs and cargts are the same length before fold2_exn *)
            (* TODO combine this with other similar instances *)
            let subM,subS = (* TODO better error locations *)
            List.fold2_exn qs argts ~init:(SM.empty,TM.empty)
