@@ -9,15 +9,15 @@ Expecting data-level type declaration, end of input, session type declaration, t
 t:&&;;
 t = ();;
 %%%%
-Error in line 1, column 3:
-t:&&;; t = ();;
+Error in line 2, column 3:
+t:&&;;
   ^
 Expecting "forall" or data-level type
 %%%%
 
 t:forall && ;;
 %%%%
-Error in line 1, column 10:
+Error in line 2, column 10:
 t:forall && ;;
          ^
 Expecting quantifier list (e.g., <a,'b,@c>)
@@ -25,7 +25,7 @@ Expecting quantifier list (e.g., <a,'b,@c>)
 
 t:forall <&&> ;;
 %%%%
-Error in line 1, column 11:
+Error in line 2, column 11:
 t:forall <&&> ;;
           ^
 Expecting ">" or quantifier
@@ -33,7 +33,7 @@ Expecting ">" or quantifier
 
 t:forall <>. &&;;
 %%%%
-Error in line 1, column 14:
+Error in line 2, column 14:
 t:forall <>. &&;;
              ^
 Expecting data-level type
@@ -41,7 +41,7 @@ Expecting data-level type
 
 t:forall <'a>. &&;;
 %%%%
-Error in line 1, column 16:
+Error in line 2, column 16:
 t:forall <'a>. &&;;
                ^
 Expecting data-level type
@@ -49,7 +49,7 @@ Expecting data-level type
 
 t:{&&};;
 %%%%
-Error in line 1, column 4:
+Error in line 2, column 4:
 t:{&&};;
    ^
 Expecting "}" or session type
@@ -57,7 +57,7 @@ Expecting "}" or session type
 
 t:{(&&)};;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{(&&)};;
     ^
 Expecting session type
@@ -65,7 +65,7 @@ Expecting session type
 
 t:{+{&&}};;
 %%%%
-Error in line 1, column 6:
+Error in line 2, column 6:
 t:{+{&&}};;
      ^
 Expecting "}" or mapping from label to session type (e.g., foo:1)
@@ -73,7 +73,7 @@ Expecting "}" or mapping from label to session type (e.g., foo:1)
 
 t:{&{&&}};;
 %%%%
-Error in line 1, column 6:
+Error in line 2, column 6:
 t:{&{&&}};;
      ^
 Expecting "}" or mapping from label to session type (e.g., foo:1)
@@ -81,7 +81,7 @@ Expecting "}" or mapping from label to session type (e.g., foo:1)
 
 t:{&{foo:1;&&}};;
 %%%%
-Error in line 1, column 12:
+Error in line 2, column 12:
 t:{&{foo:1;&&}};;
            ^
 Expecting mapping from label to session type (e.g., foo:1)
@@ -89,7 +89,7 @@ Expecting mapping from label to session type (e.g., foo:1)
 
 t:{&{&&;foo:1}};;
 %%%%
-Error in line 1, column 6:
+Error in line 2, column 6:
 t:{&{&&;foo:1}};;
      ^
 Expecting "}" or mapping from label to session type (e.g., foo:1)
@@ -97,7 +97,7 @@ Expecting "}" or mapping from label to session type (e.g., foo:1)
 
 t:{&{bar:&&;foo:1}};;
 %%%%
-Error in line 1, column 10:
+Error in line 2, column 10:
 t:{&{bar:&&;foo:1}};;
          ^
 Expecting session type
@@ -105,7 +105,7 @@ Expecting session type
 
 t:{ ! && };;
 %%%%
-Error in line 1, column 7:
+Error in line 2, column 7:
 t:{ ! && };;
       ^
 Expecting session type
@@ -113,7 +113,7 @@ Expecting session type
 
 t:{ @ && };;
 %%%%
-Error in line 1, column 7:
+Error in line 2, column 7:
 t:{ @ && };;
       ^
 Expecting session type
@@ -121,7 +121,7 @@ Expecting session type
 
 t:{ ' && };;
 %%%%
-Error in line 1, column 7:
+Error in line 2, column 7:
 t:{ ' && };;
       ^
 Expecting session type
@@ -129,7 +129,7 @@ Expecting session type
 
 t:{ forall && };;
 %%%%
-Error in line 1, column 12:
+Error in line 2, column 12:
 t:{ forall && };;
            ^
 Expecting session type variable
@@ -137,7 +137,7 @@ Expecting session type variable
 
 t:{ forall 'x && };;
 %%%%
-Error in line 1, column 15:
+Error in line 2, column 15:
 t:{ forall 'x && };;
               ^
 Expecting "."
@@ -145,7 +145,7 @@ Expecting "."
 
 t:{ forall 'x . && };;
 %%%%
-Error in line 1, column 17:
+Error in line 2, column 17:
 t:{ forall 'x . && };;
                 ^
 Expecting session type
@@ -153,7 +153,7 @@ Expecting session type
 
 t:{ exists && };;
 %%%%
-Error in line 1, column 12:
+Error in line 2, column 12:
 t:{ exists && };;
            ^
 Expecting session type variable
@@ -161,7 +161,7 @@ Expecting session type variable
 
 t:{ exists 'x && };;
 %%%%
-Error in line 1, column 15:
+Error in line 2, column 15:
 t:{ exists 'x && };;
               ^
 Expecting "."
@@ -169,7 +169,7 @@ Expecting "."
 
 t:{ exists 'x . && };;
 %%%%
-Error in line 1, column 17:
+Error in line 2, column 17:
 t:{ exists 'x . && };;
                 ^
 Expecting session type
@@ -177,7 +177,7 @@ Expecting session type
 
 t:{ 1 /\ && };;
 %%%%
-Error in line 1, column 7:
+Error in line 2, column 7:
 t:{ 1 /\ && };;
       ^
 Expecting "*", "-o", "<-" or "}"
@@ -185,7 +185,7 @@ Expecting "*", "-o", "<-" or "}"
 
 t:{ {'a <- 'a} /\ && };;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{ {'a <- 'a} /\ && };;
     ^
 Expecting "}" or session type
@@ -193,7 +193,7 @@ Expecting "}" or session type
 
 t:{ && * 1 };;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{ && * 1 };;
     ^
 Expecting "}" or session type
@@ -201,7 +201,7 @@ Expecting "}" or session type
 
 t:{ ('a) * && };;
 %%%%
-Error in line 1, column 12:
+Error in line 2, column 12:
 t:{ ('a) * && };;
            ^
 Expecting session type
@@ -209,7 +209,7 @@ Expecting session type
 
 t:{ 'a * && };;
 %%%%
-Error in line 1, column 10:
+Error in line 2, column 10:
 t:{ 'a * && };;
          ^
 Expecting session type
@@ -217,7 +217,7 @@ Expecting session type
 
 t:{ && -o 1 };;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{ && -o 1 };;
     ^
 Expecting "}" or session type
@@ -225,7 +225,7 @@ Expecting "}" or session type
 
 t:{ 'a -o && };;
 %%%%
-Error in line 1, column 11:
+Error in line 2, column 11:
 t:{ 'a -o && };;
           ^
 Expecting session type
@@ -233,7 +233,7 @@ Expecting session type
 
 t:{ && <- };;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{ && <- };;
     ^
 Expecting "}" or session type
@@ -241,7 +241,7 @@ Expecting "}" or session type
 
 t:{ 1 <- && };;
 %%%%
-Error in line 1, column 10:
+Error in line 2, column 10:
 t:{ 1 <- && };;
          ^
 Expecting session type
@@ -249,7 +249,7 @@ Expecting session type
 
 t:{ 1 <- && ; 1 };;
 %%%%
-Error in line 1, column 10:
+Error in line 2, column 10:
 t:{ 1 <- && ; 1 };;
          ^
 Expecting session type
@@ -257,7 +257,7 @@ Expecting session type
 
 t:{ 1 <- 1 ; && };;
 %%%%
-Error in line 1, column 14:
+Error in line 2, column 14:
 t:{ 1 <- 1 ; && };;
              ^
 Expecting session type
@@ -265,15 +265,15 @@ Expecting session type
 
 t:{ 1 <-  };;
 %%%%
-Error in line 1, column 10:
-t:{ 1 <- };;
-         ^
+Error in line 2, column 11:
+t:{ 1 <-  };;
+          ^
 Expecting session type
 %%%%
 
 t:{ <- && ; 1 };;
 %%%%
-Error in line 1, column 5:
+Error in line 2, column 5:
 t:{ <- && ; 1 };;
     ^
 Expecting "}" or session type
@@ -281,7 +281,7 @@ Expecting "}" or session type
 
 t:{ 1 -o 1 };;
 %%%%
-Error in line 2, column 1:
+Error in line 4, column 1:
 
 Expecting definition for t
 %%%%
@@ -289,24 +289,24 @@ Expecting definition for t
 t:{ 1 };;
 t = ;;
 %%%%
-Error in line 1, column 15:
-t:{ 1 };; t = ;;
-              ^
+Error in line 3, column 5:
+t = ;;
+    ^
 Expecting expression
 %%%%
 
 t:{ 1 };;
 t && = 5;;
 %%%%
-Error in line 1, column 13:
-t:{ 1 };; t && = 5;;
-            ^
+Error in line 3, column 3:
+t && = 5;;
+  ^
 Expecting "=" or pattern variable
 %%%%
 
 'top <- &&;;
 %%%%
-Error in line 1, column 9:
+Error in line 2, column 9:
 'top <- &&;;
         ^
 Expecting process
@@ -314,7 +314,7 @@ Expecting process
 
 && <-
 %%%%
-Error in line 1, column 1:
+Error in line 2, column 1:
 && <-
 ^
 Expecting data-level type declaration, end of input, session type declaration, top level definition or top level process
@@ -322,7 +322,7 @@ Expecting data-level type declaration, end of input, session type declaration, t
 
 'top <- close 'c and && ;;
 %%%%
-Error in line 1, column 22:
+Error in line 2, column 22:
 'top <- close 'c and && ;;
                      ^
 Expecting linear channel
@@ -333,18 +333,18 @@ t1 = 5
 and
 &&
 %%%%
-Error in line 1, column 21:
-t1:Int;; t1 = 5 and &&
-                    ^
+Error in line 5, column 1:
+&&
+^
 Expecting type signature
 %%%%
 
 t:Int;;
 t = fun && -> 5;;
 %%%%
-Error in line 1, column 17:
-t:Int;; t = fun && -> 5;;
-                ^
+Error in line 3, column 9:
+t = fun && -> 5;;
+        ^
 Expecting pattern variable
 %%%%
 
@@ -352,9 +352,9 @@ t:Int;;
 'c <- t && -< 'd =
   close 'c;;
 %%%%
-Error in line 1, column 17:
-t:Int;; 'c <- t && -< 'd = close 'c;;
-                ^
+Error in line 3, column 9:
+'c <- t && -< 'd =
+        ^
 Expecting "-<", "=" or pattern variable
 %%%%
 
@@ -363,135 +363,135 @@ t =
  let foo && : Int = 6
  in 8;;
 %%%%
-Error in line 1, column 21:
-t:Int;; t = let foo && : Int = 6 in 8;;
-                    ^
+Error in line 4, column 10:
+ let foo && : Int = 6
+         ^
 Expecting ":" or pattern variable
 %%%%
 
 t:Int;;
 'c <- t = &&;;
 %%%%
-Error in line 1, column 19:
-t:Int;; 'c <- t = &&;;
-                  ^
+Error in line 3, column 11:
+'c <- t = &&;;
+          ^
 Expecting process
 %%%%
 
 t:Int;;
 'c <- t -< 'd = &&;;
 %%%%
-Error in line 1, column 25:
-t:Int;; 'c <- t -< 'd = &&;;
-                        ^
+Error in line 3, column 17:
+'c <- t -< 'd = &&;;
+                ^
 Expecting process
 %%%%
 
 t:Int;;
 _ <- t = &&;;
 %%%%
-Error in line 1, column 18:
-t:Int;; _ <- t = &&;;
-                 ^
+Error in line 3, column 10:
+_ <- t = &&;;
+         ^
 Expecting process
 %%%%
 
 t:Int;;
 _ <- t -< 'd = &&;;
 %%%%
-Error in line 1, column 24:
-t:Int;; _ <- t -< 'd = &&;;
-                       ^
+Error in line 3, column 16:
+_ <- t -< 'd = &&;;
+               ^
 Expecting process
 %%%%
 
 t:Int;;
 t=if && then 5 else 4;;
 %%%%
-Error in line 1, column 14:
-t:Int;; t=if && then 5 else 4;;
-             ^
+Error in line 3, column 6:
+t=if && then 5 else 4;;
+     ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=if 4^3 then && else 4;;
 %%%%
-Error in line 1, column 23:
-t:Int;; t=if 4^3 then && else 4;;
-                      ^
+Error in line 3, column 15:
+t=if 4^3 then && else 4;;
+              ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=if 4^6 then 5^6 else &&;;
 %%%%
-Error in line 1, column 32:
-t:Int;; t=if 4^6 then 5^6 else &&;;
-                               ^
+Error in line 3, column 24:
+t=if 4^6 then 5^6 else &&;;
+                       ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=case && of 5;;
 %%%%
-Error in line 1, column 16:
-t:Int;; t=case && of 5;;
-               ^
+Error in line 3, column 8:
+t=case && of 5;;
+       ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=case 5^6 of | -o -> 6;;
 %%%%
-Error in line 1, column 25:
-t:Int;; t=case 5^6 of | -o -> 6;;
-                        ^
+Error in line 3, column 17:
+t=case 5^6 of | -o -> 6;;
+                ^
 Expecting pattern match
 %%%%
 
 t:Int;;
 t=case 5^6 of | True -> &&;;
 %%%%
-Error in line 1, column 33:
-t:Int;; t=case 5^6 of | True -> &&;;
-                                ^
+Error in line 3, column 25:
+t=case 5^6 of | True -> &&;;
+                        ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=(&&,8^8);;
 %%%%
-Error in line 1, column 12:
-t:Int;; t=(&&,8^8);;
-           ^
+Error in line 3, column 4:
+t=(&&,8^8);;
+   ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=(8^8,&&);;
 %%%%
-Error in line 1, column 16:
-t:Int;; t=(8^8,&&);;
-               ^
+Error in line 3, column 8:
+t=(8^8,&&);;
+       ^
 Expecting expression
 %%%%
 
 t:Int;;
 t=x<&&>;;
 %%%%
-Error in line 1, column 13:
-t:Int;; t=x<&&>;;
-            ^
+Error in line 3, column 5:
+t=x<&&>;;
+    ^
 Expecting ','-separated lists of types or '>'
 %%%%
 
 t:Int;;
 t=x<&&,Int>;;
 %%%%
-Error in line 1, column 13:
-t:Int;; t=x<&&,Int>;;
-            ^
+Error in line 3, column 5:
+t=x<&&,Int>;;
+    ^
 Expecting ','-separated lists of types or '>'
 %%%%
 
@@ -500,9 +500,9 @@ t:Int;;
   'c <- service Foo; 
   &&;;
 %%%%
-Error in line 1, column 38:
-t:Int;; 'c <- t = 'c <- service Foo; &&;;
-                                     ^
+Error in line 5, column 3:
+  &&;;
+  ^
 Expecting process statement
 %%%%
 
@@ -511,8 +511,26 @@ t:Int;;
   send 'c ('d <- &&);
   &&;;
 %%%%
-Error in line 1, column 34:
-t:Int;; 'c <- t = send 'c ('d <- &&); &&;;
-                                 ^
+Error in line 4, column 18:
+  send 'c ('d <- &&);
+                 ^
 Expecting process
+%%%%
+
+t: {+{foo:1; foo:1}};;
+t = ();;
+%%%%
+Error in line 2, column 14:
+t: {+{foo:1; foo:1}};;
+             ^
+Unexpected duplicate label foo
+%%%%
+
+t: {&{foo:1; foo:1}};;
+t = ();;
+%%%%
+Error in line 2, column 14:
+t: {&{foo:1; foo:1}};;
+             ^
+Unexpected duplicate label foo
 %%%%

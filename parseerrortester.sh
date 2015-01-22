@@ -19,7 +19,8 @@ cat failures/parseerrors | (
         fi;
       done;
 # silly but gets newlines correct
-      OUTP="$(set -f; echo $PROG | sill -parseonly -)
+      OUTP=$(set -f; echo "${PROG}" | sill -parseonly - 2>&1);
+      OUTP+="
 ";
       if [ "$OUTP" != "$ERRR" ];
       then

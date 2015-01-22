@@ -351,8 +351,8 @@ and stype_basic_ : (stype,'s) MParser.t Lazy.t = lazy(
   Lazy.force stype_atom_
   <?> "session type"
 )
-and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
-  (perform
+and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(fun s ->
+  ((perform
     l <-- getSloc;
     x <-- sesvar;
     return (SVar (l,x)))
@@ -367,32 +367,38 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     skip_symbol "+{";
-    ts <-- sep_by ((perform
+    ts <-- sep_by ((fun s -> (perform
                      label <-- id_lower;
                      skip_symbol ":"; 
                      t <-- Lazy.force stype_;
-                     return (label,t)) <?> "mapping from label to session type (e.g., foo:1)")
+                     return (label,(s,t))) s)
+                    <?> "mapping from label to session type (e.g., foo:1)")
                   (skip_symbol ";");
     skip_symbol "}";
     match LM.of_alist ts with
-    | `Ok m -> return (Intern (Linear,m))
-    | `Duplicate_key l -> errr (fst l) ("duplicate label "^string_of_label l))
+    | `Ok m -> return (Intern (Linear,LM.map m snd))
+    | `Duplicate_key l -> 
+        let (s,_) = List.Assoc.find_exn ts l
+        in fun _ -> Consumed_failed (unexpected_error s ("duplicate label "^snd l)))
   <|>
   (perform
     skip_symbol "&{";
-    ts <-- sep_by ((perform
+    ts <-- sep_by ((fun s -> (perform
                      label <-- id_lower;
                      skip_symbol ":"; 
                      t <-- Lazy.force stype_;
-                     return (label,t)) <?> "mapping from label to session type (e.g., foo:1)")
+                     return (label,(s,t))) s)
+                    <?> "mapping from label to session type (e.g., foo:1)")
                   (skip_symbol ";");
     skip_symbol "}";
     match LM.of_alist ts with
-    | `Ok m -> return (Extern (Linear,m))
-    | `Duplicate_key l -> errr (fst l) ("duplicate label "^string_of_label l))
+    | `Ok m -> return (Extern (Linear,LM.map m snd))
+    | `Duplicate_key l -> 
+        let (s,_) = List.Assoc.find_exn ts l
+        in fun _ -> Consumed_failed (unexpected_error s ("duplicate label "^snd l)))
   <|>
   parens_lazy stype_
-  <?> "session type"
+  <?> "session type") s
 )
 
 let mtype = Lazy.force mtype_
