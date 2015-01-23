@@ -1073,7 +1073,7 @@ let topdef_ =
       pats <-- patvar_list many;
       skip_symbol "=";
       e <-- exp;
-      return (name,TopExp (name,t,pats,e)))
+      return (name,TopExp (name,snd t,pats,e)))
     <|>
     (perform
        c <-- anychan;
@@ -1083,14 +1083,14 @@ let topdef_ =
        (perform
          skip_symbol "=";
          p <-- proc;
-         return (name,TopMon (name,t,pats,c,p,[])))
+         return (name,TopMon (name,snd t,pats,c,p,[])))
        <|>
        (perform
           skip_symbol "-<";
           cs <-- many anychan;
           skip_symbol "=";
           p <-- proc;
-          return (name,TopMon (name,t,pats,c,p,cs))))
+          return (name,TopMon (name,snd t,pats,c,p,cs))))
     <|>
     (perform
        sloc <-- getSloc;
@@ -1101,14 +1101,14 @@ let topdef_ =
        (perform
          skip_symbol "=";
          p <-- proc;
-         return (name,TopDet (name,t,pats,sloc,p,[])))
+         return (name,TopDet (name,snd t,pats,sloc,p,[])))
        <|>
        (perform
           skip_symbol "-<";
           cs <-- many anychan;
           skip_symbol "=";
           p <-- proc;
-          return (name,TopDet (name,t,pats,sloc,p,cs))))
+          return (name,TopDet (name,snd t,pats,sloc,p,cs))))
     <?> ("definition for "^snd (fst t))
 
 let topdef : (toplvl,'s) MParser.t = 

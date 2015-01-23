@@ -275,10 +275,10 @@ and freeSVarsSPure (tin:stype) : TS.t =
   | TyAt s -> freeSVarsSPure s
   | Prime s -> freeSVarsSPure s
 
-type toplet = (* TODO feels like too many fvars here *)
-  | TopExp of fvar * (fvar*[`M of mtype | `P of ptype]) * fvar list * exp
-  | TopMon of fvar * (fvar*[`M of mtype | `P of ptype]) * fvar list * cvar * proc * cvar list
-  | TopDet of fvar * (fvar*[`M of mtype | `P of ptype]) * fvar list * srcloc * proc * cvar list
+type toplet =
+  | TopExp of fvar * [`M of mtype | `P of ptype] * fvar list * exp
+  | TopMon of fvar * [`M of mtype | `P of ptype] * fvar list * cvar * proc * cvar list
+  | TopDet of fvar * [`M of mtype | `P of ptype] * fvar list * srcloc * proc * cvar list
 
 type toplvl =
   | TopLets of toplet FM.t
