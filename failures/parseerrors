@@ -629,3 +629,65 @@ f : Bool;;
 ^
 Unexpected duplicate binding for f
 %%%%
+
+type Foo a a = Foo a;;
+%%%%
+Error in line 2, column 10:
+type Foo a a = Foo a;;
+         ^
+Unexpected duplicate quantifier a
+%%%%
+
+type Foo 'a 'a = Foo 'a;;
+%%%%
+Error in line 2, column 10:
+type Foo 'a 'a = Foo 'a;;
+         ^
+Unexpected duplicate quantifier 'a
+%%%%
+
+ltype Foo a a = 1;;
+%%%%
+Error in line 2, column 11:
+ltype Foo a a = 1;;
+          ^
+Unexpected duplicate quantifier a
+%%%%
+
+f : forall <a,a,a> . Int;;
+f = ();;
+%%%%
+Error in line 2, column 13:
+f : forall <a,a,a> . Int;;
+            ^
+Unexpected duplicate quantifier a
+%%%%
+
+f : Int;;
+f x x x = ();;
+%%%%
+Error in line 3, column 3:
+f x x x = ();;
+  ^
+Unexpected duplicate argument x
+%%%%
+
+f : Int;;
+f = case () of
+    | (x,x) -> ();;
+%%%%
+Error in line 4, column 10:
+    | (x,x) -> ();;
+         ^
+Unexpected duplicate pattern variable x
+%%%%
+
+f : Int;;
+f = case () of
+    | x::x -> ();;
+%%%%
+Error in line 4, column 10:
+    | x::x -> ();;
+         ^
+Unexpected duplicate pattern variable x
+%%%%

@@ -140,7 +140,7 @@ let getSloc =
 
 (* To report better error messages sometimes we'll want to grab the parser state.
    This feels like it should already be in the library, but I can't find it. *)
-let getState s = return s
+let getState = fun s -> (return s) s
 
 (* I really miss typeclasses some days *)
 module Of_alist_map(M : Map.S) = struct
@@ -197,8 +197,16 @@ let patvar : (fvar,'s) MParser.t =
   (perform
     sloc <-- getSloc;
     skip_symbol "_";
-    return (sloc,"_"))
+    return (sloc,"_"^priv_name ()))
   <?> "pattern variable"
+
+let patvar_list comb : (fvar list,'s) MParser.t =
+  perform
+   ps <-- comb (pair getState patvar);
+   match List.find_a_dup ps ~compare:(fun (_,(_,x)) (_,(_,y)) -> Pervasives.compare x y) with
+   | None -> return (List.map ps snd)
+   | Some (s,x) -> fun _ ->
+        Consumed_failed (unexpected_error s ("duplicate argument "^string_of_fvar x))
 
 let id_lin_ : (cvar,'s) MParser.t =
   (perform
@@ -237,6 +245,20 @@ let sesvar  = (id_lin <|> id_aff <|> id_shr <?> "session type variable") |>> cha
 let datavar = id_lower <?> "data-level type variable"
 let quant   = (sesvar |>> fun x -> `S x) <|> (datavar |>> fun x -> `M (snd x))
             <?> "quantifier"
+
+(* Need combinator option here to cope with multiple different styles of quantifier lists *)
+let quant_list comb : ([`M of string | `S of tyvar] list, 's) MParser.t =
+  perform
+    qs <-- comb (perform
+                  x <-- getState;
+                  q <-- quant;
+                  return (q,x));
+    match List.find_a_dup qs ~compare:(fun (x,_) (y,_) -> Pervasives.compare x y) with
+    | None -> return (List.map qs fst)
+    | Some (`M x,s) -> fun _ ->
+        Consumed_failed (unexpected_error s ("duplicate quantifier "^x))
+    | Some (`S x,s) -> fun _ ->
+        Consumed_failed (unexpected_error s ("duplicate quantifier "^string_of_tyvar x))
 
 let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
   perform
@@ -434,7 +456,7 @@ let mtypedec : (toplvl,'s) MParser.t =
     sloc <-- getSloc;
     skip_symbol "type";
     id <-- id_upper;
-    qs <-- many quant;
+    qs <-- quant_list many;
     skip_symbol "=";
     ts <-- Of_alist_SM.go (fun x -> sep_by x (skip_symbol "|")) constructor 
                           (fun s -> "duplicate constructor name "^s);
@@ -448,7 +470,7 @@ let stypedec : (toplvl,'s) MParser.t =
             <|> (skip_symbol "atype" >> return Affine)
             <|> (skip_symbol "utype" >> return Intuist));
     id <-- id_upper;
-    qs <-- many quant;
+    qs <-- quant_list many;
     skip_symbol "=";
     t <-- stype;
     skip_symbol ";;";
@@ -460,7 +482,7 @@ let data_pattern : ((string * fvar list),'s) MParser.t =
     skip_symbol "|";
     (perform
       name <-- id_upper;
-      pats <-- many patvar;
+      pats <-- patvar_list many;
       skip_symbol "->";
       return (snd name,pats))
     <|>
@@ -473,17 +495,23 @@ let data_pattern : ((string * fvar list),'s) MParser.t =
       skip_symbol "(";
       x1 <-- patvar;
       skip_symbol ",";
+      s <-- getState;
       x2 <-- patvar;
       skip_symbol ")";
       skip_symbol "->";
-      return (",",[x1;x2]))
+      if fvar_eq x1 x2
+      then fun _ -> Consumed_failed (unexpected_error s ("duplicate pattern variable "^snd x2))
+      else return (",",[x1;x2]))
     <|>
     (perform
       x1 <-- patvar;
       skip_symbol "::";
+      s <-- getState;
       x2 <-- patvar;
       skip_symbol "->";
-      return ("::",[x1;x2]))
+      if fvar_eq x1 x2
+      then fun _ -> Consumed_failed (unexpected_error s ("duplicate pattern variable "^snd x2))
+      else return ("::",[x1;x2]))
     <?> "pattern match")
   <?> "pattern match"
 
@@ -638,7 +666,7 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
     sloc <-- getSloc;
     skip_symbol "fun";
-    (x::xs) <-- many1 patvar;
+    (x::xs) <-- patvar_list many1;
     skip_symbol "->";
     e <-- Lazy.force exp_;
     return (Fun(sloc,x,xs,e)))
@@ -647,7 +675,7 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     skip_symbol "let";
     name <-- id_lower;
-    pats <-- many patvar;
+    pats <-- patvar_list many;
     skip_symbol ":";
     t <-- mtype;
     skip_symbol "=";
@@ -867,7 +895,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     skip_symbol "let";
     name <-- id_lower;
-    pats <-- many patvar;
+    pats <-- patvar_list many;
     skip_symbol ":";
     t <-- mtype;
     skip_symbol "=";
@@ -1019,7 +1047,7 @@ let topsig =
       skip_symbol "forall";
       qs <-- (perform
         skip_symbol "<";
-        qs <-- sep_by quant (skip_symbol ",");
+        qs <-- quant_list (fun x -> sep_by x (skip_symbol ","));
         skip_symbol ">";
         return qs) <?> "quantifier list (e.g., <a,'b,@c>)";
       skip_symbol ".";
@@ -1042,7 +1070,7 @@ let topdef_ =
     skip_symbol ";;";
     (perform
       name <-- expectId (fst t);
-      pats <-- many patvar;
+      pats <-- patvar_list many;
       skip_symbol "=";
       e <-- exp;
       return (name,TopExp (name,t,pats,e)))
@@ -1051,7 +1079,7 @@ let topdef_ =
        c <-- anychan;
        skip_symbol "<-";
        name <-- expectId (fst t);
-       pats <-- many patvar;
+       pats <-- patvar_list many;
        (perform
          skip_symbol "=";
          p <-- proc;
@@ -1069,7 +1097,7 @@ let topdef_ =
        c <-- skip_symbol "_";
        skip_symbol "<-";
        name <-- expectId (fst t);
-       pats <-- many patvar;
+       pats <-- patvar_list many;
        (perform
          skip_symbol "=";
          p <-- proc;
