@@ -1,5 +1,0 @@
-f:() -> Int;;
-f _ = 5
-and
-f:() -> Bool;;
-f _ = True;;

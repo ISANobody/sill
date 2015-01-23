@@ -534,3 +534,98 @@ t: {&{foo:1; foo:1}};;
              ^
 Unexpected duplicate label foo
 %%%%
+
+t:Int;;
+f = ();;
+%%%%
+Error in line 3, column 1:
+f = ();;
+^
+Expecting definition for t
+%%%%
+
+t:Int;;
+'c <- f x = 
+  close 'c;;
+%%%%
+Error in line 3, column 7:
+'c <- f x = 
+      ^
+Expecting definition for t
+%%%%
+
+t:Int;;
+_  <- f x = 
+  close 'c;;
+%%%%
+Error in line 3, column 7:
+_  <- f x = 
+      ^
+Expecting definition for t
+%%%%
+
+type Foo = Foo | Bar | Foo
+%%%%
+Error in line 2, column 12:
+type Foo = Foo | Bar | Foo
+           ^
+Unexpected duplicate constructor name Foo
+%%%%
+
+f : Int;;
+f = case True of
+    | True -> 5
+    | False -> 3
+    | True -> 8;;
+%%%%
+Error in line 4, column 5:
+    | True -> 5
+    ^
+Unexpected duplicate pattern for True
+%%%%
+
+f : { &{red:1}};;
+'c <- f =
+  case 'c of
+  | red -> close 'c
+  | red -> close 'c;;
+%%%%
+Error in line 6, column 3:
+  | red -> close 'c;;
+  ^
+Unexpected duplicate case for label red
+%%%%
+
+f : { 1 };;
+'c <- f =
+  case [] of
+  | [] -> close 'a
+  | [] -> close 'b;;
+%%%%
+Error in line 5, column 3:
+  | [] -> close 'a
+  ^
+Unexpected duplicate pattern for []
+%%%%
+
+f : { 1 };;
+'c <- f =
+  case [] of;;
+%%%%
+Error in line 4, column 13:
+  case [] of;;
+            ^
+Expecting pattern match
+%%%%
+
+f : Int;;
+f = 1
+and
+f : Bool;;
+f = 2;;
+%%%%
+Error in line 5, column 1:
+f : Bool;;
+^
+Unexpected duplicate binding for f
+%%%%

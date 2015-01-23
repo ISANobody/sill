@@ -138,6 +138,29 @@ let getSloc =
     (_,l,c) <-- get_pos;
     return ({lnum = l; cnum = c})
 
+(* To report better error messages sometimes we'll want to grab the parser state.
+   This feels like it should already be in the library, but I can't find it. *)
+let getState s = return s
+
+(* I really miss typeclasses some days *)
+module Of_alist_map(M : Map.S) = struct
+  let go comb elt msg =
+   perform
+     alist <-- comb (fun s -> (perform
+                                  (k,d) <-- elt;
+                                  return (k,(s,d))
+                                ) s);
+     match M.of_alist alist with
+     | `Ok m -> return (M.map m snd)
+     | `Duplicate_key k -> 
+        let (s,_) = List.Assoc.find_exn alist k
+        in fun _ -> Consumed_failed (unexpected_error s (msg k))
+end
+
+module Of_alist_LM = Of_alist_map(LM)
+module Of_alist_SM = Of_alist_map(SM)
+module Of_alist_FM = Of_alist_map(FM)
+
 (* We allow one case where identifiers cannot be followed by spaces: branch selection.
    As a result some of these identifier parsers will have id_ versions that do not consume
    trailing spaces. *)
@@ -367,35 +390,29 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(fun s ->
   <|>
   (perform
     skip_symbol "+{";
-    ts <-- sep_by ((fun s -> (perform
-                     label <-- id_lower;
-                     skip_symbol ":"; 
-                     t <-- Lazy.force stype_;
-                     return (label,(s,t))) s)
-                    <?> "mapping from label to session type (e.g., foo:1)")
-                  (skip_symbol ";");
+    ts <-- Of_alist_LM.go (fun x -> sep_by x (skip_symbol ";"))
+                        ((perform
+                          l <-- id_lower;
+                          skip_symbol ":";
+                          t <-- Lazy.force stype_;
+                          return (l,t))
+                          <?> "mapping from label to session type (e.g., foo:1)")
+                        (fun x -> "duplicate label "^snd x);
     skip_symbol "}";
-    match LM.of_alist ts with
-    | `Ok m -> return (Intern (Linear,LM.map m snd))
-    | `Duplicate_key l -> 
-        let (s,_) = List.Assoc.find_exn ts l
-        in fun _ -> Consumed_failed (unexpected_error s ("duplicate label "^snd l)))
+   return (Intern (Linear,ts)))
   <|>
   (perform
     skip_symbol "&{";
-    ts <-- sep_by ((fun s -> (perform
-                     label <-- id_lower;
-                     skip_symbol ":"; 
-                     t <-- Lazy.force stype_;
-                     return (label,(s,t))) s)
-                    <?> "mapping from label to session type (e.g., foo:1)")
-                  (skip_symbol ";");
+    ts <-- Of_alist_LM.go (fun x -> sep_by x (skip_symbol ";"))
+                          ((perform
+                          l <-- id_lower;
+                          skip_symbol ":";
+                          t <-- Lazy.force stype_;
+                          return (l,t))
+                          <?> "mapping from label to session type (e.g., foo:1)")
+                        (fun x -> "duplicate label "^snd x);
     skip_symbol "}";
-    match LM.of_alist ts with
-    | `Ok m -> return (Extern (Linear,LM.map m snd))
-    | `Duplicate_key l -> 
-        let (s,_) = List.Assoc.find_exn ts l
-        in fun _ -> Consumed_failed (unexpected_error s ("duplicate label "^snd l)))
+   return (Extern (Linear,ts)))
   <|>
   parens_lazy stype_
   <?> "session type") s
@@ -419,11 +436,10 @@ let mtypedec : (toplvl,'s) MParser.t =
     id <-- id_upper;
     qs <-- many quant;
     skip_symbol "=";
-    ts <-- sep_by constructor (skip_symbol "|");
+    ts <-- Of_alist_SM.go (fun x -> sep_by x (skip_symbol "|")) constructor 
+                          (fun s -> "duplicate constructor name "^s);
     skip_symbol ";;";
-    match SM.of_alist ts with
-    | `Ok m -> return (MTypeDecl (id,qs,m))
-    | `Duplicate_key k -> errr sloc ("duplicate constructor name "^k))
+    return (MTypeDecl (id,qs,ts)))
   <?> "data-level type declaration"
 
 let stypedec : (toplvl,'s) MParser.t =
@@ -655,13 +671,13 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
     skip_symbol "case";
     e <-- Lazy.force exp_;
     skip_symbol "of";
-    es <-- many1 (perform
-                   (c,pat) <-- data_pattern;
-                   ep <-- Lazy.force exp_;
-                   return (c,(pat,ep)));
-    match SM.of_alist es with
-    | `Ok m -> return (Case (sloc,e,m))
-    | `Duplicate_key k -> errr sloc ("duplicate pattern for "^k))
+    es <-- Of_alist_SM.go many1 (perform
+                                  (c,pat) <-- data_pattern;
+                                  ep <-- Lazy.force exp_;
+                                  return (c,(pat,ep)))
+                          (fun k -> "duplicate pattern for "^k);
+    
+    return (Case (sloc,e,es)))
   <|>
   (perform
     sloc <-- getSloc;
@@ -789,29 +805,27 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     (perform
       c <-- subchan;
       skip_symbol "of";
-      cases <-- many (perform 
-                       skip_symbol "|";
-                       l <-- id_lower;
-                       skip_symbol "->";
-                       p <-- Lazy.force proc_;
-                       return (l,p));
+      cases <-- Of_alist_LM.go many (perform 
+                                      skip_symbol "|";
+                                      l <-- id_lower;
+                                      skip_symbol "->";
+                                      p <-- Lazy.force proc_;
+                                      return (l,p))
+                              (fun k -> "duplicate case for label "^snd k);
       return (function
-        | None -> (match LM.of_alist cases with
-                  | `Ok m -> External (sloc,c,m)
-                  | `Duplicate_key l -> errr (fst l) ("duplicate case for label "^string_of_label l))
+        | None -> External (sloc,c,cases)
         | Some p -> errr (locP p) "BUG external choice cannot be followed a process"))
     <|>
     (perform
       e <-- Lazy.force exp_;
       skip_symbol "of";
-      cases <-- many1 (perform
-                         (c,pat) <-- data_pattern;
-                         p <-- Lazy.force proc_;
-                         return (c,(pat,p)));
+      cases <-- Of_alist_SM.go many1 (perform
+                                       (c,pat) <-- data_pattern;
+                                       p <-- Lazy.force proc_;
+                                       return (c,(pat,p)))
+                               (fun k -> "duplicate pattern for "^k);
     return (function
-      | None -> (match SM.of_alist cases with
-                | `Ok m -> CaseP (sloc,e,m)
-                | `Duplicate_key k -> errr sloc ("duplicate pattern for "^k))
+      | None -> CaseP (sloc,e,cases)
       | Some p -> errr (locP p) "BUG process case cannot be followed a process")))
   <|>
   (perform
@@ -1018,11 +1032,16 @@ let topsig =
   <?> "type signature"
 
 let topdef_ = 
+  let expectId name s = (id_lower >>= fun x -> 
+    if fvar_eq x name 
+    then return x
+    else fun _ -> Consumed_failed (expected_error s ("definition for "^snd name))) s
+  in
   perform
     t <-- topsig;
     skip_symbol ";;";
     (perform
-      name <-- id_lower;
+      name <-- expectId (fst t);
       pats <-- many patvar;
       skip_symbol "=";
       e <-- exp;
@@ -1031,7 +1050,7 @@ let topdef_ =
     (perform
        c <-- anychan;
        skip_symbol "<-";
-       name <-- id_lower;
+       name <-- expectId (fst t);
        pats <-- many patvar;
        (perform
          skip_symbol "=";
@@ -1049,7 +1068,7 @@ let topdef_ =
        sloc <-- getSloc;
        c <-- skip_symbol "_";
        skip_symbol "<-";
-       name <-- id_lower;
+       name <-- expectId (fst t);
        pats <-- many patvar;
        (perform
          skip_symbol "=";
@@ -1066,11 +1085,10 @@ let topdef_ =
 
 let topdef : (toplvl,'s) MParser.t = 
   (perform
-    defs <-- sep_by1 topdef_ (skip_symbol "and");
+    defs <-- Of_alist_FM.go (fun x -> sep_by1 x (skip_symbol "and"))
+                            topdef_ (fun k -> "duplicate binding for "^string_of_fvar k);
     skip_symbol ";;";
-    match FM.of_alist defs with
-    | `Ok m -> return (TopLets m)
-    | `Duplicate_key k -> errr (fst k) ("duplicate binding for "^string_of_fvar k))
+    return (TopLets defs))
   <?> "top level definition"
 
 let topproc_ =
@@ -1100,7 +1118,7 @@ let main (file: string) : toplvl list =
   if file = "-" 
   then match MParser.parse_string entrypoint (In_channel.input_all In_channel.stdin) () with
        | Success prog -> prog
-       | Failed (msg, _) -> print_endline msg; Pervasives.exit 1
+       | Failed (msg, _) -> prerr_endline msg; Pervasives.exit 1
   else match MParser.parse_channel entrypoint (open_in file) () with
        | Success prog -> prog
-       | Failed (msg, _) -> print_endline msg; Pervasives.exit 1
+       | Failed (msg, _) -> prerr_endline msg; Pervasives.exit 1
