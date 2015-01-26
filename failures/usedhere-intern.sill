@@ -1,4 +1,0 @@
-boom : {1<-+{foo:1}};;
-'c <- boom -< 'd =
-  case 'd of | foo ->
-  close 'c;;

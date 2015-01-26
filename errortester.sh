@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-cat failures/parseerrors | (
+cat "$1" | (
   PROG="";
   ERRR="";
   OUTP="";
@@ -19,7 +19,7 @@ cat failures/parseerrors | (
         fi;
       done;
 # silly but gets newlines correct
-      OUTP=$(set -f; echo "${PROG}" | sill -parseonly - 2>&1);
+      OUTP=$(set -f; echo "${PROG}" | sill - 2>&1);
       OUTP+="
 ";
       if [ "$OUTP" != "$ERRR" ];

@@ -1,8 +1,0 @@
-blank : {1};;
-'c <- blank = close 'c;;
-
-'c <- 'd <- blank;
-      'e <- blank;
-      'f <- blank;
-      'g <- blank;
-      abort;;

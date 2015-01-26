@@ -1,0 +1,498 @@
+blank : {1};;
+'c <- blank = close 'c;;
+
+'c <- 'd <- blank;
+      'e <- blank;
+      'f <- blank;
+      'g <- blank;
+      abort;;
+%%%%
+@8:7 Empty Case Abort
+%%%%
+
+bar : {1};;
+'c <- bar =
+  close 'c;;
+
+quux : { 1 <- @1 };;
+'c <- quux -< @d =
+  close 'c;;
+
+(* Error: passing linear channel as into affine argument *)
+'top <- 'c <- bar;
+        'd <- quux -< 'c;
+        wait 'd;
+        close 'top;;
+%%%%
+@12:23 mismatched modality: found linear expected affine
+%%%%
+
+baz : {1};;
+'c <- baz =
+    close 'c;;
+
+(* Error: binding linear monad to affine channel *)
+'top <- @c <- baz;
+        close 'top;;
+%%%%
+@7:9 mismatched modality: found linear expected affine
+%%%%
+
+
+(* { }I *)
+(* No linear arguments when providing affine *)
+atype Foo = 1;;
+foo : {Foo <- 1};;
+foo =
+  @c <-{ wait 'd;
+         close @c }-< 'd;;
+%%%%
+@9:23 Modality problem 'd
+%%%%
+
+
+(* Must provide affine type with affine channel.
+   Removing this restriction should be safe. *)
+foo : {1};;
+foo = @c <-{ close @c};;
+%%%%
+@6:7 Modality problem @c type is linear but channel is affine
+%%%%
+
+  (* Can't affinize *)
+  foo : {1 <- 1*1};;
+  'c <- foo -< 'd =
+    @e <- recv 'd;
+    wait 'd;
+    close 'c;;
+%%%%
+@5:5 *L: Type of 'd is 1 but @e isn't a legal modality
+%%%%
+
+'c <- let f : {1}  = 'e <-{close 'e}; 'e <- f;
+      let g : {&{a:1;b:1}<-1} = 'd <-{case 'd of 
+                  | a ->  wait 'e;
+                          close 'd
+                  | b -> close 'd}-< 'e;
+       'd <- g -< 'e;
+      'd.a;
+      wait 'd;
+      close 'c;;
+%%%%
+@6:26 &R: Mismatched consumed resources at label b channel 'e was found to be Consumed previously but is Unconsumed here.
+%%%%
+
+'c <- let f : {1} = 'e <-{close 'e}; 'e <- f;
+      let g : {&{a:1;b:1}<-1} = 'd <-{case 'd of 
+                  | a -> close 'd
+                  | b -> wait 'e;
+                         abort}-< 'e;
+       'd <- g -< 'e;
+      'd.a;
+      wait 'd;
+      wait 'e;
+      close 'c;;
+%%%%
+@5:26 &R: Mismatched consumed resources at label b channel 'e was found to be Unconsumed previously but is Consumed here.
+%%%%
+
+f : Int -> Int;;
+f x = x + 4;;
+
+y : Float;;
+y = f 0.0;;
+
+'c <- close 'c;;
+%%%%
+@6:7 Unification failure in con failed solving Float === Int
+%%%%
+
+'c <- let f : {1} = 'd <-{ close 'd }; 'd <- f;
+      'd <- f;
+      wait 'd;
+      close 'c;;
+%%%%
+@2:40 { }E Unconsumed channel 'd
+%%%%
+
+'c <- let f : {1<-1} = 'd <-{ wait 'e; close 'd }-< 'e; 'd <- f -< 'e;
+      wait 'd;
+      close 'c;;
+%%%%
+@2:68 { }E unbound channel 'e
+%%%%
+
+foo : {1 <- 1};;
+'c <- foo -< 'd = wait 'd; close 'c;;
+
+boom : {1<-1};;
+'c <- boom -< 'd =
+  'f <- foo -< 'd;
+  close 'c;;
+%%%%
+@7:3 { }E Unconsumed channel 'f
+%%%%
+
+boom : {1<-1*1};;
+'c <- boom -< 'd =
+  'f <- recv 'd;
+  wait 'd;
+  close 'c;;
+%%%%
+@4:3 *L Unconsumed channel 'f
+%%%%
+
+x : {Foo};;
+x = 4;;
+%%%%
+@2:6 Undefined session type Foo
+%%%%
+
+ltype Foo a = a /\ 1;;
+
+x : {Foo};;
+x = 4;;
+%%%%
+@4:6 Number of arguments, 0, to Foo doesn't match its expectation of 1
+%%%%
+
+foo : {1 <- 1; 1};;
+'c <- foo -< 'd 'e =
+  wait 'd;
+  wait 'e;
+  close 'c;;
+
+boom : {1 <- 1};;
+'c <- boom -< 'd =
+  'e <- foo -< 'd 'd;
+  wait 'e;
+  close 'c;;
+%%%%
+@10:16 Duplicate usage of channel 'd
+%%%%
+
+boom : {1*1<-1};;
+'c <- boom -< 'd =
+  send 'c ('e <- wait 'd; close 'e);
+  wait 'd;
+  close 'c;;
+%%%%
+@4:3 Duplicate usage of channel 'd
+%%%%
+
+'c <- 'd <- 'e;;
+%%%%
+@2:7 Forward to wrong channel wanted 'c got 'd
+%%%%
+
+x : {1 <- 1};;
+'c <- x -< 'd =
+  close 'c;;
+%%%%
+@3:12 Unconsumed channel 'd
+%%%%
+
+foo : {1 <- 1};;
+'c <- foo -< 'd = 
+   wait 'd;
+   close 'c;;
+
+bar : {1};;
+'c <- bar =
+  'd <- foo;
+  wait 'd;
+  close 'c;;
+%%%%
+@9:3 Wrong number of arguments to bind expected 1 got 0
+%%%%
+
+'c <- wait 'c;
+      close 'c;;
+%%%%
+@2:12 Waiting on itself while providing 'c
+%%%%
+
+'c <- close 'd;;
+%%%%
+@2:13 Tried to close 'd when providing 'c
+%%%%
+
+'c <- let f : {+{a:1; b:1}} = 'd <-{ 'd.a; close 'd }; 'd <- f;
+      case 'd of
+      | a -> wait 'd;
+             close 'c
+      | b -> close 'c;;
+%%%%
+@6:14 +L: Mismatched consumed resources at label b channel 'd was found to be Consumed previously but is Unconsumed here.
+%%%%
+
+'c <- let f : {+{a:1; b:1}} = 'd <-{ 'd.a; close 'd }; 'd <- f;
+      case 'd of
+      | a -> close 'c
+      | b -> wait 'd;
+             abort;;
+%%%%
+@5:14 +L: Mismatched consumed resources at label b channel 'd was found to be Unconsumed previously but is Consumed here.
+%%%%
+
+'c <- let f : {+{a:1; b:1}} = 'd <-{'d.a; close 'd }; 'd <- f;
+      case 'd of
+      | a -> wait 'd;
+             abort
+      | b -> close 'c;;
+%%%%
+@6:14 +L: Mismatched consumed resources at label b channel 'd was found to be Consumed previously but is Unconsumed here.
+%%%%
+
+x : a -> [a];;
+x a = [];;
+
+x : a -> [b] -> [b];;
+x a bl = a :: bl;;
+%%%%
+@6:10 Unification failure in var (a) failed solving a === b
+%%%%
+
+my_eq : forall <a>. a -> a -> Bool;;
+my_eq x y = x = y;;
+
+boom : Bool;;
+boom = my_eq<1> 6 8;;
+%%%%
+@6:8 tried to instantiate data type variable with session type 1
+%%%%
+
+foo : forall <'a>. {1};;
+'c <- foo =
+  close 'c;;
+
+'top <- 'c <- foo<Bool -> Bool>;
+        wait 'c;
+        close 'top;;
+%%%%
+@6:15 tried to instantiate session type variable with data type (Bool) -> (Bool)
+%%%%
+
+foo : forall <'a>. {1};;
+'c <- foo =
+  close 'c;;
+
+'top <- 'c <- foo;
+        wait 'c;
+        close 'top;;
+%%%%
+@6:15 foo has session polymorphism in its type forall 'a.{1} Use foo<...> instead
+%%%%
+
+my_eq : forall <a>. a -> a -> Bool;;
+my_eq x y = x = y;;
+
+boom : Bool;;
+boom = my_eq<Float,Int> 6 8;;
+%%%%
+@6:8 my_eq has 1 quantifier(s) in its type forall a.(a)->((a)->(Bool)) but 2 type(s) were supplied
+%%%%
+
+ltype Stream a = &{stop: 1; next: a /\ Stream a};;
+ltype SkipStream a = &{stop: 1; next: a /\ SkipStream a; skip: SkipStream a};;
+
+countFrom : Int -> {Stream Int};;
+'c <- countFrom n =
+  case 'c of
+  | stop -> close 'c
+  | next -> send 'c n;
+            'c <- countFrom (n+1);;
+
+nats : {Stream Int};;
+nats = countFrom 0;;
+
+bigclient: {1<- SkipStream Int};;
+'c <- bigclient -< 'd =
+  'd.next;
+  _ <- recv 'd;
+  'd.skip;
+  'd.stop;
+  wait 'd;
+  close 'c;;
+
+'c <- 'd <- nats;
+      'e <- bigclient -< 'd;
+      wait 'e;
+      close 'c;;
+%%%%
+@25:26 Subtyping failure in { }E failed solving &{next: Int/\Stream Int; stop: 1} <<< &{next: Int/\SkipStream Int; skip: SkipStream Int; stop: 1}: when solving &{next: Int/\Stream Int; stop: 1} <<< &{next: Int/\SkipStream Int; skip: SkipStream Int; stop: 1} found label skip only on the right
+%%%%
+
+ltype Stream a = +{stop: 1; next: a => Stream a};;
+ltype SkipStream a = +{stop: 1; next: a => SkipStream a; skip: SkipStream a};;
+
+countFrom: Int -> {1 <- Stream Int};;
+'c <- countFrom n -< 'd =
+  case 'd of
+  | stop -> wait 'd; close 'c
+  | next -> send 'd n; 'c <- countFrom (n+1) -< 'd;;
+
+nats:{1 <- Stream Int};;
+nats = countFrom 0;;
+
+bigclient: {SkipStream Int};;
+'c <- bigclient=
+  'c.next;
+  _ <- recv 'c;
+  'c.skip;
+  'c.stop;
+  close 'c;;
+
+foo: {1 <- SkipStream a} -> {SkipStream a} -> {1};;
+'c <- foo s c =
+       'd <- c;
+       'e <- s -< 'd;
+       wait 'e;
+       close 'c;;
+
+'c <- 'f <- foo nats bigclient;
+      wait 'f;
+      close 'c;;
+%%%%
+@29:17 Unification failure in var (nats) failed solving {1 <- +{next: Int=>Stream Int; stop: 1}} === {1 <- +{next: ?x10=>SkipStream ?x10; skip: SkipStream ?x10; stop: 1}}
+%%%%
+
+foo : {&{a:1; b:1}};;
+'c <- foo =
+  case 'c of
+  | a -> close 'c;;
+%%%%
+@4:3 &R: Expected to find b
+%%%%
+
+foo : {1<-+{a:1; b:1}};;
+'c <- foo -< 'd =
+  case 'd of
+  | a -> wait 'd;
+         close 'c;;
+%%%%
+@4:3 +L: Expected to find label b
+%%%%
+
+foo : {+{a:1}};;
+'c <- foo = 
+   'c.b;
+   close 'c;;
+%%%%
+@4:7 label b not in expected type +{a: 1}
+%%%%
+
+foo : {1 <- &{a:1}};;
+'c <- foo -< 'd =
+  'd.b;
+  close 'c;;
+%%%%
+@4:6 label b not in expected type &{a: 1}
+%%%%
+
+sub : {&{red: 1; blue: 1}};;
+'c <- sub =
+  case 'c of
+  | red -> close 'c
+  | blue -> close 'c;;
+
+sup : {&{red: 1}};;
+'c <- sup =
+  case 'c of
+  | red -> close 'c;;
+
+sendsub : {{&{red: 1; blue: 1}}/\1};;
+'c <- sendsub = 
+  send 'c sub;
+  close 'c;;
+
+sendsup : {{&{red: 1}}/\1};;
+'c <- sendsup = 
+  send 'c sup;
+  close 'c;;
+
+bar: {{&{red: 1; blue: 1}}/\1} -> {1};;
+'c <- bar foo = 
+  'd <- foo;
+  m <- recv 'd;
+  'e <- m;
+  'e.blue;
+  wait 'd;
+  wait 'e;
+  close 'c;;
+
+
+'top <- 
+  'c <- bar sendsup;
+  wait 'c;
+  close 'top;;
+%%%%
+@35:13 Unification failure in var (sendsup) failed solving {{&{red: 1}}/\1} === {{&{blue: 1; red: 1}}/\1}
+%%%%
+
+boom : {1<-&{foo:1}};;
+'c <- boom -< 'd =
+  'd.foo;
+  close 'c;;
+%%%%
+@4:3 &L: Unconsumed but used channel 'd
+%%%%
+
+boom : {1<-1*1};;
+'c <- boom -< 'd =
+  'f <- recv 'd;
+  wait 'f;
+  close 'c;;
+%%%%
+@4:14 *L: Unconsumed but used channel 'd
+%%%%
+
+boom : {1<-Int/\1};;
+'c <- boom -< 'd =
+  _ <- recv 'd;
+  close 'c;;
+%%%%
+@4:13 /\L: Unconsumed but used channel 'd
+%%%%
+
+boom : {1<-+{foo:1}};;
+'c <- boom -< 'd =
+  case 'd of | foo ->
+  close 'c;;
+%%%%
+@4:8 +L: Unconsumed but used channel 'd
+%%%%
+
+boom : {1<-1-o1};;
+'c <- boom -< 'd =
+  send 'd ('e <- close 'e);
+  close 'c;;
+%%%%
+@4:8 -oL: Unconsumed but used channel 'd
+%%%%
+
+boom : {1<-Int=>1};;
+'c <- boom -< 'd =
+  send 'd 4;
+  close 'c;;
+%%%%
+@4:8 =>L: Unconsumed but used channel 'd
+%%%%
+
+x : Int;;
+x = h;;
+%%%%
+@3:5 Variable h not found
+%%%%
+
+m1 : {1};;
+'c <- m1 = close 'c;;
+
+m2 : {1 -o 1 <- 1};;
+'d <- m2 -< 'e = 
+'e <- recv 'd;
+wait 'e;
+close 'd;;
+%%%%
+@6:13 Unconsumed channel 'e
+%%%%

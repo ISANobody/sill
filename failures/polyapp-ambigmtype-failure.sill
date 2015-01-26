@@ -1,5 +1,0 @@
-my_eq : forall <a>. a -> a -> Bool;;
-my_eq x y = x = y;;
-
-boom : Bool;;
-boom = my_eq<1> 6 8;;

@@ -1,4 +1,0 @@
-x : String;;
-x = 0.0 + "a";;
-
-'c <- close 'c;;

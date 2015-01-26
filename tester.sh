@@ -21,13 +21,8 @@ do
 done
 cd .. || exit 1
 
-cd failures || exit 1
-for I in *.sill
-do
-  if [ -e $I.error ]
-  then
-    echo $I errorring
-    sill $I 2>&1 | diff -q - $I.error || exit 1
-  fi
-done
-cd .. || exit 1
+echo "Checking parser errors"
+./errortester.sh tests/parseerrors
+
+echo "Checking type errors"
+./errortester.sh tests/typeerrors

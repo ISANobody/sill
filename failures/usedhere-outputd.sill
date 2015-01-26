@@ -1,4 +1,0 @@
-boom : {1<-Int=>1};;
-'c <- boom -< 'd =
-  send 'd 4;
-  close 'c;;

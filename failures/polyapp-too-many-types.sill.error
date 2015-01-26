@@ -1,1 +1,0 @@
-@5:8 my_eq has 1 quantifier(s) in its type forall a.(a)->((a)->(Bool)) but 2 type(s) were supplied

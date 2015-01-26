@@ -1,5 +1,0 @@
-(* Must provide affine type with affine channel.
-   Removing this restriction should be safe. *)
-foo : {1};;
-foo = @c <-{ close @c};;
-

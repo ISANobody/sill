@@ -1,6 +1,0 @@
-foo : {1 <- 1-o1; 1};;
-'c <- foo -< 'd 'e =
-  send 'd ('e <- close 'e);
-  wait 'd;
-  wait 'e;
-  close 'c;;

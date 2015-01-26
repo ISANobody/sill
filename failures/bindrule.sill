@@ -1,4 +1,0 @@
-'c <- let f : {1} = 'd <-{ close 'd }; 'd <- f;
-      'd <- f;
-      wait 'd;
-      close 'c;;
