@@ -7,7 +7,7 @@ open Fullsyntax
 
 let keywords = ["fun"; "and"; "if"; "then"; "else"; "forall"; "exists"
                ;"let"; "in"; "send"; "recv"; "case"; "of"; "wait"
-               ;"close"; "abort"]
+               ;"close"; "abort"; "shift"]
 
 (* This is pretty ugly. The correct way to handle arbitrary paired comments is to treat
    eat them while consume spare white space. Of course, this isn't actually modularized
@@ -921,6 +921,12 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
         | None -> errr sloc "Cannot end a process by sending a channel"))
     <|>
     (perform
+      skip_symbol "shift";
+      return (function
+        | Some cont -> SendSync (sloc,c,cont)
+        | None -> errr sloc "Cannot end a process by sending a shift"))
+    <|>
+    (perform
       skip_symbol "(";
       c2 <-- anychan;
       skip_symbol "<-";
@@ -972,6 +978,16 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
       (return (function
          | Some cont -> Detached (sloc,e,[],cont)
          | None -> errr sloc "Cannot end a process with a monadic bind"))))
+  <|>
+  (perform
+    sloc <-- getSloc;
+    skip_symbol "shift";
+    skip_symbol "<-";
+    skip_symbol "recv";
+    c <-- anychan;
+    return (function
+      | Some cont -> RecvSync (sloc,c,cont)
+      | None -> errr sloc "Cannot end a process with a shift"))
   <|>
   (perform
     sloc <-- getSloc;
@@ -1116,7 +1132,7 @@ let topdef : (toplvl,'s) MParser.t =
     defs <-- Of_alist_FM.go (fun x -> sep_by1 x (skip_symbol "and"))
                             topdef_ (fun k -> "duplicate binding for "^string_of_fvar k);
     skip_symbol ";;";
-    return (TopLets defs))
+    return (TopLets_ defs))
   <?> "top level definition"
 
 let topproc_ =

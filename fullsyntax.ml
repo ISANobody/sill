@@ -53,6 +53,8 @@ and proc =
   | OutTy of srcloc * cvar * stype * proc
   | ShftUpL of srcloc * cvar * cvar * proc (* c1 <- send c2; P *)
   | ShftDwR of srcloc * cvar * cvar * proc (* send c1 (c2 <- P) *)
+  | SendSync of srcloc * cvar * proc (* send c shift; P *)
+  | RecvSync of srcloc * cvar * proc (* shift <- recv c; P *)
  and tyapp = TyApp of fvar * [`A of fvar | `M of mtype | `S of stype] list
  and mtype = Comp of string * [`A of fvar | `M of mtype | `S of stype] list
            | MonT of stype option * stype list
@@ -74,6 +76,7 @@ and proc =
            | TyAt of stype (* TODO is this ugly name needed? *)
            | Prime of stype
            | Bang of stype
+           | Sync of stype
 and ptype = Poly of [`M of string | `S of tyvar] list * mtype (* first one is mtype
 quantifier, second session *)
 with sexp, bin_io 
@@ -99,8 +102,64 @@ let locE (e:exp) : srcloc =
   | Box (i,_,_) -> i
   | PolyApp (i,_,_) -> i
 
+(* Global map to record the mode of declared session types *)
+let declModes : modality SM.t ref = ref SM.empty
+let declPoles : [`Pos | `Neg] SM.t ref = ref SM.empty
+
+(* Calculate the mode of a given type *)
+let rec getmode (tin:stype) : modality =
+  match tin with
+  | TyInD (m,_,_) -> m
+  | TyOutD (m,_,_) -> m
+  | TyInC (m,_,_) -> m
+  | TyOutC (m,_,_) -> m
+  | Stop m -> m
+  | Intern (m,_) -> m
+  | Extern (m,_) -> m
+  | Mu((m,_),_,_,_) -> m
+  | SVar (_,(m,_)) -> m
+  | SComp (l,c,_) -> if SM.mem !declModes c
+                     then SM.find_exn !declModes c
+                     else errr l ("Undefined session type "^c)
+  | Forall (m,_,_) -> m
+  | Exists (m,_,_) -> m
+  | ShftUp (m,_) -> m
+  | ShftDw (m,_) -> m
+  | Bang _ -> Intuist
+  | TyAt _ -> Affine
+  | Prime _ -> Linear
+  | Sync s -> getmode s
+
+(* TODO Confirm that these 'BUG's cannot arise *)
+(* This might be more cleanly reflected by splitting stype into stype_neg and stype_pos *)
+let rec polarity : stype -> [`Pos | `Neg] = function
+  | TyInD _ -> `Neg
+  | TyOutD _ -> `Pos
+  | TyInC _ -> `Neg
+  | TyOutC _ -> `Pos
+  | Stop _ -> `Pos
+  | Intern _ -> `Pos
+  | Extern _ -> `Neg
+  | (Mu _ as t) -> failwith ("Fullsyntax.polarity BUG Mu of "^string_of_stype t)
+  | SVar _ -> `Pos
+  | SComp (_,n,_) -> (match SM.find !declPoles n with
+                   | Some p -> p 
+                   | None -> failwith ("Unknown session type "^n))
+  | Forall _ -> `Neg
+  | Exists _ -> `Pos
+  | ShftUp _ -> `Neg
+  | ShftDw _ -> `Pos
+  | Bang s when getmode s < Intuist -> `Neg
+  | Bang s ->  polarity (Sync s)
+  | TyAt s when getmode s > Affine -> `Pos
+  | TyAt s when getmode s < Affine -> `Neg
+  | TyAt s -> polarity (Sync s)
+  | Prime s when getmode s > Linear -> `Pos
+  | Prime s -> polarity (Sync s)
+  | Sync s -> (match polarity s with `Pos -> `Neg | `Neg -> `Pos)
+
 (* Some printing functions *)
-let rec string_of_mtype (tin:mtype) : string =
+and string_of_mtype (tin:mtype) : string =
   match tin with
   | MVar x -> x
   | Comp ("[]",[`M a]) -> "["^string_of_mtype a^"]"
@@ -140,7 +199,7 @@ and string_of_stype (tin : stype) : string =
                                                     | `S s -> string_of_stype s)
                                            "," args^")"
   | Mu (x,s,_,_) -> "mu $"^string_of_tyvar x^". "^string_of_stype s
-  | SVar (_,(_,x)) -> "$"^x
+  | SVar (_,x) -> string_of_tyvar x
   | Forall (_,x,s) -> "forall "^string_of_tyvar x^"."^string_of_stype s
   | Exists (_,x,s) -> "exists "^string_of_tyvar x^"."^string_of_stype s
   | ShftUp _ -> failwith "string_of_stype ShftUp"
@@ -148,32 +207,7 @@ and string_of_stype (tin : stype) : string =
   | TyAt s -> "@"^string_of_stype s
   | Bang s -> "!"^string_of_stype s
   | Prime s -> "'"^string_of_stype s
-
-(* Global map to record the mode of declared session types *)
-let declModes : modality SM.t ref = ref SM.empty
-
-(* Calculate the mode of a given type *)
-let rec getmode (tin:stype) : modality =
-  match tin with
-  | TyInD (m,_,_) -> m
-  | TyOutD (m,_,_) -> m
-  | TyInC (m,_,_) -> m
-  | TyOutC (m,_,_) -> m
-  | Stop m -> m
-  | Intern (m,_) -> m
-  | Extern (m,_) -> m
-  | Mu((m,_),_,_,_) -> m
-  | SVar (_,(m,_)) -> m
-  | SComp (l,c,_) -> if SM.mem !declModes c
-                     then SM.find_exn !declModes c
-                     else errr l ("Undefined session type "^c)
-  | Forall (m,_,_) -> m
-  | Exists (m,_,_) -> m
-  | ShftUp (m,_) -> m
-  | ShftDw (m,_) -> m
-  | Bang _ -> Intuist
-  | TyAt _ -> Affine
-  | Prime _ -> Linear
+  | Sync s -> modetag (getmode s)^string_of_stype s
 
 (* Free variables *)
 (* TODO Better name *)
@@ -229,6 +263,7 @@ and freeMVarsSPure (tin:stype) : SS.t =
   | Bang s -> freeMVarsSPure s
   | TyAt s -> freeMVarsSPure s
   | Prime s -> freeMVarsSPure s
+  | Sync s -> freeMVarsSPure s
 
 let rec freeSVarsMPure (tin:mtype) : TS.t =
   match tin with
@@ -274,6 +309,7 @@ and freeSVarsSPure (tin:stype) : TS.t =
   | Bang s -> freeSVarsSPure s
   | TyAt s -> freeSVarsSPure s
   | Prime s -> freeSVarsSPure s
+  | Sync s -> freeSVarsSPure s
 
 type toplet =
   | TopExp of fvar * [`M of mtype | `P of ptype] * fvar list * exp
@@ -281,7 +317,8 @@ type toplet =
   | TopDet of fvar * [`M of mtype | `P of ptype] * fvar list * srcloc * proc * cvar list
 
 type toplvl =
-  | TopLets of toplet FM.t
+  | TopLets of (fvar * ptype * fvar list * exp) FM.t
+  | TopLets_ of toplet FM.t
   | TopProc of (cvar * proc) list
   | MTypeDecl of fvar * [`M of string | `S of tyvar] list * mtype list SM.t (* C a = C a b c *)
   | STypeDecl of modality * fvar * [`M of string | `S of tyvar] list * stype (* C a = s *)
@@ -314,6 +351,8 @@ let locP (p:proc) : srcloc =
   | Exit i -> i
   | ShftUpL (i,_,_,_) -> i
   | ShftDwR (i,_,_,_) -> i
+  | SendSync (i,_,_) -> i
+  | RecvSync (i,_,_) -> i
 
 let locToplet (tin:toplet) : srcloc =
   match tin with
@@ -348,5 +387,7 @@ let rec freeCVars (pin:proc) : CS.t =
   | Detached (_,_,cs,p) -> CS.union (freeCVars p) (CS.of_list cs)
   | ShftUpL (_,c1,c2,p) -> CS.add (CS.remove (freeCVars p) c1) c2
   | ShftDwR (_,c1,c2,p) -> CS.add (CS.remove (freeCVars p) c2) c1
+  | SendSync (_,c,p) -> CS.add (freeCVars p) c
+  | RecvSync (_,c,p) -> CS.add (freeCVars p) c
 
 

@@ -1,0 +1,23 @@
+ltype Queue 'a = &{ enq : 'a -o Queue 'a; deq:'+{none:1;some:'a*'Queue 'a} };;
+
+elem: forall <'a> . {Queue 'a <- 'a; Queue 'a };;
+'c <- elem -< 'x 'd =
+  case 'c of
+  | enq -> 'y <- recv 'c;
+           'd.enq;
+           send 'd 'y;
+           'c <- elem<'a> -< 'x 'd
+  | deq -> shift <- recv 'c;
+           'c.some; send 'c 'x;
+           send 'c shift;
+           'c <- 'd;;
+
+empty: forall <'a> . { Queue 'a };;
+'c <- empty =
+  case 'c of
+  | enq -> 'x <- recv 'c;
+           'e <- empty<'a>;
+           'c <- elem<'a> -< 'x 'e
+  | deq -> shift <- recv 'c;
+           'c.none;
+           close 'c;;

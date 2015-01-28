@@ -198,6 +198,7 @@ let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) 
   | Comp (_,args) -> List.iter args (function
                                     | `M m -> wfM_ vs loc wfms wfss m
                                     | `S s -> wfS_ vs loc wfms wfss s)
+(* TODO check for polarization correctness *)
 and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
   if memq tin vs then () else
   let go (mode:modality) (s:stype) : unit =
@@ -231,12 +232,8 @@ and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : un
                          wfS_ (tin::vs) loc wfms (TS.add wfss x) s
   | Exists (mode,x,s) -> if not (mode = getMode s) then go mode s;
                          wfS_ (tin::vs) loc wfms (TS.add wfss x) s
-  | ShftUp (mode,s) -> if not (mode > getMode s)
-                       then errr loc ("Tried to upcast from "^string_of_mode (getMode s)
-                                     ^" to "^string_of_mode mode)
-  | ShftDw (mode,s) -> if not (mode < getMode s)
-                       then errr loc ("Tried to upcast from "^string_of_mode (getMode s)
-                                     ^" to "^string_of_mode mode)
+  | ShftUp (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
+  | ShftDw (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
 
 let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = wfM_ [] loc wfms wfss tin
 let wfS (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = wfS_ [] loc wfms wfss tin
@@ -716,8 +713,8 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
            *)
      
            (* check condition 1 *)
-           if not (var2mode c1 < var2mode c2)
-           then errr (fst c1) ("UpR: mode of "^string_of_cvar c2^" should be lower than that of "
+           if not (var2mode c1 <= var2mode c2)
+           then errr (fst c1) ("UpR: mode of "^string_of_cvar c2^" should no higher than that of "
                               ^string_of_cvar c1);
 
            (* Might not be needed, but confirm that our earlier disambiguation agrees here *)
@@ -726,9 +723,10 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                                 ^" but "^string_of_cvar c1^" isn't a legal modality");
      
            (* check condition 2 *)
-           if not (cvar_eq c2 cpr)
+           (* TODO Remove in light of polarized paper? *)
+           (* if not (cvar_eq c2 cpr)
            then errr (fst c2) ("UpR must receive on provided channel: expected "
-                              ^string_of_cvar cpr^" found "^string_of_cvar c2);
+                              ^string_of_cvar cpr^" found "^string_of_cvar c2); *)
 
            (* get the continuation residual *)
            checkS wfms wfss env senv p c1 t
@@ -1044,14 +1042,15 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
      *) 
 
      (* check condition 1 *)
-     if not (var2mode c1 < var2mode c2)
-     then errr (fst c1) ("UpL: mode of "^string_of_cvar c1^" should be lower than that of "
+     if not (var2mode c1 <= var2mode c2)
+     then errr (fst c1) ("UpL: mode of "^string_of_cvar c1^" should be no higher than that of "
                         ^string_of_cvar c2);
 
      (* check condition 2 *)
-     if cvar_eq c2 cpr
+     (* TODO Maybe delete in light of polarized paper *)
+     (* if cvar_eq c2 cpr
      then errr (fst c2) ("UpL: cannot receive on the channel the current process is providing: "
-                        ^string_of_cvar cpr);
+                        ^string_of_cvar cpr); *)
 
      (* check condition 3 *)
      if not (var2mode c1 >= var2mode cpr)
@@ -1081,9 +1080,10 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
      *)
 
      (* Check condition 1 *)
-     if cvar_eq c2 cpr
+     (* TODO remove in light of polarized paper? *)
+     (* if cvar_eq c2 cpr
      then errr (fst c2) ("DownR: cannot receive on the channel the current process is providing: "
-                        ^string_of_cvar cpr);
+                        ^string_of_cvar cpr); *)
 
      (* Check condition 2 *)
      if not (var2mode c2 >= var2mode c1)
@@ -1128,6 +1128,7 @@ let toplevel (ds:toplvl list) : unit=
            env
         | STypeDecl (t,fs,s) -> 
           let s' = Connection.puretoptrS s
-          in Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
+          in (* print_endline (string_of_stype s'); *)
+             Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
              env)
   in ()

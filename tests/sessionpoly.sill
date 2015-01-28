@@ -32,7 +32,7 @@ t3 : { forall 'a. 'a -o 'a*1 };;
         wait 'c;
         close 'top;;
 
-tensor_commutes : { forall 'a. forall 'b. ('a * 'b) -o ('b * 'a)  };;
+tensor_commutes : { forall 'a. forall 'b. ('a * 'b) -o ('b * 'a) };;
 'c <- tensor_commutes =
   <'a> <- recv 'c;
   <'b> <- recv 'c;
@@ -102,7 +102,7 @@ t9 : { '!Int/\1 };;
         wait 'd;
         close 'top;;
 
-t10 : forall <a,'b> . { a => ('b) <- 'b };;
+t10 : forall <a,'b> . { a => 'b <- 'b };;
 'c <- t10 -< 'd =
   _ <- recv 'c;
   'c <- 'd;;

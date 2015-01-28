@@ -127,33 +127,36 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
                                          | _ -> failwith "BUG puretoptrS.go Mu")
             in a := Dest.SComp (t,name,args');
                t
-    | Pure.SVar (l,(mode,x)) ->
-                if SM.mem env x
-                then SM.find_exn env x
-                else ref (Dest.SVarU (mode,x))
+    | Pure.SVar (l,(mode,x)) -> (match SM.find env x with
+                                | Some t -> t
+                                | None -> ref (Dest.SVarU (mode,x)))
     | Pure.Intern (mode,c) -> Dest.mkint mode (LM.map c (fun s -> go s env))
     | Pure.Extern (mode,c) -> Dest.mkext mode (LM.map c (fun s -> go s env))
-    | Pure.Forall (m,x,s) -> ref (Dest.Forall (m,x,puretoptrS s))
-    | Pure.Exists (m,x,s) -> ref (Dest.Exists (m,x,puretoptrS s))
-    | Pure.ShftUp (m,s) -> ref (Dest.ShftUp (m,puretoptrS s))
-    | Pure.ShftDw (m,s) -> ref (Dest.ShftDw (m,puretoptrS s))
+    | Pure.Forall (m,x,s) -> ref (Dest.Forall (m,x,go s env))
+    | Pure.Exists (m,x,s) -> ref (Dest.Exists (m,x,go s env))
+    | Pure.ShftUp (m,s) -> ref (Dest.ShftUp (m,go s env))
+    | Pure.ShftDw (m,s) -> ref (Dest.ShftDw (m,go s env))
     | Pure.Bang s ->
       (match compare Intuist (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Intuist,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Intuist,puretoptrS s))
-      | 0  -> failwith "trying to cast unrestricted to unrestricted" (* TODO Add srcloc *)
+      | 0  -> puretoptrS (Pure.Sync s)
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
     | Pure.TyAt s ->
       (match compare Affine (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Affine,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Affine,puretoptrS s))
-      | 0  -> failwith "trying to cast affine to affine" (* TODO Add srcloc *)
+      | 0  -> puretoptrS (Pure.Sync s)
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
     | Pure.Prime s ->
       (match compare Linear (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Linear,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Linear,puretoptrS s))
-      | 0  -> failwith "trying to cast linear to linear" (* TODO Add srcloc *)
+      | 0  -> puretoptrS (Pure.Sync s)
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
+    | Pure.Sync s ->
+      (match Pure.polarity s with
+      | `Pos -> puretoptrS (Pure.ShftUp(Pure.getmode s,s))
+      | `Neg -> puretoptrS (Pure.ShftDw(Pure.getmode s,s)))
 
   in go tin_in SM.empty
