@@ -235,9 +235,49 @@ and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : un
   | ShftUp (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
   | ShftDw (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
 
-let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = wfM_ [] loc wfms wfss tin
-let wfS (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = wfS_ [] loc wfms wfss tin
-        
+let rec polM_ (vs : stype list) (loc:srcloc) (tin:mtype) : unit =
+  match !(getMType tin) with
+  | MInd _ -> errr loc "BUG wfM_ MInd"
+  | MVar -> errr loc "BUG wfM_ MVar"
+  | MVarU _ -> ()
+  | Comp (_,args) -> List.iter args (function
+                                    | `M x -> polM_ vs loc x
+                                    | `S x -> polS_ vs loc x)
+  | MonT (None,args) -> List.iter args (polS_ vs loc)
+  | MonT (Some x,args) -> polS_ vs loc x; List.iter args (polS_ vs loc)
+and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
+  if memq tin vs then () else
+  let check p s = if polarity s = p then () else
+    errr loc ("Expected the "^string_of_stype s^" subterm of type "
+             ^string_of_stype tin^" to be "^(match polarity s with
+                                            | `Neg -> "positive."
+                                            | `Pos -> "negative.")) in
+  match !(getSType tin) with
+  | SVar -> errr loc "BUG wfS SVar"
+  | SInd _ -> errr loc "BUG wfS SInd"
+  | SComp _ -> errr loc "BUG wfS SComp"
+  | Stop _ -> ()
+  | SVarU _ -> ()
+  | InD (_,m,s) -> check `Neg s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
+  | OutD (_,m,s) -> check `Pos s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
+  | InC (_,s1,s2) -> check `Pos s1; check `Neg s2; 
+                     polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
+  | OutC (_,s1,s2) -> check `Pos s1; check `Pos s2; 
+                      polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
+  | Intern (_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Pos s; polS_ (tin::vs) loc s)
+  | Extern (_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Neg s; polS_ (tin::vs) loc s)
+  | Forall (_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
+  | Exists (_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
+  | ShftUp (_,s) -> check `Pos s; polS_ (tin::vs) loc s
+  | ShftDw (_,s) -> check `Neg s; polS_ (tin::vs) loc s
+                 
+
+let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = 
+  if !polarity_flag then polM_ [] loc tin;
+  wfM_ [] loc wfms wfss tin
+let wfS (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = 
+  if !polarity_flag then polS_ [] loc tin;
+  wfS_ [] loc wfms wfss tin
 
 (* We use unit since, we won't branch on failure, merely return an error to the user *)
 (* We should use a specialized subtype at some point, the general one probably isn't so
@@ -533,7 +573,29 @@ and checkS (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
      slackmap
   
 and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv) 
-               (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t = 
+               (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t =
+  if not !polarity_flag
+  then (match focusedChan pin with
+       | None -> ()
+       | Some c when cvar_eq c cpr ->
+          (match (polarity tin, Option.map (contType tin) polarity) with
+          | _,None -> ()
+          | `Pos,Some `Pos -> ()
+          | `Pos,Some `Neg -> let i = getinfoP pin in i.postShift := CS.add !(i.postShift) c
+          | `Neg,Some `Neg -> ()
+          | `Neg,Some `Pos -> let i = getinfoP pin in i.shiftBfrRecv := CS.add !(i.shiftBfrRecv) c)
+       | Some c ->
+         (match CM.find senv c with
+         | None -> () (* This should error later in the relevant rule. It may have a
+                         specific, better message, so let it raise the error. *)
+         | Some ct ->
+            match (polarity ct, Option.map (contType ct) polarity) with
+            | _,None -> ()
+            | `Pos,Some `Pos -> ()
+            | `Pos,Some `Neg -> let i = getinfoP pin in i.shiftBfrRecv := CS.add !(i.shiftBfrRecv) c
+            | `Neg,Some `Neg -> ()
+            | `Neg,Some `Pos -> let i = getinfoP pin in i.postShift := CS.add !(i.postShift) c
+       ));
   match pin with
   | TailBind (_,c,e,cs) -> 
     (* This is separate to enable desugaring to be type based *)
@@ -676,7 +738,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
            usedhere "/\\L" (checkS wfms wfss (FM.add env x (Poly([],xt))) (CM.add senv c ct) p cpr tin) c [getinfoP p]
          | _ -> errr (fst c) ("/\\L expected "^string_of_cvar cpr^" to have /\\ type.  Found "
                                ^string_of_stype (safefind "/\\L" senv c)))
-  | OutputD (i,c,e,p)  ->
+  | OutputD (i,c,e,p) ->
     if cvar_eq c cpr
     then (match !(getSType tin) with
          | OutD (_,et,pt) ->

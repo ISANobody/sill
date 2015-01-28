@@ -4,9 +4,16 @@ open Vars
 
 type astinfo = { linenum : int; (* These first two should probably just be a srcloc *)
                  charnum : int; 
-                 affineFrees : CS.t ref (* Represent free instructions inserted right
+                 affineFrees : CS.t ref; (* Represent free instructions inserted right
                                            before this one. Since we don't actually
-                                           perform transformations, this is easier. *) } 
+                                           perform transformations, this is easier. *)
+                 postShift : CS.t ref; (* After executing this statement, really at
+                                          the start of execution of the next statement,
+                                          send shifts along every channel in the set. *)
+                 shiftBfrRecv : CS.t ref (* Channels that need to be shifted before
+                                            we recv on them. These need to be transfered
+                                            to a local map in eval_functor to avoid 
+                                            scoping issues. *) } 
 with sexp, bin_io
 
 (* Should these be in syntax.ml? *)
@@ -14,7 +21,8 @@ let ast2loc (a : astinfo) : srcloc =
     {lnum = a.linenum; cnum = a.charnum}
 
 let nullloc = { lnum = 0; cnum = 0}
-let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty }
+let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty; 
+                  postShift = ref CS.empty; shiftBfrRecv = ref CS.empty }
 
 (* constants for PicoML *)
 type const = Int of int | Float of float | String of string with sexp, bin_io
@@ -154,3 +162,24 @@ let getinfoP (p:proc) : astinfo =
   
 let locE (e:exp) : srcloc = ast2loc (getinfoE e)
 let locP (p:proc) : srcloc = ast2loc (getinfoP p)
+
+(* Each process statement has at most one channel it communicates along. This returns it. *)
+let focusedChan : proc -> cvar option = function
+  | TailBind _ -> None
+  | Bind _ -> None
+  | Fwd _ -> None (* TODO Might be wrong *)
+  | Service _ -> None (* TODO This is wrong *)
+  | Register _ -> None (* TODO This is wrong *)
+  | InputD (_,_,c,_) -> Some c
+  | OutputD (_,c,_,_) -> Some c
+  | InputC (_,_,_,c,_) -> Some c
+  | OutputC (_,c,_,_,_) -> Some c
+  | Close (_,c) -> Some c
+  | Wait (_,c,_) -> Some c
+  | Exit _ -> None
+  | External (_,c,_) -> Some c
+  | Internal (_,c,_,_) -> Some c
+  | OutputTy (_,c,_,_) -> Some c
+  | InputTy (_,_,c,_) -> Some c
+  | ShftUpL (_,_,c,_) -> Some c
+  | ShftDwR (_,c,_,_) -> Some c

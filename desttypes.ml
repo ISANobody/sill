@@ -15,6 +15,7 @@ open Core.Std
    would need to be unified during any widening. This can't be just
    a single type since until we know that we are widening there is
    no harm in having different branches. Similarly for Extern *)
+(* TODO handle modalities more implicitly *)
 type ptype = (* TODO modality for sesvars *)
    | Poly of ([`M of string | `S of tyvar] list) * mtype (* list should only contain MVars and SVars *)
 and mtype = mtype_raw ref
@@ -200,7 +201,7 @@ let getMode (sin:stype) : modality =
   | SComp _ -> failwith "BUG SComp after getSType destype getMode"
   | Stop m -> m
   | SVar -> failwith "BUG getMode SVar"
-  | SVarU _ -> Linear (* TODO Modality *)
+  | SVarU (m,_) -> m
   | InD (m,_,_) -> m
   | OutD (m,_,_) -> m
   | InC (m,_,_) -> m
@@ -211,6 +212,25 @@ let getMode (sin:stype) : modality =
   | Exists (m,_,_) -> m
   | ShftUp (m,_) -> m
   | ShftDw (m,_) -> m
+
+let polarity (sin:stype) : [`Pos | `Neg] =
+  match !(getSType sin) with
+  | SInd _ -> failwith "BUG SInd after getSType desttypes.polarity"
+  | SComp _ -> failwith "BUG SComp after getSType desttypes.polarity"
+  | SVar -> failwith "BUG desttypes.polarity SVar"
+  | SVarU _ -> `Pos
+  | Stop _ -> `Pos
+  | InD _ -> `Neg
+  | OutD _ -> `Pos
+  | InC _ -> `Neg
+  | OutC _ -> `Pos
+  | Intern _ -> `Pos
+  | Extern _ -> `Neg
+  | Forall _ -> `Neg
+  | Exists _ -> `Pos
+  | ShftUp _ -> `Neg
+  | ShftDw _ -> `Pos
+  
 
 (* Wrappers to make constructing types easier *)
 let mkvar () = ref MVar
@@ -384,6 +404,26 @@ and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype TM.t)
 
 let substM m subM subS = substM_ m subM subS [] []
 let substS s subM subS = substS_ s subM subS [] []
+
+(* Get the continuation type of session type. Return None if there isn't exactly one. 
+   I know this is bizarre, but anywhere this is needed the more than one case will need
+   custom handling. *)
+let contType (tin:stype) : stype option = match !(getSType tin) with
+  | SInd _ -> failwith "BUG conType SInd"
+  | SVar -> failwith "BUG conType SVar"
+  | SVarU _ -> failwith "BUG conType SVarU"
+  | SComp _ -> failwith "BUG conType SComp"
+  | InD (_,_,s) -> Some s
+  | OutD (_,_,s) -> Some s
+  | InC (_,_,s) -> Some s
+  | OutC (_,_,s) -> Some s
+  | Intern _ -> None
+  | Extern _ -> None
+  | Stop _ -> None
+  | Forall (_,_,s) -> Some s
+  | Exists (_,_,s) -> Some s
+  | ShftUp (_,s) -> None
+  | ShftDw (_,s) -> None
 
 (* type decl bookeepking *)
 let typeNames : SS.t ref = ref (SS.of_list ["()";"Bool";"Int"])
