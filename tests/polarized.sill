@@ -21,3 +21,24 @@ empty: forall <'a> . { Queue 'a };;
   | deq -> shift <- recv 'c;
            'c.none;
            close 'c;;
+
+f : {1};;
+'c <- f = close 'c;;
+
+'top <- 'f <- f;
+        'e <- empty<1>;
+        'e.enq;
+        send 'e 'f;
+        'e.deq;
+        send 'e shift;
+        case 'e of
+        | none -> abort
+        | some -> 'c <- recv 'e;
+                  wait 'c; 
+                  shift <- recv 'e;
+                  'e.deq;
+                  send 'e shift;
+                  case 'e of
+                  | some -> abort
+                  | none -> wait 'e;
+                            close 'top;;

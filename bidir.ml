@@ -1065,7 +1065,8 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                                                    p cpr tin) c [getinfoP p]
                         else errr (fst l) ("label "^string_of_label l^" not in expected type "
                                           ^string_of_stype (CM.find_exn senv c))
-         | _ -> errr (locP p) "Non external choice while checking &L")
+         | _ -> errr (locP p) ("Non external choice while checking &L. Found "
+                              ^string_of_stype (safefind "&L" senv c)))
   | InputTy (_,x,c,p) -> 
     if cvar_eq c cpr
     then (match !(getSType tin) with
