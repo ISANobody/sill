@@ -574,6 +574,15 @@ and checkS (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   
 and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv) 
                (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t =
+  (* TODO this should probably be its own definition *)
+  (* If polarity isn't being handled strictly, then anytime we flip polarity, we need to
+     insert shifts. Since we don't actually do type based desugaring, we will instead mark
+     where send/recv of shift is needed at runtime. From the perspective of the channel
+     provider going from `Pos to `Neg means that we need to recv a shift before the next
+     time we use the channel. Going from `Neg to `Pos means that we need to immediately
+     send a shift. These are accomplished by adding the relevant channel to the ASTinfo
+     field shftBfrRecv and postShift respectively. From the perspective of client, these
+     are flipped (Duality). *)
   if not !polarity_flag
   then (match focusedChan pin with
        | None -> ()
@@ -596,6 +605,63 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
             | `Neg,Some `Neg -> ()
             | `Neg,Some `Pos -> let i = getinfoP pin in i.postShift := CS.add !(i.postShift) c
        ));
+  (* Shift insertion for branching operators is tricker, since branches may disagree about
+     the necessity of shifting. The transitions are handled as above, but need to be done
+     after the branching has occured. *)
+  if not !polarity_flag
+  then (match focusedChan pin with
+       | None -> ()
+       | Some c when cvar_eq c cpr ->
+         (match !(getSType tin) with
+         | Extern (_,ts) ->
+           (match pin with
+           | External (_,_,ps) -> 
+             LM.iter ts (fun ~key:l ~data:t ->
+                match polarity t with
+                | `Neg -> ()
+                | `Pos -> match LM.find ps l with
+                          | Some p -> let i = getinfoP p in i.preShiftBfr := CS.add !(i.preShiftBfr) c
+                          | None -> errr (locP pin) ("&R: Expected to find "^snd l))
+           | _ -> errr (locP pin) ("expected case for external choice type: "
+                                  ^string_of_stype tin))
+         | Intern (_,ts) ->
+           (match pin with
+           | Internal (_,_,l,_) ->
+              (match Option.map (LM.find ts l) polarity with
+              | Some `Pos -> ()
+              | Some `Neg -> let i = getinfoP pin in i.postShift := CS.add !(i.postShift) c
+              | None -> errr (fst l) ("label "^snd l ^" not in expected type "^string_of_stype tin))
+           | _ -> errr (locP pin) ("expected branch selection for internal choice type: "
+                                  ^string_of_stype tin))
+         | _ -> ())
+       | Some c (* when not (cvar_eq c cpr) *) ->
+         (match CM.find senv c with
+         | Some ct ->
+           (match !(getSType ct) with
+           | Extern (_,ts) ->
+             (match pin with
+             | Internal (_,_,l,_) -> 
+               (match Option.map (LM.find ts l) polarity with
+               | Some `Pos -> let i = getinfoP pin in i.shiftBfrRecv := CS.add !(i.shiftBfrRecv) c
+               | Some `Neg -> ()
+               | None -> errr (fst l) ("label "^snd l^" not in expected type "^string_of_stype ct))
+             | _ -> errr (locP pin) ("expected branch selection for external choice type: "
+                                    ^string_of_stype ct))
+           | Intern (_,ts) ->
+             (match pin with
+             | External (_,_,ps) ->
+               LM.iter ts (fun ~key:l ~data:t ->
+                 match polarity t with
+                 | `Pos -> ()
+                 | `Neg -> match LM.find ps l with
+                           | Some p -> let i = getinfoP p in i.preShift := CS.add !(i.preShift) c
+                           | None -> errr (fst l) ("+L: Expected to find "^snd l))
+             | _ -> errr (locP pin) ("expected case for external choice type: "
+                                    ^string_of_stype tin))
+           | _ -> ())
+          | None -> () (* Should error later when we have more info, so it's safe to
+                          ignore for now. *))
+  );
   match pin with
   | TailBind (_,c,e,cs) -> 
     (* This is separate to enable desugaring to be type based *)

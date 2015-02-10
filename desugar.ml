@@ -8,6 +8,8 @@ let loc2ast l = { Syntax.Core.linenum = l.lnum; Syntax.Core.charnum = l.cnum;
                   Syntax.Core.affineFrees = ref CS.empty;
                   Syntax.Core.postShift = ref CS.empty;
                   Syntax.Core.shiftBfrRecv = ref CS.empty;
+                  Syntax.Core.preShift = ref CS.empty;
+                  Syntax.Core.preShiftBfr = ref CS.empty;
                    }
 
 let rec desugarExp (ein:Full.exp) : Core.exp =
