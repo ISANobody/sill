@@ -1,0 +1,372 @@
+3 4 5 
+5 4 3 
+2 3 4 5 
+1 2 3 4 5 
+1: @162:1 bound from 1
+   @162:1 bind
+   @163:1 bind
+   @164:1 bind
+   @165:1 bind
+   @166:1 bind
+   @167:1 outputC
+   @168:1 bind
+   @169:1 wait
+   @171:1 bind
+   @172:1 bind
+   @173:1 bind
+   @174:1 bind
+   @175:1 bind
+   @176:1 outputC
+   @177:1 bind
+   @178:1 wait
+   @180:1 bind
+   @181:1 bind
+   @182:1 bind
+   @183:1 bind
+   @184:1 bind
+   @185:1 bind
+   @186:1 bind
+   @187:1 bind
+   @188:1 outputC
+   @189:1 bind
+   @190:1 wait
+   @204:1 bind
+   @205:1 internal prepend
+   @205:15 output 3
+   @206:1 internal append
+   @206:14 output 4
+   @207:1 internal prepend
+   @207:15 output 2
+   @208:1 internal append
+   @208:14 output 5
+   @209:1 internal prepend
+   @209:15 output 1
+   @210:1 internal toList
+   @211:1 inputC
+   @211:18 wait
+   @212:1 bind
+   @213:1 wait
+   @215:1 close
+1.1: @36:1 bound from 1
+     @36:1 inputC
+     @37:1 forward
+1.2: @57:1 bound from 1
+     @57:1 inputC
+     @58:1 bind
+     @59:1 outputC
+     @60:1 forward
+1.2.1: @29:1 bound from 1.2
+       @29:1 internal cons
+       @30:1 output 3
+       @31:1 forward
+1.2.2: @59:1 bound from 1.2
+       @59:1 forward
+1.3: @57:1 bound from 1
+     @57:1 inputC
+     @58:1 bind
+     @59:1 outputC
+     @60:1 forward
+1.3.1: @29:1 bound from 1.3
+       @29:1 internal cons
+       @30:1 output 4
+       @31:1 forward
+1.3.2: @59:1 bound from 1.3
+       @59:1 forward
+1.4: @57:1 bound from 1
+     @57:1 inputC
+     @58:1 bind
+     @59:1 outputC
+     @60:1 forward
+1.4.1: @29:1 bound from 1.4
+       @29:1 internal cons
+       @30:1 output 5
+       @31:1 forward
+1.4.2: @59:1 bound from 1.4
+       @59:1 forward
+1.5: @23:1 bound from 1
+     @23:1 internal nil
+     @24:1 close
+1.6: @167:1 bound from 1
+     @167:1 forward
+1.7: @150:1 bound from 1
+     @150:1 external cons
+     @154:11 input 3
+     @155:11 tail-bind
+     @155:20 tail-bind
+     @156:11 tail-bind
+     @150:1 external cons
+     @154:11 input 4
+     @155:11 tail-bind
+     @155:20 tail-bind
+     @156:11 tail-bind
+     @150:1 external cons
+     @154:11 input 5
+     @155:11 tail-bind
+     @155:20 tail-bind
+     @156:11 tail-bind
+     @150:1 external nil
+     @151:10 wait
+     @152:10 tail-bind
+     @153:10 close
+1.8: @36:1 bound from 1
+     @36:1 inputC
+     @37:1 forward
+1.9: @50:1 bound from 1
+     @50:1 inputC
+     @51:1 outputC
+     @52:1 tail-bind
+     @29:1 internal cons
+     @30:1 output 3
+     @31:1 forward
+1.9.1: @51:1 bound from 1.9
+       @51:1 forward
+1.10: @50:1 bound from 1
+      @50:1 inputC
+      @51:1 outputC
+      @52:1 tail-bind
+      @29:1 internal cons
+      @30:1 output 4
+      @31:1 forward
+1.10.1: @51:1 bound from 1.10
+        @51:1 forward
+1.11: @50:1 bound from 1
+      @50:1 inputC
+      @51:1 outputC
+      @52:1 tail-bind
+      @29:1 internal cons
+      @30:1 output 5
+      @31:1 forward
+1.11.1: @51:1 bound from 1.11
+        @51:1 forward
+1.12: @23:1 bound from 1
+      @23:1 internal nil
+      @24:1 close
+1.13: @176:1 bound from 1
+      @176:1 forward
+1.14: @150:1 bound from 1
+      @150:1 external cons
+      @154:11 input 5
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 4
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 3
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external nil
+      @151:10 wait
+      @152:10 tail-bind
+      @153:10 close
+1.15: @36:1 bound from 1
+      @36:1 inputC
+      @37:1 forward
+1.16: @50:1 bound from 1
+      @50:1 inputC
+      @51:1 outputC
+      @52:1 tail-bind
+      @29:1 internal cons
+      @30:1 output 3
+      @31:1 forward
+1.16.1: @51:1 bound from 1.16
+        @51:1 forward
+1.17: @57:1 bound from 1
+      @57:1 inputC
+      @58:1 bind
+      @59:1 outputC
+      @60:1 forward
+1.17.1: @29:1 bound from 1.17
+        @29:1 internal cons
+        @30:1 output 4
+        @31:1 forward
+1.17.2: @59:1 bound from 1.17
+        @59:1 forward
+1.18: @57:1 bound from 1
+      @57:1 inputC
+      @58:1 bind
+      @59:1 outputC
+      @60:1 forward
+1.18.1: @29:1 bound from 1.18
+        @29:1 internal cons
+        @30:1 output 5
+        @31:1 forward
+1.18.2: @59:1 bound from 1.18
+        @59:1 forward
+1.19: @50:1 bound from 1
+      @50:1 inputC
+      @51:1 outputC
+      @52:1 tail-bind
+      @29:1 internal cons
+      @30:1 output 2
+      @31:1 forward
+1.19.1: @51:1 bound from 1.19
+        @51:1 forward
+1.20: @50:1 bound from 1
+      @50:1 inputC
+      @51:1 outputC
+      @52:1 tail-bind
+      @29:1 internal cons
+      @30:1 output 1
+      @31:1 forward
+1.20.1: @51:1 bound from 1.20
+        @51:1 forward
+1.21: @65:1 bound from 1
+      @65:1 inputC
+      @66:1 outputC
+      @68:1 external cons
+      @70:11 input 1
+      @71:11 forward
+1.21.1: @66:1 bound from 1.21
+        @66:1 forward
+1.22: @23:1 bound from 1
+      @23:1 internal nil
+      @24:1 close
+1.23: @188:1 bound from 1
+      @188:1 forward
+1.24: @150:1 bound from 1
+      @150:1 external cons
+      @154:11 input 2
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 3
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 4
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 5
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external nil
+      @151:10 wait
+      @152:10 tail-bind
+      @153:10 close
+1.25: @144:1 bound from 1
+      @144:1 bind
+      @145:1 tail-bind
+      @129:1 external prepend
+      @130:14 input 3
+      @131:14 bind
+      @132:14 tail-bind
+      @129:1 external append
+      @133:13 input 4
+      @134:13 bind
+      @135:13 tail-bind
+      @129:1 external prepend
+      @130:14 input 2
+      @131:14 bind
+      @132:14 tail-bind
+      @129:1 external append
+      @133:13 input 5
+      @134:13 bind
+      @135:13 tail-bind
+      @129:1 external prepend
+      @130:14 input 1
+      @131:14 bind
+      @132:14 tail-bind
+      @129:1 external toList
+      @136:13 bind
+      @137:13 outputC
+      @138:13 outputC
+      @139:13 close
+1.25.1: @36:1 bound from 1.25
+        @36:1 inputC
+        @37:1 forward
+1.25.2: @50:1 bound from 1.25
+        @50:1 inputC
+        @51:1 outputC
+        @52:1 tail-bind
+        @29:1 internal cons
+        @30:1 output 3
+        @31:1 forward
+1.25.2.1: @51:1 bound from 1.25.2
+          @51:1 forward
+1.25.3: @57:1 bound from 1.25
+        @57:1 inputC
+        @58:1 bind
+        @59:1 outputC
+        @60:1 forward
+1.25.3.1: @29:1 bound from 1.25.3
+          @29:1 internal cons
+          @30:1 output 4
+          @31:1 forward
+1.25.3.2: @59:1 bound from 1.25.3
+          @59:1 forward
+1.25.4: @50:1 bound from 1.25
+        @50:1 inputC
+        @51:1 outputC
+        @52:1 tail-bind
+        @29:1 internal cons
+        @30:1 output 2
+        @31:1 forward
+1.25.4.1: @51:1 bound from 1.25.4
+          @51:1 forward
+1.25.5: @57:1 bound from 1.25
+        @57:1 inputC
+        @58:1 bind
+        @59:1 outputC
+        @60:1 forward
+1.25.5.1: @29:1 bound from 1.25.5
+          @29:1 internal cons
+          @30:1 output 5
+          @31:1 forward
+1.25.5.2: @59:1 bound from 1.25.5
+          @59:1 forward
+1.25.6: @50:1 bound from 1.25
+        @50:1 inputC
+        @51:1 outputC
+        @52:1 tail-bind
+        @29:1 internal cons
+        @30:1 output 1
+        @31:1 forward
+1.25.6.1: @51:1 bound from 1.25.6
+          @51:1 forward
+1.25.7: @23:1 bound from 1.25
+        @23:1 internal nil
+        @24:1 close
+1.25.8: @137:13 bound from 1.25
+        @137:13 forward
+1.25.9: @138:13 bound from 1.25
+        @138:13 forward
+1.26: @150:1 bound from 1
+      @150:1 external cons
+      @154:11 input 1
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 2
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 3
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 4
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external cons
+      @154:11 input 5
+      @155:11 tail-bind
+      @155:20 tail-bind
+      @156:11 tail-bind
+      @150:1 external nil
+      @151:10 wait
+      @152:10 tail-bind
+      @153:10 close

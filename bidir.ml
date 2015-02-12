@@ -972,8 +972,11 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | Wait (_,c,p) ->
     if cvar_eq c cpr
     then errr (fst c) ("Waiting on itself while providing "^string_of_cvar c)
-    else prettyUnifS "1L" (fst c) (mkstop Linear) (safefind "1L" senv c); (* TODO Mode sensitivity *)
-         CM.change (checkS wfms wfss env (CM.remove senv c) p cpr tin) c (fun _ -> Some Consumed)
+    else (match !(getSType (safefind "1L" senv c)) with
+         | Stop _ -> CM.change (checkS wfms wfss env (CM.remove senv c) p cpr tin) c
+                               (fun _ -> Some Consumed)
+         | _ -> errr (fst c) ("1L expected "^string_of_cvar c^" to have type 1. Found "
+                             ^string_of_stype (safefind "1L" senv c)))
   | Fwd (_,c,d) ->
     if cvar_eq c cpr
     then if modeCompatable (var2mode c) (var2mode d)

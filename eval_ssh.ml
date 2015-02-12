@@ -36,7 +36,7 @@ end
 
 module rec Impl_SSH : SSH_Impl =
 struct
-  let log s = crit errorLock (fun () -> prerr_endline (curThread ()^" "^s))
+  let log _ s = crit errorLock (fun () -> prerr_endline (curThread ()^" "^s))
   let print s = crit errorLock (fun () -> prerr_endline s; flush stderr)
   let abort s = failwith "ssh-abort unimplemented"
   let free _ = failwith "ssh-free unimplemented"
@@ -133,7 +133,8 @@ struct
 
   let init _ = ()
   let poll _ = failwith "ssh-poll"
-  let spawnRemote (env:value SM.t) (senv:shrsrc CM.t) (cenv:channel CM.t) (p:Syntax.Core.proc) (c:cvar) =
+  let spawnRemote (env:value SM.t) (senv:shrsrc CM.t) (cenv:channel CM.t) (p:Syntax.Core.proc) (c:cvar) 
+                  (state:proc_local) =
     let rec pcs = Unix.open_process_full "./sshstub.byte" (Unix.environment ())
     and errorRep ec = match In_channel.input_line ec with
                       | Some s -> crit errorLock (fun () -> prerr_endline s); errorRep ec
@@ -155,7 +156,8 @@ struct
              multiplexer im ic oc;
              Chan (q2,q1)
   let newChan () = failwith "BUG ssh doesn't support newChan"
-  let spawn (env:value SM.t) (senv:shrsrc CM.t) (cenv:channel CM.t) (p:Syntax.Core.proc) (c:cvar) = 
+  let spawn (env:value SM.t) (senv:shrsrc CM.t) (cenv:channel CM.t) (p:Syntax.Core.proc) (c:cvar)
+            (state:proc_local) = 
     let Chan (q1,q2) as ch : channel = Chan (Catqueue.create (),Catqueue.create ())
     in let _ = Thread.create (fun () -> SSH_Eval.eval_proc env senv (CM.add cenv c ch) p) () in
        Chan (q2,q1)

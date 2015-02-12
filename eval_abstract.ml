@@ -6,15 +6,20 @@ open Syntax.Core
 
 (* To prevent circularity when compiling this needs to be in a separate file. *)
 
+type proc_local = { id : int list; (* Address in the ancestor relation tree *)
+                    childCounter : int ref; (* Number of children spawned so far *)
+                  }
+
+
 module type Impl =
 sig
   type channel
   type communicable
   val init : unit -> unit
-  val log : string -> unit
+  val log : int list -> string -> unit
   val print : string -> unit
-  val spawn : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> cvar -> channel
-  val spawnRemote : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> cvar -> channel
+  val spawn : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> cvar -> proc_local -> channel
+  val spawnRemote : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> cvar -> proc_local -> channel
   val newChan : unit -> channel * channel
   val free : channel -> unit
   val read_comm : channel -> communicable

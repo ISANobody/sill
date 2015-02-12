@@ -1,50 +1,50 @@
-1: @51:7 bound from 0
+1: @51:7 bound from 1
    @51:7 bind
    @52:7 wait
    @53:7 bind
    @54:7 wait
    @55:7 close
-2: @44:8 bound from 1
-   @44:8 bind
-   @45:9 internal next
-   @46:9 input 0
-   @47:8 bind
-   @48:8 wait
-   @49:8 close
-3: @6:3 bound from 2
-   @6:3 external next
-   @8:13 output 0
-   @9:13 tail-bind
-   @6:3 external next
-   @8:13 output 1
-   @9:13 tail-bind
-   @6:3 external stop
-   @7:13 close
-4: @27:3 bound from 2
-   @27:3 internal next
-   @28:3 input 1
-   @29:3 internal stop
-   @30:3 wait
-   @31:3 close
-5: @44:8 bound from 1
-   @44:8 bind
-   @45:9 internal next
-   @46:9 input 0
-   @47:8 bind
-   @48:8 wait
-   @49:8 close
-6: @16:3 bound from 5
-   @16:3 external next
-   @19:13 output 0
-   @20:13 tail-bind
-   @16:3 external next
-   @19:13 output 1
-   @20:13 tail-bind
-   @16:3 external stop
-   @17:13 close
-7: @27:3 bound from 5
-   @27:3 internal next
-   @28:3 input 1
-   @29:3 internal stop
-   @30:3 wait
-   @31:3 close
+1.1: @44:8 bound from 1
+     @44:8 bind
+     @45:9 internal next
+     @46:9 input 0
+     @47:8 bind
+     @48:8 wait
+     @49:8 close
+1.1.1: @6:3 bound from 1.1
+       @6:3 external next
+       @8:13 output 0
+       @9:13 tail-bind
+       @6:3 external next
+       @8:13 output 1
+       @9:13 tail-bind
+       @6:3 external stop
+       @7:13 close
+1.1.2: @27:3 bound from 1.1
+       @27:3 internal next
+       @28:3 input 1
+       @29:3 internal stop
+       @30:3 wait
+       @31:3 close
+1.2: @44:8 bound from 1
+     @44:8 bind
+     @45:9 internal next
+     @46:9 input 0
+     @47:8 bind
+     @48:8 wait
+     @49:8 close
+1.2.1: @16:3 bound from 1.2
+       @16:3 external next
+       @19:13 output 0
+       @20:13 tail-bind
+       @16:3 external next
+       @19:13 output 1
+       @20:13 tail-bind
+       @16:3 external stop
+       @17:13 close
+1.2.2: @27:3 bound from 1.2
+       @27:3 internal next
+       @28:3 input 1
+       @29:3 internal stop
+       @30:3 wait
+       @31:3 close

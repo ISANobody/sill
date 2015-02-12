@@ -5,9 +5,7 @@ open Vars
 open Eval_functor
 open Eval_abstract
 
-module TM = Map.Make(Int)
-
-let threadMap : string list TM.t ref = ref TM.empty
+let threadMap : (int list,string list) Map.Poly.t ref = ref Map.Poly.empty
 let threadLock = Mutex.create ()
 
 let statsLock = Mutex.create ()
@@ -24,7 +22,6 @@ struct
                     | Term of Thread.t
                     | Val of value
                     | Lab of label
-                    | Ack
                     | Redir of communicable Squeue.t
                     | Kill (* For affine stuff *)
                     
@@ -34,24 +31,23 @@ struct
       | Chan _ -> "Chan"
       | Lab l -> "label "^string_of_label l
       | Val v -> "val "^string_of_value v
-      | Ack -> "ack"
       | Term _ -> "Term"
       | BoxedChan _ -> "BoxedChan"
       | Redir _ -> "Redir"
       | Kill  -> "Kill"
   let globalControl : channel Squeue.t SM.t ref = ref SM.empty
   let controlLock : Mutex.t = Mutex.create ()
-  let log s = 
+  let log id s = 
     crit threadLock (fun () -> 
-    match TM.find !threadMap (Thread.id (Thread.self ())) with
-    | Some x -> threadMap := TM.add !threadMap (Thread.id (Thread.self ())) (x@[s])
-    | None -> threadMap := TM.add !threadMap (Thread.id (Thread.self ())) [s])
+    match Map.Poly.find !threadMap id with
+    | Some x -> threadMap := Map.Poly.add !threadMap id (x@[s])
+    | None -> threadMap := Map.Poly.add !threadMap id [s])
   let print s = print_string s; flush stdout
-  let abort (s:string) = prerr_endline s; log s; Pervasives.exit 1
+  let abort (s:string) = prerr_endline s; Pervasives.exit 1
   let init () = at_exit (fun () -> 
     crit threadLock (fun () -> 
-    TM.iter !threadMap (fun ~key:t ~data:ss -> 
-                       let ts = string_of_int t in 
+    Map.Poly.iter !threadMap (fun ~key:t ~data:ss -> 
+                       let ts = intercal string_of_int "." t in 
                        print_endline (ts^": "
                                      ^intercal (fun x -> x) 
                                                ("\n"^String.make (String.length ts+2) ' ') ss)));
@@ -77,36 +73,22 @@ struct
   let boxedChanComm s c = BoxedChan (s,c)
   let getBoxedChan c = match c with BoxedChan (s,ch) -> Some (s,ch) | _ -> None
   let write_comm ch c =
-    let rec read_ack ch = match Squeue.pop !(snd ch) with
-                      | Ack -> ()
-                      | Redir q -> snd ch := q;
-                                   read_ack ch
-                      | Kill -> if !eval_trace_flag then log "killed";
-                                procExit ();
-                                failwith "Unreachable" (* Warning needs to recursively kill 
-                                                          it's affine arguments *)
-                      | x -> if !eval_trace_flag 
-                             then log ("Non-ack for write. BUG. Got: "^string_of_comm x);
-                             abort ("Non-ack for write. BUG. Got: "^string_of_comm x)
-    in match c with
-       | Term _ -> Squeue.push !(fst ch) c
-       | _ -> Squeue.push !(fst ch) c;
-              read_ack ch
+    match c with
+    | Term _ -> Squeue.push !(fst ch) c
+    | _ -> Squeue.push !(fst ch) c
   let rec read_comm ch =
     match Squeue.pop !(snd ch) with
     | Term t -> Term t
     | Redir q -> snd ch := q;
                  read_comm ch
-    | Kill -> if !eval_trace_flag then log "killed";
-              procExit ();
+    | Kill -> procExit ();
               failwith "Unreachable" (* Warning needs to recursively kill it's affine arguments *)
-    | c -> Squeue.push !(fst ch) Ack;
-           c
+    | c -> c
   let free ch =
     Squeue.push !(fst ch) Kill
-  let spawn (env:value SM.t) senv (cenv:Thread_Eval.channel CM.t) (p:Syntax.Core.proc) (c:cvar) =
+  let spawn (env:value SM.t) senv (cenv:Thread_Eval.channel CM.t) (p:Syntax.Core.proc) (c:cvar)
+            (state:proc_local) =
     let ch : Thread_Eval.channel = (ref (Squeue.create 1),ref (Squeue.create 1))
-    and ti = Thread.id (Thread.self ())
     in let go = (fun () -> 
          statsCrit (fun () -> incr threadCount;
                               incr fullThreadCount;
@@ -114,8 +96,9 @@ struct
                               if !maxThreadsTemp > !maxThreads
                               then maxThreads := !maxThreadsTemp);
          if !eval_trace_flag
-         then log (loc2str (Syntax.Core.locP p)^" bound from "^string_of_int ti);
-         Thread_Eval.eval_proc env senv (CM.add cenv c ch) p)
+         then log state.id (loc2str (Syntax.Core.locP p)^" bound from "
+                           ^intercal string_of_int "." (List.slice state.id 0 (List.length state.id -1)));
+         Thread_Eval.eval_proc env senv (CM.add cenv c ch) p state)
        in let _ = Thread.create go ()
           in (snd ch,fst ch)
   let spawnRemote = spawn

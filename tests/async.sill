@@ -1,0 +1,53 @@
+foo : {Int => 1};;
+'c <- foo =
+  sleep 1;
+  x <- recv 'c;
+  print x;
+  close 'c;;
+
+'top <- 'c <- foo;
+        send 'c 5;
+        print 4;
+        wait 'c;
+        close 'top;;
+
+bar : {Int => Int => 1};;
+'c <- bar =
+  sleep 1;
+  x <- recv 'c;
+  print x;
+  y <- recv 'c;
+  print y;
+  close 'c;;
+
+'top <- 'c <- bar;
+        send 'c 5;
+        print 4;
+        send 'c 6;
+        sleep 1;
+        print 3;
+        wait 'c;
+        close 'top;;
+
+baz : {Int => ''Int => '1};;
+'c <- baz =
+  sleep 1;
+  x <- recv 'c;
+  print x;
+  shift <- recv 'c;
+  send 'c shift;
+  y <- recv 'c;
+  print y;
+  shift <- recv 'c;
+  close 'c;;
+
+'top <- 'c <- baz;
+        send 'c 5;
+        print 4;
+        send 'c shift;
+        shift <- recv 'c;
+        send 'c 6;
+        send 'c shift;
+        print 3;
+        wait 'c;
+        close 'top;;

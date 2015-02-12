@@ -1,0 +1,794 @@
+Max: 7
+Min: 1
+Member 11? False
+Member 7? True
+ReplaceValue 7 11
+Max: 11
+Min: 1
+Member 11? True
+Member 7? False
+ReplaceValue 1 0
+Max: 11
+Min: 0
+Member 11? True
+Member 7? False
+1: @131:1 bound from 1
+   @131:1 bind
+   @132:1 bind
+   @133:1 bind
+   @134:1 bind
+   @137:1 bind
+   @138:1 bind
+   @141:1 bind
+   @143:1 bind
+   @145:1 internal max
+   @146:1 internal min
+   @147:1 internal member
+   @148:1 output 11
+   @149:1 internal member
+   @150:1 output 7
+   @152:1 internal replaceValue
+   @153:1 output 7
+   @154:1 output 11
+   @156:1 internal max
+   @157:1 internal min
+   @158:1 internal member
+   @159:1 output 11
+   @160:1 internal member
+   @161:1 output 7
+   @163:1 internal replaceValue
+   @164:1 output 1
+   @165:1 output 0
+   @167:1 internal max
+   @168:1 internal min
+   @169:1 internal member
+   @170:1 output 11
+   @171:1 internal member
+   @172:1 output 7
+   @174:1 internal stop
+   @175:1 wait
+   @176:1 close
+1.1: @27:3 bound from 1
+     @27:3 external max
+     @31:12 output 1
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 1
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 7
+     @34:21 input 11
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 1
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 1
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 1
+     @34:21 input 0
+     @35:22 tail-bind
+     @36:32 tail-bind
+     @27:3 external max
+     @31:12 output 0
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 0
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external stop
+     @28:13 close
+1.2: @27:3 bound from 1
+     @27:3 external max
+     @31:12 output 5
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 5
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 7
+     @34:21 input 11
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 5
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 5
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 1
+     @34:21 input 0
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 5
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 5
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external stop
+     @28:13 close
+1.3: @27:3 bound from 1
+     @27:3 external max
+     @31:12 output 2
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 2
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 7
+     @34:21 input 11
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 2
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 2
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 1
+     @34:21 input 0
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 2
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 2
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external stop
+     @28:13 close
+1.4: @27:3 bound from 1
+     @27:3 external max
+     @31:12 output 7
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 7
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output True()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 7
+     @34:21 input 11
+     @35:22 tail-bind
+     @36:32 tail-bind
+     @27:3 external max
+     @31:12 output 11
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 11
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output True()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external replaceValue
+     @33:21 input 1
+     @34:21 input 0
+     @35:22 tail-bind
+     @37:33 tail-bind
+     @27:3 external max
+     @31:12 output 11
+     @32:12 tail-bind
+     @27:3 external min
+     @29:12 output 11
+     @30:12 tail-bind
+     @27:3 external member
+     @38:15 input 11
+     @39:15 output True()
+     @40:15 tail-bind
+     @27:3 external member
+     @38:15 input 7
+     @39:15 output False()
+     @40:15 tail-bind
+     @27:3 external stop
+     @28:13 close
+1.5: @56:3 bound from 1
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 1
+     @71:13 input 5
+     @72:13 output 5
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 1
+     @65:13 input 5
+     @66:13 output 1
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 7
+     @75:21 input 11
+     @76:21 internal replaceValue
+     @77:21 output 7
+     @78:21 output 11
+     @79:21 internal replaceValue
+     @80:21 output 7
+     @81:21 output 11
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 1
+     @71:13 input 5
+     @72:13 output 5
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 1
+     @65:13 input 5
+     @66:13 output 1
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 1
+     @75:21 input 0
+     @76:21 internal replaceValue
+     @77:21 output 1
+     @78:21 output 0
+     @79:21 internal replaceValue
+     @80:21 output 1
+     @81:21 output 0
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 0
+     @71:13 input 5
+     @72:13 output 5
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 0
+     @65:13 input 5
+     @66:13 output 0
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external stop
+     @57:13 internal stop
+     @58:13 internal stop
+     @59:13 wait
+     @60:13 wait
+     @61:13 close
+1.6: @56:3 bound from 1
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 2
+     @71:13 input 7
+     @72:13 output 7
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 2
+     @65:13 input 7
+     @66:13 output 2
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 7
+     @75:21 input 11
+     @76:21 internal replaceValue
+     @77:21 output 7
+     @78:21 output 11
+     @79:21 internal replaceValue
+     @80:21 output 7
+     @81:21 output 11
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 2
+     @71:13 input 11
+     @72:13 output 11
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 2
+     @65:13 input 11
+     @66:13 output 2
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 1
+     @75:21 input 0
+     @76:21 internal replaceValue
+     @77:21 output 1
+     @78:21 output 0
+     @79:21 internal replaceValue
+     @80:21 output 1
+     @81:21 output 0
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 2
+     @71:13 input 11
+     @72:13 output 11
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 2
+     @65:13 input 11
+     @66:13 output 2
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external stop
+     @57:13 internal stop
+     @58:13 internal stop
+     @59:13 wait
+     @60:13 wait
+     @61:13 close
+1.7: @56:3 bound from 1
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 5
+     @71:13 input 7
+     @72:13 output 7
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 1
+     @65:13 input 2
+     @66:13 output 1
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 7
+     @75:21 input 11
+     @76:21 internal replaceValue
+     @77:21 output 7
+     @78:21 output 11
+     @79:21 internal replaceValue
+     @80:21 output 7
+     @81:21 output 11
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 5
+     @71:13 input 11
+     @72:13 output 11
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 1
+     @65:13 input 2
+     @66:13 output 1
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external replaceValue
+     @74:21 input 1
+     @75:21 input 0
+     @76:21 internal replaceValue
+     @77:21 output 1
+     @78:21 output 0
+     @79:21 internal replaceValue
+     @80:21 output 1
+     @81:21 output 0
+     @82:21 tail-bind
+     @56:3 external max
+     @68:13 internal max
+     @69:13 internal max
+     @70:13 input 5
+     @71:13 input 11
+     @72:13 output 11
+     @73:13 tail-bind
+     @56:3 external min
+     @62:13 internal min
+     @63:13 internal min
+     @64:13 input 0
+     @65:13 input 2
+     @66:13 output 0
+     @67:13 tail-bind
+     @56:3 external member
+     @83:15 input 11
+     @84:15 internal member
+     @85:15 output 11
+     @86:15 internal member
+     @87:15 output 11
+     @88:15 input False()
+     @89:15 input True()
+     @90:15 output True()
+     @91:9 tail-bind
+     @56:3 external member
+     @83:15 input 7
+     @84:15 internal member
+     @85:15 output 7
+     @86:15 internal member
+     @87:15 output 7
+     @88:15 input False()
+     @89:15 input False()
+     @90:15 output False()
+     @91:9 tail-bind
+     @56:3 external stop
+     @57:13 internal stop
+     @58:13 internal stop
+     @59:13 wait
+     @60:13 wait
+     @61:13 close
+1.8: @99:3 bound from 1
+     @99:3 external max
+     @107:13 internal max
+     @108:13 input 7
+     @109:13 tail-bind
+     @109:32 tail-bind
+     @109:42 tail-bind
+     @110:13 tail-bind
+     @99:3 external min
+     @103:13 internal min
+     @104:13 input 1
+     @105:13 tail-bind
+     @105:32 tail-bind
+     @105:42 tail-bind
+     @106:13 tail-bind
+     @99:3 external member
+     @120:15 input 11
+     @121:15 internal member
+     @122:15 output 11
+     @123:15 input False()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external member
+     @120:15 input 7
+     @121:15 internal member
+     @122:15 output 7
+     @123:15 input True()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external replaceValue
+     @111:21 input 7
+     @112:21 input 11
+     @113:21 internal replaceValue
+     @114:21 output 7
+     @115:21 output 11
+     @116:21 tail-bind
+     @117:21 tail-bind
+     @117:32 tail-bind
+     @118:21 tail-bind
+     @118:32 tail-bind
+     @119:21 tail-bind
+     @99:3 external max
+     @107:13 internal max
+     @108:13 input 11
+     @109:13 tail-bind
+     @109:32 tail-bind
+     @109:42 tail-bind
+     @110:13 tail-bind
+     @99:3 external min
+     @103:13 internal min
+     @104:13 input 1
+     @105:13 tail-bind
+     @105:32 tail-bind
+     @105:42 tail-bind
+     @106:13 tail-bind
+     @99:3 external member
+     @120:15 input 11
+     @121:15 internal member
+     @122:15 output 11
+     @123:15 input True()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external member
+     @120:15 input 7
+     @121:15 internal member
+     @122:15 output 7
+     @123:15 input False()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external replaceValue
+     @111:21 input 1
+     @112:21 input 0
+     @113:21 internal replaceValue
+     @114:21 output 1
+     @115:21 output 0
+     @116:21 tail-bind
+     @117:21 tail-bind
+     @117:32 tail-bind
+     @118:21 tail-bind
+     @118:32 tail-bind
+     @119:21 tail-bind
+     @99:3 external max
+     @107:13 internal max
+     @108:13 input 11
+     @109:13 tail-bind
+     @109:32 tail-bind
+     @109:42 tail-bind
+     @110:13 tail-bind
+     @99:3 external min
+     @103:13 internal min
+     @104:13 input 0
+     @105:13 tail-bind
+     @105:32 tail-bind
+     @105:42 tail-bind
+     @106:13 tail-bind
+     @99:3 external member
+     @120:15 input 11
+     @121:15 internal member
+     @122:15 output 11
+     @123:15 input True()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external member
+     @120:15 input 7
+     @121:15 internal member
+     @122:15 output 7
+     @123:15 input False()
+     @124:15 tail-bind
+     @124:36 tail-bind
+     @125:15 tail-bind
+     @125:31 tail-bind
+     @125:45 tail-bind
+     @126:9 tail-bind
+     @99:3 external stop
+     @100:13 internal stop
+     @101:13 wait
+     @102:13 close

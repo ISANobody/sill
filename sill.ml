@@ -6,7 +6,7 @@ open Command.Spec
 open Desugar
 
 let main =
-  let spec = (empty +> Spec.flag "backend" ~doc:"thread|thread_async|fork|ssh select the interpreter to use" (optional_with_default "thread" string)
+  let spec = (empty +> Spec.flag "backend" ~doc:"thread|fork|ssh select the interpreter to use" (optional_with_default "thread" string)
            +> flag "evaltrace" ~doc:" enable interpretation tracing" no_arg
            +> flag "liveeval" ~doc:" enable forceful interpretation tracing" no_arg
            +> flag "typetrace" ~doc:" enable type tracing" no_arg
@@ -43,8 +43,6 @@ let main =
          match !backend_choice with
          | "thread" -> Eval_thread.Impl_Thread.init();
                        Eval_thread.Thread_Eval.eval_top SM.empty pds
-         | "thread_async" -> Eval_thread_async.Impl_Thread.init();
-                       Eval_thread_async.Thread_Eval.eval_top SM.empty pds
          | "fork" -> Eval_pipe.Impl_Pipe.init();
                      Eval_pipe.Pipe_Eval.eval_top SM.empty pds
          | "ssh" -> Eval_ssh.Impl_SSH.init();

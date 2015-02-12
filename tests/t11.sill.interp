@@ -1,14 +1,14 @@
-1: @13:7 bound from 0
+1: @13:7 bound from 1
    @13:7 bind
    @13:18 inputC
    @13:33 wait
    @13:42 internal stop
    @13:51 wait
    @13:60 close
-2: @11:1 bound from 1
-   @11:1 outputC
-   @11:28 close
-3: @11:16 bound from 2
-   @11:16 tail-bind
-   @4:3 external stop
-   @5:13 close
+1.1: @11:1 bound from 1
+     @11:1 outputC
+     @11:28 close
+1.1.1: @11:16 bound from 1.1
+       @11:16 tail-bind
+       @4:3 external stop
+       @5:13 close

@@ -1,0 +1,37 @@
+4
+1: @34:1 bound from 1
+   @34:1 bind
+   @35:1 internal push
+   @36:1 output 3
+   @37:1 internal push
+   @38:1 output 4
+   @39:1 internal pop
+   @40:1 external just
+   @45:11 input 4
+   @46:11 tail-bind
+   @46:20 tail-bind
+   @47:11 tail-bind
+   @48:11 internal dealloc
+   @49:11 wait
+   @50:11 close
+1.1: @24:1 bound from 1
+     @24:1 external push
+     @25:11 input 3
+     @26:11 bind
+     @27:11 tail-bind
+     @10:1 external push
+     @11:11 input 4
+     @12:11 bind
+     @13:11 tail-bind
+     @10:1 external pop
+     @14:10 internal just
+     @15:10 output 4
+     @16:10 forward
+1.1.1: @24:1 bound from 1.1
+       @24:1 external dealloc
+       @30:14 close
+1.1.2: @10:1 bound from 1.1
+       @10:1 external dealloc
+       @17:14 internal dealloc
+       @18:14 wait
+       @19:14 close

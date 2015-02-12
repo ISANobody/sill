@@ -1,11 +1,11 @@
-1: @5:7 bound from 0
+1: @5:7 bound from 1
    @5:7 bind
    @5:18 inputC
    @5:33 wait
    @5:42 wait
    @5:51 close
-2: @3:1 bound from 1
-   @3:1 outputC
-   @3:27 close
-3: @3:16 bound from 2
-   @3:16 close
+1.1: @3:1 bound from 1
+     @3:1 outputC
+     @3:27 close
+1.1.1: @3:16 bound from 1.1
+       @3:16 close

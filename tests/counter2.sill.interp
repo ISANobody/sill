@@ -1,0 +1,276 @@
+4
+8
+1: @82:1 bound from 1
+   @82:1 bind
+   @83:1 bind
+   @84:1 bind
+   @85:1 bind
+   @86:1 bind
+   @87:1 bind
+   @88:1 input 4
+   @89:1 tail-bind
+   @89:10 tail-bind
+   @90:1 tail-bind
+   @91:1 bind
+   @92:1 wait
+   @94:1 bind
+   @95:1 bind
+   @96:1 bind
+   @97:1 bind
+   @98:1 bind
+   @99:1 bind
+   @100:1 bind
+   @101:1 bind
+   @102:1 bind
+   @103:1 input 8
+   @104:1 tail-bind
+   @104:11 tail-bind
+   @105:1 tail-bind
+   @106:1 bind
+   @107:1 wait
+   @108:1 close
+1.1: @11:1 bound from 1
+     @11:1 internal eps
+     @12:1 close
+1.2: @17:1 bound from 1
+     @17:1 internal bit
+     @18:1 output True()
+     @19:1 forward
+1.3: @17:1 bound from 1
+     @17:1 internal bit
+     @18:1 output False()
+     @19:1 forward
+1.4: @24:1 bound from 1
+     @24:1 external bit
+     @28:10 input False()
+     @29:11 tail-bind
+     @32:22 tail-bind
+     @17:1 internal bit
+     @18:1 output True()
+     @19:1 forward
+1.5: @24:1 bound from 1
+     @24:1 external bit
+     @28:10 input True()
+     @29:11 tail-bind
+     @30:21 bind
+     @31:21 tail-bind
+     @17:1 internal bit
+     @18:1 output False()
+     @19:1 forward
+1.5.1: @24:1 bound from 1.5
+       @24:1 external bit
+       @28:10 input True()
+       @29:11 tail-bind
+       @30:21 bind
+       @31:21 tail-bind
+       @17:1 internal bit
+       @18:1 output False()
+       @19:1 forward
+1.5.1.1: @24:1 bound from 1.5.1
+         @24:1 external eps
+         @25:10 wait
+         @26:10 bind
+         @27:10 tail-bind
+         @17:1 internal bit
+         @18:1 output True()
+         @19:1 forward
+1.5.1.1.1: @11:1 bound from 1.5.1.1
+           @11:1 internal eps
+           @12:1 close
+1.6: @38:1 bound from 1
+     @38:1 external bit
+     @42:10 input False()
+     @43:10 bind
+     @44:10 input 2
+     @45:10 output 4
+     @46:10 tail-bind
+     @17:1 internal bit
+     @18:1 output False()
+     @19:1 forward
+1.6.1: @38:1 bound from 1.6
+       @38:1 external bit
+       @42:10 input False()
+       @43:10 bind
+       @44:10 input 1
+       @45:10 output 2
+       @46:10 tail-bind
+       @17:1 internal bit
+       @18:1 output False()
+       @19:1 forward
+1.6.1.1: @38:1 bound from 1.6.1
+         @38:1 external bit
+         @42:10 input True()
+         @43:10 bind
+         @44:10 input 0
+         @45:10 output 1
+         @46:10 tail-bind
+         @17:1 internal bit
+         @18:1 output True()
+         @19:1 forward
+1.6.1.1.1: @38:1 bound from 1.6.1.1
+           @38:1 external eps
+           @39:10 wait
+           @40:10 output 0
+           @41:10 tail-bind
+           @11:1 internal eps
+           @12:1 close
+1.7: @74:1 bound from 1
+     @74:1 external bit
+     @77:10 input False()
+     @78:10 tail-bind
+     @74:1 external bit
+     @77:10 input False()
+     @78:10 tail-bind
+     @74:1 external bit
+     @77:10 input True()
+     @78:10 tail-bind
+     @74:1 external eps
+     @75:10 wait
+     @76:10 close
+1.8: @11:1 bound from 1
+     @11:1 internal eps
+     @12:1 close
+1.9: @17:1 bound from 1
+     @17:1 internal bit
+     @18:1 output True()
+     @19:1 forward
+1.10: @17:1 bound from 1
+      @17:1 internal bit
+      @18:1 output False()
+      @19:1 forward
+1.11: @11:1 bound from 1
+      @11:1 internal eps
+      @12:1 close
+1.12: @17:1 bound from 1
+      @17:1 internal bit
+      @18:1 output True()
+      @19:1 forward
+1.13: @17:1 bound from 1
+      @17:1 internal bit
+      @18:1 output True()
+      @19:1 forward
+1.14: @17:1 bound from 1
+      @17:1 internal bit
+      @18:1 output False()
+      @19:1 forward
+1.15: @51:1 bound from 1
+      @51:1 external bit
+      @54:10 input False()
+      @55:2 external bit
+      @60:10 input False()
+      @61:10 internal bit
+      @62:10 tail-bind
+      @68:32 output False()
+      @69:32 tail-bind
+      @51:1 external bit
+      @54:10 input True()
+      @55:2 external bit
+      @60:10 input True()
+      @61:10 internal bit
+      @62:10 tail-bind
+      @63:11 tail-bind
+      @63:32 output False()
+      @64:32 bind
+      @65:32 tail-bind
+      @51:1 external bit
+      @54:10 input True()
+      @55:2 external bit
+      @60:10 input True()
+      @61:10 internal bit
+      @62:10 tail-bind
+      @63:11 tail-bind
+      @63:32 output False()
+      @64:32 bind
+      @65:32 tail-bind
+      @51:1 external bit
+      @54:10 input True()
+      @55:2 external eps
+      @56:10 wait
+      @57:10 internal bit
+      @58:10 output True()
+      @59:10 forward
+1.15.1: @24:1 bound from 1.15
+        @24:1 external eps
+        @25:10 wait
+        @26:10 bind
+        @27:10 tail-bind
+        @17:1 internal bit
+        @18:1 output True()
+        @19:1 forward
+1.15.1.1: @11:1 bound from 1.15.1
+          @11:1 internal eps
+          @12:1 close
+1.15.2: @24:1 bound from 1.15
+        @24:1 external eps
+        @25:10 wait
+        @26:10 bind
+        @27:10 tail-bind
+        @17:1 internal bit
+        @18:1 output True()
+        @19:1 forward
+1.15.2.1: @11:1 bound from 1.15.2
+          @11:1 internal eps
+          @12:1 close
+1.16: @38:1 bound from 1
+      @38:1 external bit
+      @42:10 input False()
+      @43:10 bind
+      @44:10 input 4
+      @45:10 output 8
+      @46:10 tail-bind
+      @17:1 internal bit
+      @18:1 output False()
+      @19:1 forward
+1.16.1: @38:1 bound from 1.16
+        @38:1 external bit
+        @42:10 input False()
+        @43:10 bind
+        @44:10 input 2
+        @45:10 output 4
+        @46:10 tail-bind
+        @17:1 internal bit
+        @18:1 output False()
+        @19:1 forward
+1.16.1.1: @38:1 bound from 1.16.1
+          @38:1 external bit
+          @42:10 input False()
+          @43:10 bind
+          @44:10 input 1
+          @45:10 output 2
+          @46:10 tail-bind
+          @17:1 internal bit
+          @18:1 output False()
+          @19:1 forward
+1.16.1.1.1: @38:1 bound from 1.16.1.1
+            @38:1 external bit
+            @42:10 input True()
+            @43:10 bind
+            @44:10 input 0
+            @45:10 output 1
+            @46:10 tail-bind
+            @17:1 internal bit
+            @18:1 output True()
+            @19:1 forward
+1.16.1.1.1.1: @38:1 bound from 1.16.1.1.1
+              @38:1 external eps
+              @39:10 wait
+              @40:10 output 0
+              @41:10 tail-bind
+              @11:1 internal eps
+              @12:1 close
+1.17: @74:1 bound from 1
+      @74:1 external bit
+      @77:10 input False()
+      @78:10 tail-bind
+      @74:1 external bit
+      @77:10 input False()
+      @78:10 tail-bind
+      @74:1 external bit
+      @77:10 input False()
+      @78:10 tail-bind
+      @74:1 external bit
+      @77:10 input True()
+      @78:10 tail-bind
+      @74:1 external eps
+      @75:10 wait
+      @76:10 close
