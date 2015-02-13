@@ -7,17 +7,7 @@ type astinfo = { linenum : int; (* These first two should probably just be a src
                  affineFrees : CS.t ref; (* Represent free instructions inserted right
                                            before this one. Since we don't actually
                                            perform transformations, this is easier. *)
-                 postShift : CS.t ref; (* After executing this statement, really at
-                                          the start of execution of the next statement,
-                                          send shifts along every channel in the set. *)
-                 preShift : CS.t ref; (* Before executing this statement send a shift
-                                         along ever channel in this set. *)
-                 shiftBfrRecv : CS.t ref; (* Channels that need to be shifted before
-                                            we recv on them. These need to be transfered
-                                            to a local map in eval_functor to avoid 
-                                            scoping issues. *)
-                 preShiftBfr : CS.t ref; (* Like above, but just before the start of the
-                                            next statement. *) } 
+               }
 with sexp, bin_io
 
 (* Should these be in syntax.ml? *)
@@ -25,9 +15,7 @@ let ast2loc (a : astinfo) : srcloc =
     {lnum = a.linenum; cnum = a.charnum}
 
 let nullloc = { lnum = 0; cnum = 0}
-let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty; 
-                  postShift = ref CS.empty; shiftBfrRecv = ref CS.empty;
-                  preShift = ref CS.empty; preShiftBfr = ref CS.empty }
+let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty; }
 
 (* constants for PicoML *)
 type const = Int of int | Float of float | String of string with sexp, bin_io

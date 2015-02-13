@@ -48,4 +48,4 @@ let main =
          | "ssh" -> Eval_ssh.Impl_SSH.init();
                     Eval_ssh.SSH_Eval.eval_top SM.empty pds
          | _ -> prerr_endline "Unknown backend option"
-  in run ~version:"1.2.1" (basic ~summary:"SILL interpreter" spec realMain)
+  in run ~version:"1.3" (basic ~summary:"SILL interpreter" spec realMain)

@@ -1,0 +1,90 @@
+ltype BS =  &{pop   : +{none:1; some: Int /\ BS};
+              round : BS };;
+
+(* 1: Doesn't look like we'll want global types
+   2: We will need non-uniform recursion on session types.
+      However, the non-uniform bits are only at the dependent level.
+   3: Should the ltype definition even have dependency? *)
+
+(* We want to prove that, ideally, sort ran for the right number of rounds
+   returns sorts the elements of BS. This is too hard, so we'll try to confirm
+   that it represents a permutation of the original elements instead. *)
+
+(* First we need a notion of BS that is constrainable by our predicates.
+   I'm not sure what the best notation for this is, but I'll use BS(X) for its
+   extra logical parameter. Specifically, we'll want to track the multiset of
+   elements that are contained in BS, so BS(X) will just assume X is a multiset.
+   The fully spelled out version should be something like {x:BS|F(x)} *)
+
+(* The definition of BS(X) would look something like 
+      ltype BS(x,X) = &{pop   : +{none:1; some: x:Int/\ BS(X)};
+                      round : BS(X)};; *)
+
+(* empty: {BS(\emptyset)} *)
+(* subtyping means that this could be BS(X) for any X *)
+empty : {BS};;
+'c <- empty =
+  case 'c of
+  | pop -> 'c.none;
+           close 'c
+  | round -> 'c <- empty;;
+
+(* elem : x:Int -> {BS(x,X) <- BS(X)} *)
+elem : Int -> {BS <- BS};;
+'c <- elem i -< 'd =
+  case 'c of
+  | pop -> 'c.some;
+           send 'c i; (* i \in (i,X) *)
+           'c <- 'd
+  | round -> 'd.round;
+             'd.pop;
+             case 'd of
+             | none -> wait 'd;
+                       'e <- empty;
+                       'c <- elem i -< 'e (* BS(i,X) = BS(i,X) *)
+             | some -> x <- recv 'd; (* 'd was BS(x,X) now BS(X) *)
+                       if i > x
+                       then 'e <- elem i -< 'd; (* i>x => 'e : BS(i,X) *)
+                            'c <- elem x -< 'e (* i>x => 'c : BS(x,i,X) which equals BS(i,x,X) *)
+                       else 'e <- elem x -< 'd; (* i<=x => 'e : BS(x,X) *)
+                            'c <- elem i -< 'e;; (* i<=x => 'e : BS(i,x,X) which equals BS(i,x,X) *)
+
+(* What we can say here depends a lot on our predicate templates. 
+   If we can convert lists to multisets we're fine. *)
+fromList : [Int] -> {BS};;
+'c <- fromList l =
+  case l of
+  | [] -> 'c <- empty
+  | h::t -> 'd <- fromList t;
+            'c <- elem h -< 'd;;
+
+printBS : {1 <- BS};;
+'c <- printBS -< 'd =
+  'd.pop;
+  case 'd of
+  | none -> wait 'd;
+            close 'c
+  | some -> x <- recv 'd;
+            print x;
+            'c <- printBS -< 'd;;
+
+'top <- 'c <- fromList [4;5;9;6;5;7;8];
+        'd <- printBS -< 'c;
+        wait 'd;
+        print_str "\n";
+        close 'top;;
+
+(* sort: n:Int -> {BS(X) <- BS(X)} *)
+sort : Int -> {BS <- BS};;
+'c <- sort n -< 'd =
+  if n = 0
+  then 'c <- 'd
+  else 'd.round;
+       'c <- sort (n-1) -< 'd;;
+
+'top <- 'c <- fromList [4;5;9;6;5;7;8];
+        'c <- sort 7 -< 'c;
+        'd <- printBS -< 'c;
+        wait 'd;
+        print_str "\n";
+        close 'top;;
