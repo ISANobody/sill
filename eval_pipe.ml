@@ -98,17 +98,25 @@ struct
   type channel = pipe_channel
   type controlChan = ControlChan
   type communicable = pipe_comm
-  let procExit () = Pervasives.exit 0
+  type proc_local = { id : int list; (* Address in the ancestor relation tree *)
+                      childCounter : int ref; (* Number of children spawned so far *)
+                      (* What was the last channel we used and in what polarity *)
+                      focusCache : [`Send of channel | `Recv of channel] option ref;
+                      (* How many times did we communicate along the same channel/polarity *)
+                      focusCounter : int ref;
+                      unfocusCounter : int ref;
+                    }
+  let procExit _ = Pervasives.exit 0
   let abort _ = failwith "pipe-abort unimplemented"
   let init () = tempdir := Unix.mkdtemp "sill-temp"
   let log _ = failwith "pipe-log unimplemented"
   let free _ = failwith "pipe-free unimplemented"
   let print s = print_string s; flush stdout
   let is_Term c = match c with Term -> true | _ -> false
-  let write_comm = pipe_write_comm
-  let read_comm = pipe_read_comm
+  let write_comm _ = pipe_write_comm
+  let read_comm _ = pipe_read_comm
   let spawn (env: value SM.t) (senv:shrsrc CM.t) (cenv : pipe_channel CM.t) (p:proc) (c:cvar) 
-            (state:proc_local) : channel =
+            (state:Pipe_Eval.proc_local) : channel =
     let ch = mkchan()
     in match Unix.fork () with
        | `In_the_child -> (Pipe_Eval.eval_proc env senv (CM.add cenv c ch) p state; 

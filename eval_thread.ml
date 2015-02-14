@@ -14,6 +14,8 @@ let threadCount = ref 0
 let fullThreadCount = ref 0
 let maxThreadsTemp = ref 0
 let maxThreads = ref 0
+let focusOps = ref 0
+let focusNonOps = ref 0
 
 module rec Impl_Thread : Impl =
 struct
@@ -26,6 +28,14 @@ struct
                     | Kill (* For affine stuff *)
                     
   and channel = (communicable Squeue.t ref * communicable Squeue.t ref) (* write * read *)
+  type proc_local = { id : int list; (* Address in the ancestor relation tree *)
+                      childCounter : int ref; (* Number of children spawned so far *)
+                      (* What was the last channel we used and in what polarity *)
+                      focusCache : [`Send of channel | `Recv of channel] option ref;
+                      (* How many times did we communicate along the same channel/polarity *)
+                      focusCounter : int ref;
+                      unfocusCounter : int ref;
+                    }
   let string_of_comm c =
       match c with
       | Chan _ -> "Chan"
@@ -53,14 +63,20 @@ struct
                                                ("\n"^String.make (String.length ts+2) ' ') ss)));
     if !stats_flag
     then statsCrit (fun () -> 
-         print_endline ("Threads Created:    "^string_of_int !threadCount);
-         print_endline ("Logical Threads:    "^string_of_int !fullThreadCount);
-         print_endline ("Peak Exec Threads:  "^string_of_int !maxThreads)));
+         print_endline ("Threads Created:     "^string_of_int !threadCount);
+         print_endline ("Logical Threads:     "^string_of_int !fullThreadCount);
+         print_endline ("Peak Exec Threads:   "^string_of_int !maxThreads);
+         print_endline ("Focus Opportunities: "^string_of_int !focusOps);
+         print_endline ("Focus Misses:        "^string_of_int !focusNonOps)));
     if !stats_flag
     then Thread_Eval.tail_bind_hook := 
          (fun () -> statsCrit (fun () -> incr fullThreadCount))
-  let procExit () =
-      decr maxThreadsTemp;
+  let procExit state =
+      if !stats_flag
+      then statsCrit (fun () -> 
+             decr maxThreadsTemp;
+             focusOps := !focusOps + !(state.focusCounter);
+             focusNonOps := !focusNonOps + !(state.unfocusCounter));
       Thread.exit ()
   let mkTerm () = Term (Thread.self ())
   let is_Term c = match c with Term t -> Thread.join t; true | _ -> false
@@ -72,32 +88,38 @@ struct
   let getChan c = match c with Chan ch -> Some ch | _ -> None
   let boxedChanComm s c = BoxedChan (s,c)
   let getBoxedChan c = match c with BoxedChan (s,ch) -> Some (s,ch) | _ -> None
-  let write_comm ch c =
-    match c with
-    | Term _ -> Squeue.push !(fst ch) c
-    | _ -> Squeue.push !(fst ch) c
-  let rec read_comm ch =
+  let write_comm state ch c =
+    if !stats_flag then 
+      (match !(state.focusCache) with
+      | Some (`Send ch') when physeq ch ch' -> incr state.focusCounter
+      | _ -> incr state.unfocusCounter;
+             state.focusCache := Some (`Send ch));
+    Squeue.push !(fst ch) c
+  let rec read_comm state ch =
+    if !stats_flag then state.focusCache := Some (`Recv ch);
     match Squeue.pop !(snd ch) with
-    | Term t -> Term t
     | Redir q -> snd ch := q;
-                 read_comm ch
-    | Kill -> procExit ();
-              failwith "Unreachable" (* Warning needs to recursively kill it's affine arguments *)
+                 read_comm state ch
+    | Kill -> procExit state;
+              failwith "Unreachable" (* TODO needs to recursively kill it's affine arguments *)
     | c -> c
   let free ch =
     Squeue.push !(fst ch) Kill
   let spawn (env:value SM.t) senv (cenv:Thread_Eval.channel CM.t) (p:Syntax.Core.proc) (c:cvar)
-            (state:proc_local) =
+            (state:Thread_Eval.proc_local) =
     let ch : Thread_Eval.channel = (ref (Squeue.create 1),ref (Squeue.create 1))
     in let go = (fun () -> 
+         (* TODO to avoid introducing more syncronicity than needed shouldn't this be on
+                 proc exit? *)
          statsCrit (fun () -> incr threadCount;
                               incr fullThreadCount;
                               incr maxThreadsTemp;
                               if !maxThreadsTemp > !maxThreads
                               then maxThreads := !maxThreadsTemp);
          if !eval_trace_flag
-         then log state.id (loc2str (Syntax.Core.locP p)^" bound from "
-                           ^intercal string_of_int "." (List.slice state.id 0 (List.length state.id -1)));
+         then log state.id 
+                  (loc2str (Syntax.Core.locP p)^" bound from "
+                  ^intercal string_of_int "." (List.slice state.id 0 (List.length state.id -1)));
          Thread_Eval.eval_proc env senv (CM.add cenv c ch) p state)
        in let _ = Thread.create go ()
           in (snd ch,fst ch)
@@ -121,5 +143,7 @@ struct
   let request n = Squeue.pop (defaultingQueue n)
   let register n c = Squeue.push_uncond (defaultingQueue n) c
 end
-and Thread_Eval : (Evaluator with type channel = (Impl_Thread.communicable Squeue.t ref *
-Impl_Thread.communicable Squeue.t ref)) = MkEvaluator(Impl_Thread)
+and Thread_Eval : (Evaluator 
+  with type channel = (Impl_Thread.communicable Squeue.t ref * Impl_Thread.communicable Squeue.t ref)
+   and type proc_local = Impl_Thread.proc_local
+              ) = MkEvaluator(Impl_Thread)

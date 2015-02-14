@@ -6,15 +6,20 @@ open Syntax.Core
 
 (* To prevent circularity when compiling this needs to be in a separate file. *)
 
-type proc_local = { id : int list; (* Address in the ancestor relation tree *)
-                    childCounter : int ref; (* Number of children spawned so far *)
-                  }
 
 
 module type Impl =
 sig
   type channel
   type communicable
+  type proc_local = { id : int list; (* Address in the ancestor relation tree *)
+                      childCounter : int ref; (* Number of children spawned so far *)
+                      (* What was the last channel we used and in what polarity *)
+                      focusCache : [`Send of channel | `Recv of channel] option ref;
+                      (* How many times did we communicate along the same channel/polarity *)
+                      focusCounter : int ref;
+                      unfocusCounter : int ref;
+                    }
   val init : unit -> unit
   val log : int list -> string -> unit
   val print : string -> unit
@@ -22,8 +27,8 @@ sig
   val spawnRemote : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> cvar -> proc_local -> channel
   val newChan : unit -> channel * channel
   val free : channel -> unit
-  val read_comm : channel -> communicable
-  val write_comm : channel -> communicable -> unit
+  val read_comm : proc_local -> channel -> communicable
+  val write_comm : proc_local -> channel -> communicable -> unit
   val is_Term : communicable -> bool
   val mkTerm : unit -> communicable
   val valComm : value -> communicable
@@ -35,7 +40,7 @@ sig
   val labComm : label -> communicable
   val getLab : communicable -> label option
   val forward : channel -> channel -> unit
-  val procExit : unit -> unit
+  val procExit : proc_local -> unit
   val request : string -> channel
   val register : string -> channel -> unit
   val abort : string -> 'a

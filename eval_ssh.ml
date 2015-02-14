@@ -46,6 +46,14 @@ struct
                     | Lab of label
                     | Ch of channel
   and channel = Chan of communicable Catqueue.t * communicable Catqueue.t
+  type proc_local = { id : int list; (* Address in the ancestor relation tree *)
+                      childCounter : int ref; (* Number of children spawned so far *)
+                      (* What was the last channel we used and in what polarity *)
+                      focusCache : [`Send of channel | `Recv of channel] option ref;
+                      (* How many times did we communicate along the same channel/polarity *)
+                      focusCounter : int ref;
+                      unfocusCounter : int ref;
+                    }
   (* Channels aren't serializeable so we can't just directly wrap with redirection info *)
   type commWrapper = WrapTerm of int
                    | WrapAck of int
@@ -167,12 +175,12 @@ struct
       Thread.exit ()
   let mkTerm () = Term
   let is_Term t = t = Term
-  let write_comm (Chan (iq,oq)) comm =
+  let write_comm _ (Chan (iq,oq)) comm =
     Catqueue.push oq comm;
     match Catqueue.pop iq with
     | Ack -> ()
     | _ -> failwith "got non-Ack in write_comm"
-  let read_comm (Chan (iq,oq)) =
+  let read_comm _ (Chan (iq,oq)) =
     let r = Catqueue.pop iq
     in Catqueue.push oq Ack;
        r
@@ -184,7 +192,7 @@ struct
   let getBoxedChan _ = failwith "ssh-getBoxedChan"
   let labComm l = Lab l
   let getLab c = match c with Lab l -> Some l | _ -> None
-  let procExit () = Thread.exit ()
+  let procExit _ = Thread.exit ()
 
   let globalControl : channel Squeue.t SM.t ref = ref SM.empty
   let controlLock : Mutex.t = Mutex.create ()

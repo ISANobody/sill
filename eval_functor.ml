@@ -7,19 +7,10 @@ open Eval_exp
 open Connection
 open Eval_abstract
 
-(* We need a state to start with *)
-let newstateCounter = ref 0
-let newstate () = incr newstateCounter; { id = [!newstateCounter]; childCounter = ref 0 }
-
-(* Given a local state compute the state its child should start with.
-   Maybe this should return a mutated parent state instead of assuming references *)
-let childState (s:proc_local) : proc_local =
-  incr s.childCounter;
-  { id = s.id@[!(s.childCounter)]; childCounter = ref 0}
-
 module type Evaluator =
 sig
   type channel
+  type proc_local
   val eval_proc : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> proc_local -> unit
   val eval_top : (value SM.t) -> toplvl list -> unit
   val tail_bind_hook : (unit -> unit) ref
@@ -28,6 +19,24 @@ end
 module MkEvaluator = functor (I:Impl) ->
 struct
   type channel = I.channel
+  type proc_local = I.proc_local
+
+  (* We need a state to start with *)
+  let newstateCounter = ref 0
+  let newstate () = incr newstateCounter; 
+      { I.id             = [!newstateCounter] 
+      ; I.childCounter   = ref 0
+      ; I.focusCache     = ref None
+      ; I.focusCounter   = ref 0
+      ; I.unfocusCounter = ref 0 }
+
+(* Given a local state compute the state its child should start with.
+   Maybe this should return a mutated parent state instead of assuming references *)
+  let childState (s:proc_local) : proc_local =
+    incr s.I.childCounter;
+    { I.id = s.I.id@[!(s.I.childCounter)]; I.childCounter = ref 0
+    ; I.focusCache = ref None; I.focusCounter = ref 0; I.unfocusCounter = ref 0 }
+
   
   module Exp = MkExpEvaluator(I)
 
@@ -50,9 +59,9 @@ struct
         | None -> errr (fst c) ("channel "^string_of_cvar c^" not found. BUG.")
     and eval_trace (s:string) : unit =
         if !live_trace_flag then print_endline (loc2str (locP pin)^" "^s);
-        if !eval_trace_flag then I.log state.id (loc2str (locP pin)^" "^s) else ()
+        if !eval_trace_flag then I.log state.I.id (loc2str (locP pin)^" "^s) else ()
     in let waitone c = 
-             if I.is_Term (I.read_comm c)
+             if I.is_Term (I.read_comm state c)
              then ()
              else failwith "received non-Term. BUG."
        in
@@ -64,9 +73,9 @@ struct
   match pin with
   | Close (_,c) ->
     eval_trace "close";
-    I.write_comm (chanfind "close" c) (I.mkTerm ());
-    I.procExit ()
-  | Exit _ -> eval_trace "detached exit";  I.procExit ()
+    I.write_comm state (chanfind "close" c) (I.mkTerm ());
+    I.procExit state
+  | Exit _ -> eval_trace "detached exit";  I.procExit state
   | Register (_,n,c,p) -> I.register (snd n) (chanfind "register" c);
                           eval_proc env senv cenv p state
   | Service (_,c,n,p) -> eval_proc env senv (CM.add cenv c (I.request (snd n))) p state
@@ -77,10 +86,10 @@ struct
   | OutputD (i,c,e,p) -> 
     let v = Exp.eval_exp e env
     in eval_trace ("output "^string_of_value v);
-       I.write_comm (chanfind "OutputD" c) (I.valComm v);
+       I.write_comm state (chanfind "OutputD" c) (I.valComm v);
        eval_proc env senv cenv p state
   | InputD (i,x,c,p) ->
-    (match I.getVal (I.read_comm (chanfind "InputD" c)) with
+    (match I.getVal (I.read_comm state (chanfind "InputD" c)) with
     | Some (Boxed (t,v)) -> 
       eval_trace ("input "^string_of_value v);
       eval_proc (SM.add env (snd x) v) senv cenv p state
@@ -151,22 +160,22 @@ struct
   | OutputC (i,c,d,pd,p) ->
     eval_trace "outputC";
     let ch = I.spawn env senv cenv pd d (childState state)
-    in I.write_comm (chanfind "OutputC" c) (I.chanComm ch);
+    in I.write_comm state (chanfind "OutputC" c) (I.chanComm ch);
        eval_proc env senv cenv p state
   | InputC (i,disambig,cx,cc,p) ->
     (match !disambig with
     | `Tensor -> 
       eval_trace "inputC";
-      (match I.getChan (I.read_comm (chanfind "InputC" cc)) with
+      (match I.getChan (I.read_comm state (chanfind "InputC" cc)) with
       | Some ch -> eval_proc env senv (CM.add cenv cx ch) p state
       | None -> errr (fst cc) " found non-Chan. BUG.")
     | `DwCastL -> 
       eval_trace "ShftDwL";
       if var2mode cx = Intuist
-      then (match I.getVal (I.read_comm (chanfind "DwCastL" cc)) with
+      then (match I.getVal (I.read_comm state (chanfind "DwCastL" cc)) with
            | Some (Shared s) -> eval_proc env (CM.add senv cx s) cenv p state
            | Some _ | None -> errr (fst cc) "non-Shr in ShftDwL. BUG.")
-      else (match I.getChan (I.read_comm (chanfind "ShftDwnL" cc)) with
+      else (match I.getChan (I.read_comm state (chanfind "ShftDwnL" cc)) with
            | Some ch -> eval_proc env senv (CM.add cenv cx ch) p state
            | None -> errr (fst cc) " found non-Chan. BUG.")
     | `UpCastR -> 
@@ -174,13 +183,13 @@ struct
       if var2mode cc = Intuist
       then (* Warning this assumes that the provider channel was set correctly *)
            eval_proc env senv cenv p state
-      else (match I.getChan (I.read_comm (chanfind "UpcastR" cc)) with
+      else (match I.getChan (I.read_comm state (chanfind "UpcastR" cc)) with
            | Some ch -> eval_proc env senv (CM.add cenv cx ch) p state
            | None -> errr (fst cc) " found non-Chan. BUG."))
   | External (i,c,ps) ->
     if LM.is_empty ps
     then errr (ast2loc i) "Empty Case Abort"
-    else (match I.getLab (I.read_comm (chanfind "External" c)) with
+    else (match I.getLab (I.read_comm state (chanfind "External" c)) with
          | Some l -> if not (LM.mem ps l)
                     then errr (ast2loc i) ("External choice, no branch for "
                                           ^string_of_label l^" BUG.")
@@ -189,19 +198,19 @@ struct
          | None -> errr (fst c) "non-label in External. BUG.")
   | Internal (_,c,l,p) ->
     eval_trace ("internal "^string_of_label l);
-    I.write_comm (chanfind "Internal" c) (I.labComm l);
+    I.write_comm state (chanfind "Internal" c) (I.labComm l);
     eval_proc env senv cenv p state
   | Fwd (_,c,d) ->
     eval_trace "forward";
     I.forward (chanfind "Forward" c) (chanfind "Forward" d)
   | InputTy (_,_,c,p) ->
     eval_trace "inputTy";
-    (match I.getLab (I.read_comm (chanfind "InputTy" c)) with
+    (match I.getLab (I.read_comm state (chanfind "InputTy" c)) with
     | Some (_,"_FakeTy_") -> eval_proc env senv cenv p state
     | _ -> errr (fst c) "BUG. Found wrong message for inputTy")
   | OutputTy (_,c,_,p) ->
     eval_trace "outputTy";
-    I.write_comm (chanfind "OutputTy" c) (I.labComm (nullloc,"_FakeTy_"));
+    I.write_comm state (chanfind "OutputTy" c) (I.labComm (nullloc,"_FakeTy_"));
     eval_proc env senv cenv p state
   | ShftUpL (_,c1,c2,p) -> (* n.b., c2 records modality already *)
     eval_trace "ShftUpL";
@@ -210,17 +219,17 @@ struct
          in let ch = I.spawn env' senv' CM.empty dp d (childState state);
             in eval_proc env senv (CM.add cenv c1 ch) p state
     else let (ch,ch') = I.newChan ()
-         in I.write_comm (chanfind "UpcastL" c2) (I.chanComm ch);
+         in I.write_comm state (chanfind "UpcastL" c2) (I.chanComm ch);
             eval_proc env senv (CM.add cenv c1 ch') p state
   | ShftDwR (_,c1,c2,p) ->
     eval_trace "ShftDwR";
     if var2mode c2 = Intuist
     then (match p with
          | InputC (_,ambig,c3,c4,p') when !ambig = `UpCastR ->
-           I.write_comm (chanfind "ShftDwR" c1) (I.valComm (Shared (ShrSrc (c3,p',env,senv))))
+           I.write_comm state (chanfind "ShftDwR" c1) (I.valComm (Shared (ShrSrc (c3,p',env,senv))))
          | _ -> errr (locP pin) "BUG ShftDwR unrestricted p' problems")
     else let ch = I.spawn env senv cenv p c2 (childState state)
-         in I.write_comm (chanfind "ShftDwR" c1) (I.chanComm ch)
+         in I.write_comm state (chanfind "ShftDwR" c1) (I.chanComm ch)
 
   let rec eval_top (env:value SM.t) (esin:toplvl list) : unit =
     match esin with
@@ -229,8 +238,9 @@ struct
                             let v = Exp.eval_exp e (SM.add env (snd f) (Recvar(snd f,e,env)))
                             in eval_top (SM.add env (snd f) v) es 
     | TopProc (ch,p)::es -> clearmaps ();
-                            let chan = I.spawn env CM.empty CM.empty p ch (newstate ())
-                            in if I.is_Term (I.read_comm chan)
+                            let state = newstate () in 
+                            let chan = I.spawn env CM.empty CM.empty p ch state
+                            in if I.is_Term (I.read_comm state chan)
                                then eval_top env es
                                else I.abort "Got non-Term at top-proc. BUG."
     | Pass::es -> eval_top env es
