@@ -19,6 +19,7 @@ sig
                       (* How many times did we communicate along the same channel/polarity *)
                       focusCounter : int ref;
                       unfocusCounter : int ref;
+                      numTailbinds : int ref;
                     }
   val init : unit -> unit
   val log : int list -> string -> unit
@@ -39,7 +40,7 @@ sig
   val getBoxedChan : communicable -> (Fullsyntax.stype * channel) option
   val labComm : label -> communicable
   val getLab : communicable -> label option
-  val forward : channel -> channel -> unit
+  val forward : proc_local -> channel -> channel -> unit
   val procExit : proc_local -> unit
   val request : string -> channel
   val register : string -> channel -> unit

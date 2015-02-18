@@ -13,7 +13,7 @@ sig
   type proc_local
   val eval_proc : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> proc_local -> unit
   val eval_top : (value SM.t) -> toplvl list -> unit
-  val tail_bind_hook : (unit -> unit) ref
+  val tail_bind_hook : (proc_local -> unit) ref
 end
 
 module MkEvaluator = functor (I:Impl) ->
@@ -24,23 +24,28 @@ struct
   (* We need a state to start with *)
   let newstateCounter = ref 0
   let newstate () = incr newstateCounter; 
-      { I.id             = [!newstateCounter] 
-      ; I.childCounter   = ref 0
-      ; I.focusCache     = ref None
-      ; I.focusCounter   = ref 0
-      ; I.unfocusCounter = ref 0 }
+      { I.id               = [!newstateCounter] 
+      ; I.childCounter     = ref 0
+      ; I.focusCache       = ref None
+      ; I.focusCounter     = ref 0
+      ; I.unfocusCounter   = ref 0
+      ; I.numTailbinds = ref 0 }
 
 (* Given a local state compute the state its child should start with.
    Maybe this should return a mutated parent state instead of assuming references *)
   let childState (s:proc_local) : proc_local =
     incr s.I.childCounter;
-    { I.id = s.I.id@[!(s.I.childCounter)]; I.childCounter = ref 0
-    ; I.focusCache = ref None; I.focusCounter = ref 0; I.unfocusCounter = ref 0 }
+    { I.id = s.I.id@[!(s.I.childCounter)]
+    ; I.childCounter = ref 0
+    ; I.focusCache = ref None
+    ; I.focusCounter = ref 0
+    ; I.unfocusCounter = ref 0
+    ; I.numTailbinds = ref 0 }
 
   
   module Exp = MkExpEvaluator(I)
 
-  let tail_bind_hook : (unit -> unit) ref = ref (fun () -> ())
+  let tail_bind_hook : (proc_local -> unit) ref = ref (fun _ -> ())
 
   (* env  -- The functional environment
      senv -- The shared/replicable environment
@@ -101,7 +106,7 @@ struct
     | None -> errr (fst x) " found non-value. BUG.")
   | TailBind (_,c,e,cs) ->
     Thread.yield ();
-    !tail_bind_hook ();
+    !tail_bind_hook state;
     eval_trace "tail-bind";
     (match Exp.eval_exp e env with
     | MonV (Some c',cs',p,env') ->
@@ -202,7 +207,7 @@ struct
     eval_proc env senv cenv p state
   | Fwd (_,c,d) ->
     eval_trace "forward";
-    I.forward (chanfind "Forward" c) (chanfind "Forward" d)
+    I.forward state (chanfind "Forward" c) (chanfind "Forward" d)
   | InputTy (_,_,c,p) ->
     eval_trace "inputTy";
     (match I.getLab (I.read_comm state (chanfind "InputTy" c)) with

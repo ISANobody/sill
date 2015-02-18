@@ -53,6 +53,7 @@ struct
                       (* How many times did we communicate along the same channel/polarity *)
                       focusCounter : int ref;
                       unfocusCounter : int ref;
+                      numTailbinds : int ref;
                     }
   (* Channels aren't serializeable so we can't just directly wrap with redirection info *)
   type commWrapper = WrapTerm of int
@@ -169,7 +170,7 @@ struct
     let Chan (q1,q2) as ch : channel = Chan (Catqueue.create (),Catqueue.create ())
     in let _ = Thread.create (fun () -> SSH_Eval.eval_proc env senv (CM.add cenv c ch) p) () in
        Chan (q2,q1)
-  let forward (Chan (iq1,oq1)) (Chan (iq2,oq2)) =
+  let forward _ (Chan (iq1,oq1)) (Chan (iq2,oq2)) =
       Catqueue.concat iq1 oq2;
       Catqueue.concat iq2 oq1;
       Thread.exit ()

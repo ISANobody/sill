@@ -78,7 +78,7 @@ let pipe_write_comm (ch:pipe_channel) (c:pipe_comm) : unit =
          | Ack -> ()
          | _ -> prerr_endline "Got Non-Ack of send. BUG."; Pervasives.exit 1
 
-let pipe_forward (chin1:pipe_channel) (chin2:pipe_channel) : unit =
+let pipe_forward _ (chin1:pipe_channel) (chin2:pipe_channel) : unit =
   let rec go (ch1:pipe_channel) (ch2:pipe_channel) =
     let r = try read_comm_raw ch1 
             with Bigstring.IOError (_,End_of_file) -> 
@@ -105,10 +105,11 @@ struct
                       (* How many times did we communicate along the same channel/polarity *)
                       focusCounter : int ref;
                       unfocusCounter : int ref;
+                      numTailbinds : int ref;
                     }
   let procExit _ = Pervasives.exit 0
   let abort _ = failwith "pipe-abort unimplemented"
-  let init () = tempdir := Unix.mkdtemp "sill-temp"
+  let init _ = tempdir := Unix.mkdtemp "sill-temp"
   let log _ = failwith "pipe-log unimplemented"
   let free _ = failwith "pipe-free unimplemented"
   let print s = print_string s; flush stdout

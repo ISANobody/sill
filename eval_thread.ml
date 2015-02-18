@@ -12,8 +12,6 @@ let statsLock = Mutex.create ()
 let statsCrit f = if !stats_flag then crit statsLock f
 let threadCount = ref 0
 let fullThreadCount = ref 0
-let maxThreadsTemp = ref 0
-let maxThreads = ref 0
 let focusOps = ref 0
 let focusNonOps = ref 0
 
@@ -35,6 +33,7 @@ struct
                       (* How many times did we communicate along the same channel/polarity *)
                       focusCounter : int ref;
                       unfocusCounter : int ref;
+                      numTailbinds : int ref;
                     }
   let string_of_comm c =
       match c with
@@ -65,16 +64,16 @@ struct
     then statsCrit (fun () -> 
          print_endline ("Threads Created:     "^string_of_int !threadCount);
          print_endline ("Logical Threads:     "^string_of_int !fullThreadCount);
-         print_endline ("Peak Exec Threads:   "^string_of_int !maxThreads);
          print_endline ("Focus Opportunities: "^string_of_int !focusOps);
          print_endline ("Focus Misses:        "^string_of_int !focusNonOps)));
     if !stats_flag
     then Thread_Eval.tail_bind_hook := 
-         (fun () -> statsCrit (fun () -> incr fullThreadCount))
+         (fun state -> statsCrit (fun () -> incr state.numTailbinds))
   let procExit state =
       if !stats_flag
       then statsCrit (fun () -> 
-             decr maxThreadsTemp;
+             incr threadCount;
+             fullThreadCount := !fullThreadCount + 1 + !(state.numTailbinds);
              focusOps := !focusOps + !(state.focusCounter);
              focusNonOps := !focusNonOps + !(state.unfocusCounter));
       Thread.exit ()
@@ -109,13 +108,6 @@ struct
             (state:Thread_Eval.proc_local) =
     let ch : Thread_Eval.channel = (ref (Squeue.create 1),ref (Squeue.create 1))
     in let go = (fun () -> 
-         (* TODO to avoid introducing more syncronicity than needed shouldn't this be on
-                 proc exit? *)
-         statsCrit (fun () -> incr threadCount;
-                              incr fullThreadCount;
-                              incr maxThreadsTemp;
-                              if !maxThreadsTemp > !maxThreads
-                              then maxThreads := !maxThreadsTemp);
          if !eval_trace_flag
          then log state.id 
                   (loc2str (Syntax.Core.locP p)^" bound from "
@@ -126,10 +118,14 @@ struct
   let spawnRemote = spawn
   let newChan () = let (c1,c2) = (ref (Squeue.create 1),ref (Squeue.create 1))
                    in ((c1,c2),(c2,c1))
-  let forward chin1 chin2 =
-    decr maxThreadsTemp;
+  let forward state chin1 chin2 =
     Squeue.push !(fst chin2) (Redir !(snd chin1));
     Squeue.push !(fst chin1) (Redir !(snd chin2));
+    if !stats_flag
+    then statsCrit (fun () -> 
+           incr threadCount;
+           fullThreadCount := !fullThreadCount + 1 + !(state.numTailbinds)
+         );
     Thread.exit ()
   let rec defaultingQueue n =
     match SM.find !globalControl n with
