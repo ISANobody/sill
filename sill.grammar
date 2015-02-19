@@ -10,7 +10,7 @@ anychan ::= <linchan> | <affchan> | <shrchan>
 
 data_level_type ::= { <session_type> <- <';'-separated list of <session_type>> }
                   | { <- <';'-separated list of <session_type>> }
-                  | <uppercase> <' '-separated list of <data_level_type>>
+                  | <uppercase> <' '-separated list of <either_type>>
                   | <lowercase>
                   | ()
                   | ( <data_level_type> )
@@ -19,7 +19,7 @@ data_level_type ::= { <session_type> <- <';'-separated list of <session_type>> }
                   | <data_level_type> -> <data_level_type>
 
 session_type ::= ( <session_type> )
-               | <uppercase> <' '-separated list of <data_level_type>>
+               | <uppercase> <' '-separated list of <either_type>>
                | <anychan>
                | 1
                | ' <session_type>
@@ -36,7 +36,11 @@ session_type ::= ( <session_type> )
 
 session_type_mapping ::= <lowercase> : <session_type>
 
-list_of_vars ::= <' '-separated list of <lowercase>>
+either_type ::= <data_level_type> | <session_type>
+
+any_type_var ::= <lowercase> | <anychan>
+
+list_of_vars ::= <' '-separated list of <any_type_var> >
 
 constructor ::= uppercase <' '-separated list of <data_level_type>>
 
@@ -45,8 +49,6 @@ typedec ::= type <uppercase> <list_of_vars> = <'|'-separated lists of <construct
           | atype <uppercase> <list_of_vars> = <session_type>
           | utype <uppercase> <list_of_vars> = <session_type>
 
-either_type ::= <data_level_type>
-              | <session_type>
 
 pattern_var ::= lowercase 
               | _
@@ -126,8 +128,8 @@ process ::= ( <process> )
           | let <lowercase> <' '-separated list of <pattern_var>> = <expression> ; <process>
           | send <subchan> < <session_type> > ; <process>
           | < <subchan> > <- recv <subchan> ; <process>
-
-any_type_var ::= <lowercase> | <anychan>
+          | send <subchan> shift; <process>
+          | shift <- recv <subchan>; <process>
 
 topsig ::= <lowercase> : <data_level_type> ;;
          | forall < <' '-separated list of <any_type_var>> . <data_level_type>;;
