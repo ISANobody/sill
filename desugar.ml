@@ -288,7 +288,12 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
            in desugarTop (Full.TopProc [(tmp,context (Full.Close(fst tmp,tmp)))]))
   | Full.MTypeDecl (t,fs,cm) -> [Core.MTypeDecl (t,fs,cm)]
   | Full.STypeDecl (modedecl,t,fs,s) -> 
-    (* First record the mode of the type. This might be able to be merged with some other step. *) 
+    (* Check that the type is contractive (i.e., doesn't immediately recurse) *)
+    (match s with
+    | SComp (_,n,_) when n = snd t -> errr (fst t) "Non-contractive type"
+    | _ -> ());
+
+    (* Record the mode of the type. This might be able to be merged with some other step. *) 
     Pure.declModes := SM.add !Pure.declModes (snd t) modedecl;
     (* TODO check that the type is contractive *)
     Pure.declPoles := SM.add !Pure.declPoles (snd t) (Pure.polarity s);

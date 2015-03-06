@@ -142,9 +142,9 @@ let rec polarity : stype -> [`Pos | `Neg] = function
   | Extern _ -> `Neg
   | (Mu _ as t) -> failwith ("Fullsyntax.polarity BUG Mu of "^string_of_stype t)
   | SVar _ -> `Pos
-  | SComp (_,n,_) -> (match SM.find !declPoles n with
+  | SComp (l,n,_) -> (match SM.find !declPoles n with
                    | Some p -> p 
-                   | None -> failwith ("Unknown session type "^n))
+                   | None -> errr l ("Unknown session type "^n))
   | Forall _ -> `Neg
   | Exists _ -> `Pos
   | ShftUp _ -> `Neg

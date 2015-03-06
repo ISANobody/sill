@@ -16,38 +16,45 @@ ltype BS =  &{pop   : +{none:1; some: Int /\ BS};
    elements that are contained in BS, so BS(X) will just assume X is a multiset.
    The fully spelled out version should be something like {x:BS|F(x)} *)
 
-(* The definition of BS(X) would look something like 
+(* Lines that add interesting constraints are listed by where they're generated. *)
+
+(* The definition of BS(x,X) would look something like 
       ltype BS(x,X) = &{pop   : +{none:1; some: x:Int/\ BS(X)};
-                      round : BS(X)};; *)
+                      round : BS(x,X)};; *)
 
 (* empty: {BS(\emptyset)} *)
 (* subtyping means that this could be BS(X) for any X *)
-empty : {BS};;
-'c <- empty =
+empty : {BS};; 
+'c <- empty = (* 'c::{BS | A} *)
   case 'c of
   | pop -> 'c.none;
            close 'c
-  | round -> 'c <- empty;;
+  | round -> 'c <- empty;; (* 'c::{BS | B} and A ==> B *)
 
 (* elem : x:Int -> {BS(x,X) <- BS(X)} *)
 elem : Int -> {BS <- BS};;
-'c <- elem i -< 'd =
+'c <- elem i -< 'd =   (* 'd::{BS | B(x)} and 'c::{BS | A(x)} *)
   case 'c of
   | pop -> 'c.some;
-           send 'c i; (* i \in (i,X) *)
-           'c <- 'd
-  | round -> 'd.round;
+           send 'c i;  (* 'd :: {BS | C(x,i)} *)
+           'c <- 'd    (* C(i) ==> A *)
+  | round -> 'd.round; (* 'd :: {BS | D(x)} *)
              'd.pop;
              case 'd of
              | none -> wait 'd;
                        'e <- empty;
-                       'c <- elem i -< 'e (* BS(i,X) = BS(i,X) *)
-             | some -> x <- recv 'd; (* 'd was BS(x,X) now BS(X) *)
-                       if i > x
-                       then 'e <- elem i -< 'd; (* i>x => 'e : BS(i,X) *)
-                            'c <- elem x -< 'e (* i>x => 'c : BS(x,i,X) which equals BS(i,x,X) *)
-                       else 'e <- elem x -< 'd; (* i<=x => 'e : BS(x,X) *)
-                            'c <- elem i -< 'e;; (* i<=x => 'e : BS(i,x,X) which equals BS(i,x,X) *)
+                       'c <- elem i -< 'e (* F(x) &&& empty ==> A(x) *)
+             | some -> (* 'd :: {j:Int /\ BS | F(j)} *)
+                       x <- recv 'd; (* 'd :: {BS | F(j) } *)
+                       if i > x 
+                       then (* j>x *)
+                            'e <- elem i -< 'd; (* j>x &&& F(j) ==> 'e : {BS | A(j)} *)
+                            'c <- elem x -< 'e (*  (i>x &&& F(j) &&& A(j) ==> A(x))
+                                               &&& A(x) ==> A(x) *)
+                       else (* j<= x *)
+                            'e <- elem x -< 'd; (* j<=x &&& F(j) ==> 'e::A(x)
+                            'c <- elem i -< 'e;; (*  j<=x &&& F(j) &&& 'e::A(x) ==> 'c::A(i) 
+                                                 &&& 'c::A(i) ==> 'c::A(x) *)
 
 (* What we can say here depends a lot on our predicate templates. 
    If we can convert lists to multisets we're fine. *)

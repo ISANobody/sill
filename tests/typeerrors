@@ -496,3 +496,13 @@ close 'd;;
 %%%%
 @6:13 Unconsumed channel 'e
 %%%%
+
+ltype Foo = Bar;;
+%%%%
+@2:13 Unknown session type Bar
+%%%%
+
+ltype Foo = Foo;;
+%%%%
+@2:7 Non-contractive type
+%%%%
