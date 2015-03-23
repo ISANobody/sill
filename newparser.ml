@@ -1,7 +1,8 @@
 open Base
 open Core.Std
 open MParser
-open MParser.Tokens
+open MParser_RE
+open Tokens
 open Vars
 open Fullsyntax
 

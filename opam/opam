@@ -19,7 +19,8 @@ depends: [
   "core"
   "ocamlfind"
   "sexplib"
-  "mparser" {<= "1.0.1"}
+  "re"
+  "mparser"
   "pa_monad_custom"
 ]
 available: [ ocaml-version >= "4.01.0" ]
