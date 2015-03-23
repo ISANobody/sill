@@ -16,12 +16,13 @@ let main =
            +> flag "dynchecks" ~doc:" enable dynamic type checking" no_arg
            +> flag "parseonly" ~doc:" stop after parsing" no_arg
            +> flag "strict-polarity" ~doc:" do not insert implicit shifts" no_arg
+           +> flag "wall" ~doc:" print type checking warnings" no_arg
            +> Spec.flag "gkind" ~doc:"linear|one_weaken|affine select global channel kind"
                                 (optional_with_default "linear" string)
            +> (anon ("<program>" %: file)))
   and realMain (backend:string) (eval_trace:bool) (live_trace:bool) (infer_trace:bool) (sub_trace:bool) 
                (unif_trace:bool) (stats:bool) (dyncheck:bool) (parseonly:bool) 
-               (polarity:bool)
+               (polarity:bool) (wall:bool)
                (gkind:string) (prog:string)  () = 
       eval_trace_flag := eval_trace;
       live_trace_flag := live_trace;
@@ -32,6 +33,7 @@ let main =
       dynchecks_flag := dyncheck;
       backend_choice := backend;
       polarity_flag := polarity;
+      wall_flag := wall;
       global_channel_kind := gkind;
       reinit();
       let p = Newparser.main prog

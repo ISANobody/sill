@@ -506,3 +506,8 @@ ltype Foo = Foo;;
 %%%%
 @2:7 Non-contractive type
 %%%%
+
+ltype Foo = @1;;
+%%%%
+@2:7 Expected an linear type but found a affine type.
+%%%%

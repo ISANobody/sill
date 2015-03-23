@@ -290,14 +290,21 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
   | Full.STypeDecl (modedecl,t,fs,s) -> 
     (* Check that the type is contractive (i.e., doesn't immediately recurse) *)
     (match s with
-    | SComp (_,n,_) when n = snd t -> errr (fst t) "Non-contractive type"
+    | Pure.SComp (_,n,_) when n = snd t -> errr (fst t) "Non-contractive type"
     | _ -> ());
 
     (* Record the mode of the type. This might be able to be merged with some other step. *) 
     Pure.declModes := SM.add !Pure.declModes (snd t) modedecl;
-    (* TODO check that the type is contractive *)
+   
+    (* Record the polarity of the type *)
     Pure.declPoles := SM.add !Pure.declPoles (snd t) (Pure.polarity s);
     sessionQs := SM.add !sessionQs (snd t) fs;
+
+    (* Check that the mode of the type matches its declaration. A Linear mode is ok
+       here because it will be fixed by later propagation of modedecl *)
+    if not (modedecl = Pure.getmode s || Pure.getmode s = Linear)
+    then errr (fst t) ("Expected an "^string_of_mode modedecl^" type but found a "
+                      ^string_of_mode (Pure.getmode s)^" type.");
 
     (* If t is mentioned recursively we need to add mu's to it.
        To ensure regularity we enforce that recursive calls cannot have arguments.

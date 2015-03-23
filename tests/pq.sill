@@ -1,0 +1,125 @@
+ltype PQ = &{ins: Int => PQ;
+             del: +{none: 1; some: Int /\ PQ}};;
+
+empty : () -> {PQ};;
+
+'c <- empty u =
+case 'c of
+| ins -> x <- recv 'c ;
+         'e <- empty () ;
+         'c <- elem x -< 'e
+| del -> 'c.none ; close 'c
+
+and 
+
+elem : Int -> {PQ <- PQ};;
+'c <- elem x -< 'd =
+case 'c of
+| ins -> y <- recv 'c ;
+         if x <= y
+         then 'd.ins ; send 'd y ;
+              'c <- elem x -< 'd
+         else 'e <- elem x -< 'd ;
+              'c <- elem y -< 'e
+| del -> 'c.some ; send 'c x ;
+         'c <- 'd
+;;
+
+ltype PQ_DEL = &{del: +{none: 1; some: Int /\ PQ_DEL}}
+;;
+
+ltype PQ_INS = &{ins: Int => PQ_INS;
+                 del: +{none: 1; some: Int /\ PQ_DEL}}
+;;
+
+(* PQ <: PQ_INS <: PQ_DEL *)
+
+ltype List = +{nil: 1; cons: Int /\ List};;
+
+dq : {List <- PQ_DEL};;
+'c <- dq -< 'q =
+'q.del ;
+case 'q of
+| none -> wait 'q ;
+         'c.nil ; close 'c
+| some -> x <- recv 'q ;
+          'c.cons ; send 'c x ;
+          'c <- dq -< 'q
+;;
+
+sq : {List <- PQ_INS; List};;
+'c <- sq -< 'q 'd =
+case 'd of
+| nil -> wait 'd ;
+         'c <- dq -< 'q
+| cons -> x <- recv 'd ;
+          'q.ins ; send 'q x ;
+          'c <- sq -< 'q 'd
+;;
+
+sort : {List <- List};;
+'c <- sort -< 'd =
+'q <- empty () ;  (* 'q : PQ *)
+'c <- sq -< 'q 'd
+;;
+
+
+read_elem : Int -> {PQ <- PQ};;
+'c <- read_elem x -< 'd =
+'d.del ;
+case 'd of
+| none -> abort
+| some -> y <- recv 'd ;
+          print x ; print_str " " ;
+          if (x = y)
+          then 'c <- 'd
+          else abort
+;;
+
+dealloc : {1 <- PQ};;
+'u <- dealloc -< 'd =
+'d.del ;
+case 'd of
+| none -> wait 'd ; close 'u
+| some -> abort
+;;
+
+down : Int -> {List};;
+'c <- down n =
+if (n <= 0)
+then 'c.nil ; close 'c
+else 'c.cons ; send 'c n ; 'c <- down (n-1)
+;;
+
+print_list : {1 <- List};;
+'u <- print_list -< 'd =
+case 'd of
+| nil -> print_str "\n" ;
+         wait 'd ;
+         close 'u
+| cons -> x <- recv 'd ;
+          print x ; print_str " " ;
+          'u <- print_list -< 'd
+;;
+
+'top <- ('q <- empty () ;
+         'q.ins ; send 'q 3 ;
+         'q.ins ; send 'q 1 ;
+         'q <- read_elem 1 -< 'q ;
+         'q.ins ; send 'q 5 ;
+         'q <- read_elem 3 -< 'q ;
+         'q <- read_elem 5 -< 'q ;
+         'u <- dealloc -< 'q ;
+         wait 'u ;
+         print_str "\n" ;
+         close 'top)
+;;
+
+'top <- ('l <- down 17 ;
+         'u <- print_list -< 'l ; wait 'u ;
+         'l <- down 17 ;
+         's <- sort -< 'l ;
+         'u <- print_list -< 's ;
+         wait 'u ;
+         close 'top)
+;;

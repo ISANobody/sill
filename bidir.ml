@@ -198,7 +198,6 @@ let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) 
   | Comp (_,args) -> List.iter args (function
                                     | `M m -> wfM_ vs loc wfms wfss m
                                     | `S s -> wfS_ vs loc wfms wfss s)
-(* TODO check for polarization correctness *)
 and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
   if memq tin vs then () else
   let go (mode:modality) (s:stype) : unit =
@@ -271,6 +270,8 @@ and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
   | ShftUp (_,s) -> check `Pos s; polS_ (tin::vs) loc s
   | ShftDw (_,s) -> check `Neg s; polS_ (tin::vs) loc s
                  
+let infFocusWarning (vs: SS.t) (tin:stype) : unit =
+  () (* TODO Stuff *)
 
 let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = 
   if !polarity_flag then polM_ [] loc tin;

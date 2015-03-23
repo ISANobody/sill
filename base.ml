@@ -10,6 +10,7 @@ let dynchecks_flag : bool ref = ref false
 let global_channel_kind : string ref = ref "linear"
 let backend_choice : string ref = ref "none?!"
 let polarity_flag : bool ref = ref false
+let wall_flag : bool ref = ref false
 
 module SM = Core.Std.Map.Make_binable(Core.Std.String)
 module SS = Core.Std.Set.Make_binable(Core.Std.String) 
