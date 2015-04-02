@@ -10,6 +10,7 @@ last step is optional):
    sudo apt-get install oasis opam m4
    opam init
    <follow opam init instructions>
+   opam install <the packages listed in opam/opam's depends field>
    ocaml setup.ml -configure
    ocaml setup.ml -build
    sudo ocaml setup.ml -install
