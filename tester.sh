@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Must be used from src directory
 # cd's into test dir and then runs all tests comaparing output
 # If given a particular file the testing function only on that file
