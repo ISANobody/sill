@@ -483,7 +483,7 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
      let Poly (qs,t) = lookupcommon env x
      in if not ((List.length qs) = (List.length ss))
         then errr (locE ein) (string_of_fvar x ^ " has "^string_of_int (List.length qs)
-                             ^" quantifier(s) in its type "^string_of_ptype (FM.find_exn env x)
+                             ^" quantifier(s) in its type "^string_of_ptype (Poly (qs,t))
                              ^" but "^string_of_int (List.length ss)^" type(s) were supplied");
 
         let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)

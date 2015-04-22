@@ -81,6 +81,7 @@ let binApply (binop:binop) ((v1,v2):value*value) : value =
                    ^"("^string_of_value v1^", "^string_of_value v2^")")
 
 let rec eval_exp (exp:exp) (m:memory) : value = 
+  if !live_trace_flag then print_endline (loc2str (locE exp));
   match exp with 
     Con (_,t) -> const_to_val t
   | Var (_,x)   ->
