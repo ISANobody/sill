@@ -355,6 +355,11 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
    | Sat (_,c,args) ->
      (match !(getMType tin) with
      | Comp (name,argts) ->
+       (match SM.find !conTypeNames c with
+       | Some name' -> if not (name = name')
+                       then errr (locE ein) ("Expected a conctructor for "^name
+                                            ^" but found "^c^" a constructor for "^name')
+       | None -> errr (locE ein) ("Unbound constructor "^c));
        (match SM.find !conTypes c with (* TODO check for type agreement here? *)
        | Some (qs,cargts,_) -> 
          if not (List.length args = List.length cargts)

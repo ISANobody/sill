@@ -170,7 +170,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
     else ((* To desugar a mutual recursive function we do the following:
             1: Create a mtype with one constructor per function.
                Each constructor type is the list of types of arguments of the function.
-            2: Create a mtype with on constructor per function.
+            2: Create a mtype with one constructor per function.
                Its types are the result types of its functions.
             3: Create the combined function. To avoid name mangling in the body, we first
                create local copies of the wrappers that present a mutually recursive view
@@ -181,6 +181,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
       (* TODO test case for this error *)
       FM.iter defs (fun ~key:name ~data:tmp -> match tmp with
                    | (_,(Pure.Poly (_,(Pure.Comp("->",_)))),_,_) -> ()
+                   | (_,(Pure.Poly (_,(Pure.MonT(_,_)))),_,_) -> ()
                    | _ -> errr (fst name) ("Mutually recursive bindings must be functions. "
                                           ^snd name^" isn't."));
 

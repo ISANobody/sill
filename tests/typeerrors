@@ -511,3 +511,9 @@ ltype Foo = @1;;
 %%%%
 @2:7 Expected an linear type but found a affine type.
 %%%%
+
+foo : Int -> Bool;;
+foo = ();;
+%%%%
+@3:7 Expected a conctructor for -> but found () a constructor for ()
+%%%%
