@@ -332,7 +332,9 @@ and lookupcommon (env:funenv) (x:fvar) : ptype =
      | "aesdec" -> Poly ([`M "a"],
        mkfun stringtype (mkfun (mkcomp "AESKey" []) (ref (MVarU "a"))))
      | "aeskey" -> Poly([],mkfun unittype (mkcomp "AESKey" []))
-     | _ -> errr (fst x) ("Variable "^string_of_fvar x^" not found")))
+     | _ when string_of_fvar x = String.lowercase (string_of_fvar x) -> 
+           errr (fst x) ("Variable "^string_of_fvar x^" not found")
+     | _ -> errr (fst x) ("Constructor "^string_of_fvar x^" not found")))
 
 and varcommon (env:funenv) (x:fvar) : mtype =
   let Poly (qs,t) = lookupcommon env x

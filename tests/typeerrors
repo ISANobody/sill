@@ -525,3 +525,9 @@ foo = A<Int>;;
 %%%%
 @5:7 A has 0 quantifier(s) in its type Foo but 1 type(s) were supplied
 %%%%
+
+foot : Int;;
+foot = A;;
+%%%%
+@3:8 Constructor A not found
+%%%%
