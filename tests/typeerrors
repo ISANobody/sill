@@ -531,3 +531,15 @@ foot = A;;
 %%%%
 @3:8 Constructor A not found
 %%%%
+
+foo : {'a};;
+'c <- foo = close 'c;;
+%%%%
+@3:7 'a is not in scope
+%%%%
+
+foo : forall <a>. a -> b -> a;;
+foo a b = a;;
+%%%%
+@3:1 b is not in scope
+%%%%
