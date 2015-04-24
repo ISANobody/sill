@@ -126,8 +126,8 @@ type Foo 'a b = Foo b
               | Bar {'a}
               | Baz {'a <- 'a} b;;
 
-f : Foo 1 Int;;
-f = Foo<1,Int> 5;;
+f0 : Foo 1 Int;;
+f0 = Foo<1,Int> 5;;
 
 f : Foo 1 Int;;
 f = Bar<1,Int> 'c <- { close 'c };;
@@ -138,11 +138,11 @@ g = case f of
     | Bar _ -> False
     | Baz _ _ -> True;;
 
-f : forall <a,'b> . a -> Foo 'b a;;
-f a = Foo<'b,a> a
+f' : forall <a,'b> . a -> Foo 'b a;;
+f' a = Foo<'b,a> a
 and
-g : forall <'c,x> . {'c} -> Foo 'c x;;
-g m = Bar<'c,x> m;;
+g' : forall <'c,x> . {'c} -> Foo 'c x;;
+g' m = Bar<'c,x> m;;
 
 h : forall <a,'b> . a -> Foo 'b a;;
 h a = Foo<'b,a> a

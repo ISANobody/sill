@@ -287,14 +287,14 @@ let rec subsumeM (rule:string) (wfms: SS.t) (wfss: TS.t) (env:funenv) (e:exp) (t
   prettyUnifM rule (locE e) (synthM wfms wfss env e) t
 
 (* TODO `M case should just convert to the `P case and call that *)
-and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv) 
+and letcommon_ (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv) 
               (tin:[`M of Fullsyntax.mtype | `P of Fullsyntax.ptype])
-              (x:fvar) (e:exp) : ptype =
+              (y:fvar) (e:exp option) : ptype =
     match tin with
     | `M t -> 
       let mvs = SS.fold (Fullsyntax.freeMVarsMPure t) ~init:[] ~f:(fun acc x -> `M x :: acc)
       and svs = TS.fold (Fullsyntax.freeSVarsMPure t) ~init:[] ~f:(fun acc x -> `S x :: acc)
-      in letcommon sloc wfms wfss env (`P (Fullsyntax.Poly(mvs@svs,t))) x e
+      in letcommon_ sloc wfms wfss env (`P (Fullsyntax.Poly(mvs@svs,t))) y e
     | `P (Fullsyntax.Poly (qs,t)) ->
       let wfms' = List.fold qs ~init:wfms ~f:(fun acc x -> match x with
                                                            | `M v -> SS.add acc v
@@ -304,8 +304,15 @@ and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv)
                                                            | `M _ -> acc)
       and t' = puretoptrM t
       in wfM sloc wfms' wfss' t';
-         checkM wfms' wfss' (FM.add env x (Poly(qs,t'))) e t';
+         (match e with
+         | Some e' -> checkM wfms' wfss' (FM.add env y (Poly(qs,t'))) e' t'
+         | None -> ());
          Poly(qs,t')
+
+and letcommon (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv) 
+              (tin:[`M of Fullsyntax.mtype | `P of Fullsyntax.ptype])
+              (x:fvar) (e:exp) : ptype =
+    letcommon_ sloc wfms wfss env tin x (Some e)
 
 and lookupcommon (env:funenv) (x:fvar) : ptype =
   match FM.find env x with
@@ -1159,12 +1166,42 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                                    | `Left t' | `Right t' -> Some t')
         | _ -> errr (locP pin) ("DownR: Expected ShiftDw type. Found: "^string_of_stype tin))
 
+let gatherTopTys (ds:toplvl list) : ptype FM.t =
+  List.fold_left ds ~init:FM.empty
+    ~f:(fun env d -> clearmaps ();
+       match d with
+       | Pass | TopProc _ -> env
+       | TopLet (f,t,_) -> 
+         if FM.mem env f
+         then errr (fst f) ("Duplicate defintion of "^string_of_fvar f)
+         else FM.add env f (letcommon_ (fst f) SS.empty TS.empty env t f None)
+       | ServDecl (f,s) -> sessions := FM.add !sessions f (Connection.puretoptrS s); env
+       | MTypeDecl (t,fs,cm) -> SM.iter cm (fun ~key:c ~data:a -> 
+           Types.Dest.conTypeNames := SM.add !Types.Dest.conTypeNames c (snd t);
+           Types.Dest.conArities := SM.add !Types.Dest.conArities c (List.length a);
+           Types.Dest.conTypes := SM.add !Types.Dest.conTypes c 
+          (fs
+          ,List.map a Connection.puretoptrM,ref(Comp(snd t,List.map fs (function 
+                                                                       | `M x -> `M (ref (MVarU x))
+                                                                       | `S s -> `S (ref (SVarU s)))))));
+          env
+       | STypeDecl (t,fs,s) -> 
+         let s' = Connection.puretoptrS s
+         in Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
+            env)
+
 let toplevel (ds:toplvl list) : unit=
-  let _ = List.fold_left ds ~init:FM.empty
+  let env = gatherTopTys ds
+  in List.iter ds 
+    ~f:(function
+       | Pass | ServDecl _ | MTypeDecl _ | STypeDecl _ -> ()
+       | TopLet (f,t,e) -> let _ = letcommon (fst f) SS.empty TS.empty env t f e in ()
+       | TopProc (c,p) -> allconsumed "top" (checkS SS.empty TS.empty env CM.empty p c (mkstop Linear))
+       )
+  (* let _ = List.fold_left ds ~init:()
     ~f:(fun env d -> clearmaps ();
         match d with
-        | TopLet (f,t,e) -> let p = letcommon (fst f) SS.empty TS.empty env t f e
-                            in  FM.add env f p
+        | TopLet (f,t,e) -> let _ = letcommon (fst f) SS.empty TS.empty env t f e in ()
         | TopProc (c,p) -> allconsumed "top" (checkS SS.empty TS.empty env CM.empty p c (mkstop Linear));
                            env
         | Pass -> env
@@ -1183,4 +1220,4 @@ let toplevel (ds:toplvl list) : unit=
           in (* print_endline (string_of_stype s'); *)
              Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
              env)
-  in ()
+  in () *)

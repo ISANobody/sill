@@ -312,9 +312,9 @@ and freeSVarsSPure (tin:stype) : TS.t =
   | Sync s -> freeSVarsSPure s
 
 type toplet =
-  | TopExp of fvar * [`M of mtype | `P of ptype] * fvar list * exp
-  | TopMon of fvar * [`M of mtype | `P of ptype] * fvar list * cvar * proc * cvar list
-  | TopDet of fvar * [`M of mtype | `P of ptype] * fvar list * srcloc * proc * cvar list
+  | TopExp of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * exp
+  | TopMon of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * cvar * proc * cvar list
+  | TopDet of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * srcloc * proc * cvar list
 
 type toplvl =
   | TopLets of (fvar * ptype * fvar list * exp) FM.t
@@ -356,9 +356,9 @@ let locP (p:proc) : srcloc =
 
 let locToplet (tin:toplet) : srcloc =
   match tin with
-  | TopExp (name,_,_,_) -> fst name
-  | TopMon (name,_,_,_,_,_) -> fst name
-  | TopDet (name,_,_,_,_,_) -> fst name
+  | TopExp (name,_,_,_,_) -> fst name
+  | TopMon (name,_,_,_,_,_,_) -> fst name
+  | TopDet (name,_,_,_,_,_,_) -> fst name
 
 let rec freeCVars (pin:proc) : CS.t =
   match pin with

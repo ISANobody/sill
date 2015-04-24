@@ -301,7 +301,7 @@ t && = 5;;
 Error in line 3, column 3:
 t && = 5;;
   ^
-Expecting "=" or pattern variable
+Expecting "=", pattern variable or quantifier list (e.g., <a,'b,@c>)
 %%%%
 
 'top <- &&;;
@@ -355,7 +355,7 @@ t:Int;;
 Error in line 3, column 9:
 'c <- t && -< 'd =
         ^
-Expecting "-<", "=" or pattern variable
+Expecting "-<", "=", pattern variable or quantifier list (e.g., <a,'b,@c>)
 %%%%
 
 t:Int;;

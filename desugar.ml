@@ -143,14 +143,19 @@ and desugarProc (this:cvar) (scope:CS.t) (pin:Full.proc) : Core.proc =
    is much easier than normal *)
 let rec desugartoplet (tin:Full.toplet) : (fvar * Pure.ptype * fvar list * Full.exp) =
   match tin with
-  | Full.TopExp (x,`P p,pats,e)  -> (x, p,pats,e)
-  | Full.TopExp (f1,`M m,pats,e) -> desugartoplet (
+  | Full.TopExp (x,`P p,None,pats,e)  -> (x, p,pats,e)
+  | Full.TopExp (x,`P (Pure.Poly(qs,p)),Some qs',pats,e)  -> 
+    (* TODO is this really the best place to check this? *)
+    (* TODO add a test case to typeerrors *)
+    if not (qs = qs') then errr (fst x) ("Mismatched quantifier names.");
+    desugartoplet (Full.TopExp (x,`P (Pure.Poly(qs,p)),None,pats,e))
+  | Full.TopExp (f1,`M m,qs,pats,e) -> desugartoplet (
     Full.TopExp (f1,`P (Pure.Poly(List.map (SS.to_list (Full.freeMVarsMPure m))
-                                               (fun x -> `M x),m)),pats,e))
-  | Full.TopMon (name,tysig,pats,c,proc,cs) ->
-    desugartoplet (Full.TopExp (name,tysig,pats,(Full.Monad ((fst c),Some c,proc,cs))))
-  | Full.TopDet (name,tysig,pats,loc,proc,cs) ->
-    desugartoplet (Full.TopExp (name,tysig,pats,(Full.Monad (loc,None,proc,cs))))
+                                               (fun x -> `M x),m)),qs,pats,e))
+  | Full.TopMon (name,tysig,qs,pats,c,proc,cs) ->
+    desugartoplet (Full.TopExp (name,tysig,qs,pats,(Full.Monad ((fst c),Some c,proc,cs))))
+  | Full.TopDet (name,tysig,qs,pats,loc,proc,cs) ->
+    desugartoplet (Full.TopExp (name,tysig,qs,pats,(Full.Monad (loc,None,proc,cs))))
 
 (* We special case the time when we don't need to handle mutual recursion. If we had a
    general purpose optimization phase, perhaps "remove single constructor enums" would

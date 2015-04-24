@@ -261,6 +261,13 @@ let quant_list comb : ([`M of string | `S of tyvar] list, 's) MParser.t =
     | Some (`S x,s) -> fun _ ->
         Consumed_failed (unexpected_error s ("duplicate quantifier "^string_of_tyvar x))
 
+let java_quant_list : ([`M of string | `S of tyvar] list, 's) MParser.t =
+  (perform
+    skip_symbol "<";
+    qs <-- quant_list (fun x -> sep_by x (skip_symbol ","));
+    skip_symbol ">";
+    return qs) <?> "quantifier list (e.g., <a,'b,@c>)"
+
 let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
   perform
     name <-- id_upper;
@@ -1062,11 +1069,7 @@ let topsig =
     skip_symbol ":";
     (perform
       skip_symbol "forall";
-      qs <-- (perform
-        skip_symbol "<";
-        qs <-- quant_list (fun x -> sep_by x (skip_symbol ","));
-        skip_symbol ">";
-        return qs) <?> "quantifier list (e.g., <a,'b,@c>)";
+      qs <-- java_quant_list;
       skip_symbol ".";
       t <-- mtype;
       return (name,`P (Poly (qs,t))))
@@ -1087,45 +1090,48 @@ let topdef_ =
     skip_symbol ";;";
     (perform
       name <-- expectId (fst t);
+      qs <-- option java_quant_list;
       pats <-- patvar_list many;
       skip_symbol "=";
       e <-- exp;
-      return (name,TopExp (name,snd t,pats,e)))
+      return (name,TopExp (name,snd t,qs,pats,e)))
     <|>
     (perform
        c <-- anychan;
        skip_symbol "<-";
        name <-- expectId (fst t);
+       qs <-- option java_quant_list;
        pats <-- patvar_list many;
        (perform
          skip_symbol "=";
          p <-- proc;
-         return (name,TopMon (name,snd t,pats,c,p,[])))
+         return (name,TopMon (name,snd t,qs,pats,c,p,[])))
        <|>
        (perform
           skip_symbol "-<";
           cs <-- many anychan;
           skip_symbol "=";
           p <-- proc;
-          return (name,TopMon (name,snd t,pats,c,p,cs))))
+          return (name,TopMon (name,snd t,qs,pats,c,p,cs))))
     <|>
     (perform
        sloc <-- getSloc;
        c <-- skip_symbol "_";
        skip_symbol "<-";
        name <-- expectId (fst t);
+       qs <-- option java_quant_list;
        pats <-- patvar_list many;
        (perform
          skip_symbol "=";
          p <-- proc;
-         return (name,TopDet (name,snd t,pats,sloc,p,[])))
+         return (name,TopDet (name,snd t,qs,pats,sloc,p,[])))
        <|>
        (perform
           skip_symbol "-<";
           cs <-- many anychan;
           skip_symbol "=";
           p <-- proc;
-          return (name,TopDet (name,snd t,pats,sloc,p,cs))))
+          return (name,TopDet (name,snd t,qs,pats,sloc,p,cs))))
     <?> ("definition for "^snd (fst t))
 
 let topdef : (toplvl,'s) MParser.t = 
