@@ -511,3 +511,35 @@ ltype Foo = @1;;
 %%%%
 @2:7 Expected an linear type but found a affine type.
 %%%%
+
+foo : Int -> Bool;;
+foo = ();;
+%%%%
+@3:7 Expected a conctructor for -> but found () a constructor for ()
+%%%%
+
+type Foo = A;;
+
+foo : Foo;;
+foo = A<Int>;;
+%%%%
+@5:7 A has 0 quantifier(s) in its type Foo but 1 type(s) were supplied
+%%%%
+
+foot : Int;;
+foot = A;;
+%%%%
+@3:8 Constructor A not found
+%%%%
+
+foo : {'a};;
+'c <- foo = close 'c;;
+%%%%
+@3:7 'a is not in scope
+%%%%
+
+foo : forall <a>. a -> b -> a;;
+foo a b = a;;
+%%%%
+@3:1 b is not in scope
+%%%%

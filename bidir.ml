@@ -332,7 +332,9 @@ and lookupcommon (env:funenv) (x:fvar) : ptype =
      | "aesdec" -> Poly ([`M "a"],
        mkfun stringtype (mkfun (mkcomp "AESKey" []) (ref (MVarU "a"))))
      | "aeskey" -> Poly([],mkfun unittype (mkcomp "AESKey" []))
-     | _ -> errr (fst x) ("Variable "^string_of_fvar x^" not found")))
+     | _ when string_of_fvar x = String.lowercase (string_of_fvar x) -> 
+           errr (fst x) ("Variable "^string_of_fvar x^" not found")
+     | _ -> errr (fst x) ("Constructor "^string_of_fvar x^" not found")))
 
 and varcommon (env:funenv) (x:fvar) : mtype =
   let Poly (qs,t) = lookupcommon env x
@@ -355,6 +357,11 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
    | Sat (_,c,args) ->
      (match !(getMType tin) with
      | Comp (name,argts) ->
+       (match SM.find !conTypeNames c with
+       | Some name' -> if not (name = name')
+                       then errr (locE ein) ("Expected a conctructor for "^name
+                                            ^" but found "^c^" a constructor for "^name')
+       | None -> errr (locE ein) ("Unbound constructor "^c));
        (match SM.find !conTypes c with (* TODO check for type agreement here? *)
        | Some (qs,cargts,_) -> 
          if not (List.length args = List.length cargts)
@@ -478,7 +485,7 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
      let Poly (qs,t) = lookupcommon env x
      in if not ((List.length qs) = (List.length ss))
         then errr (locE ein) (string_of_fvar x ^ " has "^string_of_int (List.length qs)
-                             ^" quantifier(s) in its type "^string_of_ptype (FM.find_exn env x)
+                             ^" quantifier(s) in its type "^string_of_ptype (Poly (qs,t))
                              ^" but "^string_of_int (List.length ss)^" type(s) were supplied");
 
         let subM,subS = List.fold2_exn qs ss ~init:(SM.empty,TM.empty)
