@@ -36,7 +36,7 @@ ltype PQ_INS = &{ins: Int => PQ_INS;
 
 ltype List = +{nil: 1; cons: Int /\ List};;
 
-dq : {List <- PQ_DEL};;
+dq : {List <- PQ};; (* PQ_DEL *)
 'c <- dq -< 'q =
 'q.del ;
 case 'q of
@@ -47,7 +47,7 @@ case 'q of
           'c <- dq -< 'q
 ;;
 
-sq : {List <- PQ_INS; List};;
+sq : {List <- PQ; List};; (* PQ_INS *)
 'c <- sq -< 'q 'd =
 case 'd of
 | nil -> wait 'd ;
