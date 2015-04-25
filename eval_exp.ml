@@ -5,6 +5,8 @@ open Vars
 open Value
 open Connection
 
+let topenv : value SM.t ref = ref SM.empty
+
 (* Since we want some ability to make printing backend dependent, we need a real usage of
    modules here *)
 module type ExpEvaluator =
@@ -89,19 +91,24 @@ let rec eval_exp (exp:exp) (m:memory) : value =
     | Some (Recvar(f,e,m')) -> eval_exp e (SM.add m' (snd x) (Recvar(f,e,m')))
     | Some v -> v
     | None ->
-      (match SM.find !Types.Dest.conArities (snd x) with
-      | Some n -> eval_exp (satfun n (snd x)) m
+      (match SM.find !topenv (snd x) with
+      | Some (Recvar(f,e,m')) -> eval_exp e (SM.add m' (snd x) (Recvar(f,e,m')))
+      | Some v -> v
       | None -> 
-      (match snd x with
-      | "assert"  -> monfun Assert
-      | "print"   -> monfun Print
-      | "sleep"   -> monfun Sleep
-      | "flush"   -> monfun Flush
-      | "print_str" -> monfun PrintStr
-      | "i2s" -> monfun IToS
-      | "sexp2s" -> monfun SexpToS
-      | _ -> failwith ("BUG eval_exp: var not found "^string_of_fvar x^" at "^loc2string (locE exp)
-                      ^" this should have been caught by typechecking"))))
+        (match SM.find !Types.Dest.conArities (snd x) with
+        | Some n -> eval_exp (satfun n (snd x)) m
+        | None -> 
+          (match snd x with
+          | "assert"  -> monfun Assert
+          | "print"   -> monfun Print
+          | "sleep"   -> monfun Sleep
+          | "flush"   -> monfun Flush
+          | "print_str" -> monfun PrintStr
+          | "i2s" -> monfun IToS
+          | "sexp2s" -> monfun SexpToS
+          | _ -> failwith ("BUG eval_exp: var not found "^string_of_fvar x^" at "
+                          ^loc2string (locE exp) 
+                          ^" this should have been caught by typechecking")))))
   | Bin(_,binop, e1, e2) -> binApply binop (eval_exp e1 m, eval_exp e2 m) 
   | Mon(_,monop, e1) -> monApply monop (eval_exp e1 m)
   | App(_,e1, e2) -> 

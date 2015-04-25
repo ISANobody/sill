@@ -317,8 +317,8 @@ type toplet =
   | TopDet of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * srcloc * proc * cvar list
 
 type toplvl =
-  | TopLets of (fvar * ptype * fvar list * exp) FM.t
-  | TopLets_ of toplet FM.t
+  | TopLets of (fvar * ptype * fvar list * exp)
+  | TopLets_ of toplet
   | TopProc of (cvar * proc) list
   | MTypeDecl of fvar * [`M of string | `S of tyvar] list * mtype list SM.t (* C a = C a b c *)
   | STypeDecl of modality * fvar * [`M of string | `S of tyvar] list * stype (* C a = s *)

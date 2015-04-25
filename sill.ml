@@ -44,10 +44,10 @@ let main =
          Bidir.toplevel pds;
          match !backend_choice with
          | "thread" -> Eval_thread.Impl_Thread.init();
-                       Eval_thread.Thread_Eval.eval_top SM.empty pds
+                       Eval_thread.Thread_Eval.eval_top pds
          | "fork" -> Eval_pipe.Impl_Pipe.init();
-                     Eval_pipe.Pipe_Eval.eval_top SM.empty pds
+                     Eval_pipe.Pipe_Eval.eval_top pds
          | "ssh" -> Eval_ssh.Impl_SSH.init();
-                    Eval_ssh.SSH_Eval.eval_top SM.empty pds
+                    Eval_ssh.SSH_Eval.eval_top pds
          | _ -> prerr_endline "Unknown backend option"
   in run ~version:"1.3.1" (basic ~summary:"SILL interpreter" spec realMain)

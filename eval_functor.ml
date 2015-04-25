@@ -12,7 +12,7 @@ sig
   type channel
   type proc_local
   val eval_proc : (value SM.t) -> (shrsrc CM.t) -> (channel CM.t) -> proc -> proc_local -> unit
-  val eval_top : (value SM.t) -> toplvl list -> unit
+  val eval_top : toplvl list -> unit
   val tail_bind_hook : (proc_local -> unit) ref
 end
 
@@ -236,20 +236,21 @@ struct
     else let ch = I.spawn env senv cenv p c2 (childState state)
          in I.write_comm state (chanfind "ShftDwR" c1) (I.chanComm ch)
 
-  let rec eval_top (env:value SM.t) (esin:toplvl list) : unit =
+  let rec eval_top (esin:toplvl list) : unit =
     match esin with
     | [] -> Pervasives.exit 0
     | TopLet (f,_,e)::es -> clearmaps ();
-                            let v = Exp.eval_exp e (SM.add env (snd f) (Recvar(snd f,e,env)))
-                            in eval_top (SM.add env (snd f) v) es 
+                            let v = Exp.eval_exp e (SM.add !topenv (snd f) (Recvar(snd f,e,SM.empty)))
+                            in topenv := SM.add !topenv (snd f) v;
+                               eval_top es 
     | TopProc (ch,p)::es -> clearmaps ();
                             let state = newstate () in 
-                            let chan = I.spawn env CM.empty CM.empty p ch state
+                            let chan = I.spawn !topenv CM.empty CM.empty p ch state
                             in if I.is_Term (I.read_comm state chan)
-                               then eval_top env es
+                               then eval_top es
                                else I.abort "Got non-Term at top-proc. BUG."
-    | Pass::es -> eval_top env es
-    | ServDecl _::es -> eval_top env es
-    | MTypeDecl _::es -> eval_top env es
-    | STypeDecl _::es -> eval_top env es
+    | Pass::es -> eval_top es
+    | ServDecl _::es -> eval_top es
+    | MTypeDecl _::es -> eval_top es
+    | STypeDecl _::es -> eval_top es
 end

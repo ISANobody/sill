@@ -157,122 +157,12 @@ let rec desugartoplet (tin:Full.toplet) : (fvar * Pure.ptype * fvar list * Full.
   | Full.TopDet (name,tysig,qs,pats,loc,proc,cs) ->
     desugartoplet (Full.TopExp (name,tysig,qs,pats,(Full.Monad (loc,None,proc,cs))))
 
-(* We special case the time when we don't need to handle mutual recursion. If we had a
-   general purpose optimization phase, perhaps "remove single constructor enums" would
-   allow us to collapse these cases without an evaluation performance hit. *)
 let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
-  match tin with
+  match tin with (* TODO do we need to return lists here? *)
   | Full.ServDecl (f,s) -> [Core.ServDecl (f,s)]
-  | Full.TopLets_ defs -> desugarTop (Full.TopLets (FM.map defs desugartoplet))
-  | Full.TopLets defs -> 
-    if FM.length defs = 1
-    then [Core.TopLet (List.nth_exn (FM.keys defs) 0
-         ,(let (_,t,_,_) = List.nth_exn (FM.data defs) 0 in `P t)
-         ,desugarExp (match List.nth_exn (FM.data defs) 0 with
-                     | (_,_,[],e) -> e
-                     | (name,_,x::xs,e) -> Full.Fun ((fst name),x,xs,e))
-         )]
-    else ((* To desugar a mutual recursive function we do the following:
-            1: Create a mtype with one constructor per function.
-               Each constructor type is the list of types of arguments of the function.
-            2: Create a mtype with one constructor per function.
-               Its types are the result types of its functions.
-            3: Create the combined function. To avoid name mangling in the body, we first
-               create local copies of the wrappers that present a mutually recursive view
-               to the outside world.
-            4: Reproduce the wrappers as top level bindings *)
-
-      (* Mutually recursive non-functions explode a run time, so prohibit them. *)
-      (* TODO test case for this error *)
-      FM.iter defs (fun ~key:name ~data:tmp -> match tmp with
-                   | (_,(Pure.Poly (_,(Pure.Comp("->",_)))),_,_) -> ()
-                   | (_,(Pure.Poly (_,(Pure.MonT(_,_)))),_,_) -> ()
-                   | _ -> errr (fst name) ("Mutually recursive bindings must be functions. "
-                                          ^snd name^" isn't."));
-
-      (* Define a common name prefix to, hopefully, avoid clashes with other code *)
-      let prefix = "_mutual-recursion-desugar_" ^intercal string_of_fvar "_" (FM.keys defs)
-      and (* We want a consistent list of the polymorphic variables in our combined type *)
-          (* While this might generate a non-linear pattern. i.e., the desugared form may
-             be unparsable, our usages will be safe *)
-          polymangle = List.concat_map (FM.to_alist defs)
-                     (fun (_,(_,(Pure.Poly (qs,_)),_,_)) -> qs)
-      in (* TODO Better home *) let fm2sm salt m = SM.of_alist_exn (List.map (FM.to_alist m)
-                                    (fun ((_,k),v) -> (prefix^"_"^salt^"_"^k,v))) in 
-      (* Split a 'multi-argument' function into a list of arguments types and a result type *)
-      let rec split_fun : [`M of Pure.mtype | `P of Pure.ptype] -> (Pure.mtype list*Pure.mtype) = 
-        function
-        | `P (Pure.Poly (_,m)) -> split_fun (`M m)
-        | `M (Pure.Comp("->",[`M a;`M b])) -> let (args,res) = split_fun (`M b) in (a::args,res)
-        | `M m -> ([],m)
-      in
-      let intypedec = (* Create the input type *)
-        Full.MTypeDecl (({lnum=0;cnum=0},prefix^"_input_")
-                       ,polymangle
-                       ,fm2sm "in" (FM.map defs (fun (_,t,_,_) -> fst (split_fun (`P t)))))
-      and outypedec = (* Create the input type *)
-        Full.MTypeDecl (({lnum=0;cnum=0},prefix^"_output_")
-                       ,polymangle
-                       ,fm2sm "out" (FM.map defs (fun (_,t,_,_) -> [snd (split_fun (`P t))])))
-      in (* The internal and external wrappers are essentially the same, but need to be
-            tweaked slightly to conform with syntax restrictions. This pulls out the 
-            common bits. *)
-      let wrapperLet (f:fvar) (econt : Pure.exp) : Pure.exp =
-        (* TODO confirm that t and args expect the same number of args *)
-        let (_,(Pure.Poly (qs,t)),args,_) = FM.find_exn defs f in
-        Full.Let (fst f
-                 ,`P (Pure.Poly (qs,t))
-                 ,f
-                 ,args
-                 ,Full.Case(fst f
-                           ,Full.App(fst f
-                                    ,Full.PolyApp(fst f,(fst f,prefix^"_core_")
-                                                 ,List.map polymangle (function
-                                                    | `M x when List.mem qs (`M x) -> 
-                                                           `M (Pure.MVar x)
-                                                    | `S x when List.mem qs (`S x) -> 
-                                                           `S (Pure.SVar ({lnum=0;cnum=0},x))
-                                                    | `S (m,_) -> `S (Pure.Stop m)
-                                                    | `M _ -> `M (Pure.Comp("()",[]))))
-                                    ,Full.Sat(fst f,prefix^"_in_"^snd f
-                                             ,List.map args (fun (l,x) -> Full.Var (l,(l,x)))))
-                           ,SM.singleton (prefix^"_out_"^snd f)
-                                         ([(fst f,"_")],Full.Var(fst f,(fst f,"_"))))
-                 ,econt)
-      in 
-      let core = 
-        let brvar = ({lnum=0;cnum=0},prefix^"mutrec_brvar_"^priv_name ()) in
-        Full.TopLets (FM.singleton ({lnum=0;cnum=0},prefix^"_core_") (
-          (({lnum=0;cnum=0},prefix^"_core_")
-          ,
-           (Full.Poly(polymangle
-                     ,(Pure.Comp("->",[`M (Pure.Comp (prefix^"_input_"
-                                            ,List.map polymangle 
-                                            (function
-                                            | `M x -> `M (Pure.MVar x)
-                                            | `S x -> `S (Pure.SVar ({lnum=0;cnum=0},x)))))
-                        ;`M (Pure.Comp (prefix^"_output_",List.map polymangle 
-                                    (function
-                                    | `M x -> `M (Pure.MVar x)
-                                    | `S x -> `S (Pure.SVar ({lnum=0;cnum=0},x)))))]))))
-          ,[brvar]
-          ,List.fold (FM.keys defs)
-           ~init:(
-           Full.Case({lnum=0;cnum=0}
-                    ,Full.Var ({lnum=0;cnum=0},brvar)
-                    ,fm2sm "in" (FM.mapi defs ~f:(fun ~key:f ~data:(_,_,args,e) ->
-                       (args,Full.Sat(fst f,prefix^"_out_"^snd f,[e]))))))
-           ~f:(fun acc f -> wrapperLet f acc))))
-      and topWrapper f = 
-        let (name,(Pure.Poly (qs,t)),_,_) = FM.find_exn defs f
-        in (* TODO combine with wrapper let? *)
-           Full.TopLets (FM.singleton f (name,(Pure.Poly (qs,t)),[],
-                   wrapperLet f (Full.PolyApp(fst f,f,List.map qs (function
-                                        | `M x -> `M (Pure.MVar x)
-                                        | `S x -> `S (Pure.SVar ({lnum=0;cnum=0},x)))))))
-      in List.concat_map ([intypedec; outypedec; core]@ List.map (FM.keys defs) topWrapper) desugarTop
-    )
-
+  | Full.TopLets_ def -> desugarTop (Full.TopLets (desugartoplet def))
+  | Full.TopLets (f,t,[],e) -> [Core.TopLet (f,`P t,desugarExp e)]
+  | Full.TopLets (f,t,x::xs,e) -> [Core.TopLet (f,`P t,desugarExp (Full.Fun (fst f,x,xs,e)))]
   | Full.TopProc procs -> (* See tests/sugar for what this is doing *)
     let go (acc: Full.proc -> Full.proc) ((c,p) : cvar*Full.proc) : (Full.proc -> Full.proc) =
         (fun (cont : Full.proc) ->

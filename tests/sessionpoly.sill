@@ -140,12 +140,12 @@ g = case f of
 
 f' : forall <a,'b> . a -> Foo 'b a;;
 f' a = Foo<'b,a> a
-and
+;;
 g' : forall <'c,x> . {'c} -> Foo 'c x;;
 g' m = Bar<'c,x> m;;
 
 h : forall <a,'b> . a -> Foo 'b a;;
 h a = Foo<'b,a> a
-and
+;;
 k : forall <'c,a> . {'c} -> Foo 'c a;;
 k m = Bar<'c,a> m;;

@@ -328,17 +328,6 @@ Error in line 2, column 22:
 Expecting linear channel
 %%%%
 
-t1:Int;;
-t1 = 5
-and
-&&
-%%%%
-Error in line 5, column 1:
-&&
-^
-Expecting type signature
-%%%%
-
 t:Int;;
 t = fun && -> 5;;
 %%%%
@@ -616,18 +605,6 @@ Error in line 4, column 13:
   case [] of;;
             ^
 Expecting pattern match
-%%%%
-
-f : Int;;
-f = 1
-and
-f : Bool;;
-f = 2;;
-%%%%
-Error in line 5, column 1:
-f : Bool;;
-^
-Unexpected duplicate binding for f
 %%%%
 
 type Foo a a = Foo a;;

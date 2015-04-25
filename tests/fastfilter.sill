@@ -18,7 +18,7 @@ filter: (a -> Bool) -> {Stream a <- Stream a};;
            close 'c
  | next -> 'c <- filterNext q -< 'd
 
-and
+;;
 
 filterNext: (a -> Bool) -> {a /\ Stream a <- Stream a};;
 'c <- filterNext q -< 'd =

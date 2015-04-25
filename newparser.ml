@@ -1136,10 +1136,9 @@ let topdef_ =
 
 let topdef : (toplvl,'s) MParser.t = 
   (perform
-    defs <-- Of_alist_FM.go (fun x -> sep_by1 x (skip_symbol "and"))
-                            topdef_ (fun k -> "duplicate binding for "^string_of_fvar k);
+    (_,def) <-- topdef_; (* TODO why the pattern here? *)
     skip_symbol ";;";
-    return (TopLets_ defs))
+    return (TopLets_ def))
   <?> "top level definition"
 
 let topproc_ =
