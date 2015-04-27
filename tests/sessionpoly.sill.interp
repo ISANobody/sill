@@ -1,121 +1,149 @@
-1: @14:9 bound from 1
-   @14:9 bind
-   @15:9 bind
-   @16:9 wait
-   @17:9 close
+1: @21:9 bound from 1
+   @21:9 bind
+   @22:9 bind
+   @23:9 wait
+   @24:9 close
 1.1: @3:3 bound from 1
      @3:3 inputTy
      @4:3 inputC
      @5:3 forward
-1.2: @9:3 bound from 1
-     @9:3 outputTy
-     @10:3 outputC
-     @11:3 wait
-     @12:3 close
-1.2.1: @10:18 bound from 1.2
-       @10:18 close
+1.2: @16:3 bound from 1
+     @16:3 outputTy
+     @17:3 outputC
+     @18:3 wait
+     @19:3 close
+1.2.1: @17:18 bound from 1.2
+       @17:18 close
 2: @26:9 bound from 2
    @26:9 bind
-   @27:9 outputTy
-   @28:9 outputC
-   @29:9 inputC
-   @30:9 input 93.4
-   @31:9 wait
-   @32:9 wait
-   @33:9 close
-2.1: @21:3 bound from 2
-     @21:3 inputTy
-     @22:3 inputC
-     @23:3 outputC
-     @24:3 close
-2.1.1: @23:3 bound from 2.1
-       @23:3 forward
-2.2: @28:24 bound from 2
-     @28:24 output 93.4
-     @28:38 close
-3: @50:9 bound from 3
-   @50:9 bind
-   @51:9 bind
-   @52:9 outputTy
-   @53:9 outputTy
-   @54:9 outputC
-   @55:9 inputC
-   @56:9 input 83
-   @57:9 input 5.8
-   @58:9 wait
-   @59:9 wait
-   @60:9 close
-3.1: @37:3 bound from 3
-     @37:3 inputTy
-     @38:3 inputTy
-     @39:3 inputC
-     @40:3 inputC
-     @41:3 outputC
-     @42:3 forward
-3.1.1: @41:3 bound from 3.1
-       @41:3 forward
-3.2: @46:3 bound from 3
-     @46:3 outputC
-     @47:3 output 83
-     @48:3 close
-3.2.1: @46:18 bound from 3.2
-       @46:18 output 5.8
-       @46:31 close
-3.3: @54:9 bound from 3
-     @54:9 forward
-4: @79:9 bound from 4
-   @79:9 bind
-   @80:9 bind
-   @81:9 wait
-   @82:9 close
-4.1: @70:3 bound from 4
-     @70:3 outputTy
-     @71:3 close
-4.2: @75:3 bound from 4
-     @75:3 inputTy
-     @76:3 wait
-     @77:3 close
-5: @96:9 bound from 5
-   @96:9 bind
+   @27:9 bind
+   @28:9 wait
+   @29:9 close
+2.1: @10:3 bound from 2
+     @10:3 inputTy
+     @11:3 inputC
+     @12:3 forward
+2.2: @16:3 bound from 2
+     @16:3 outputTy
+     @17:3 outputC
+     @18:3 wait
+     @19:3 close
+2.2.1: @17:18 bound from 2.2
+       @17:18 close
+3: @38:9 bound from 3
+   @38:9 bind
+   @39:9 outputTy
+   @40:9 outputC
+   @41:9 inputC
+   @42:9 input 93.4
+   @43:9 wait
+   @44:9 wait
+   @45:9 close
+3.1: @33:3 bound from 3
+     @33:3 inputTy
+     @34:3 inputC
+     @35:3 outputC
+     @36:3 close
+3.1.1: @35:3 bound from 3.1
+       @35:3 forward
+3.2: @40:24 bound from 3
+     @40:24 output 93.4
+     @40:38 close
+4: @62:9 bound from 4
+   @62:9 bind
+   @63:9 bind
+   @64:9 outputTy
+   @65:9 outputTy
+   @66:9 outputC
+   @67:9 inputC
+   @68:9 input 83
+   @69:9 input 5.8
+   @70:9 wait
+   @71:9 wait
+   @72:9 close
+4.1: @49:3 bound from 4
+     @49:3 inputTy
+     @50:3 inputTy
+     @51:3 inputC
+     @52:3 inputC
+     @53:3 outputC
+     @54:3 forward
+4.1.1: @53:3 bound from 4.1
+       @53:3 forward
+4.2: @58:3 bound from 4
+     @58:3 outputC
+     @59:3 output 83
+     @60:3 close
+4.2.1: @58:18 bound from 4.2
+       @58:18 output 5.8
+       @58:31 close
+4.3: @66:9 bound from 4
+     @66:9 forward
+5: @97:9 bound from 5
    @97:9 bind
    @98:9 bind
    @99:9 wait
-   @100:9 bind
-   @101:9 input 5
-   @102:9 wait
-   @103:9 close
-5.1: @91:12 bound from 5
-     @91:12 ShftDwR
-5.2: @94:12 bound from 5
-     @94:12 ShftDwR
-5.3: @86:3 bound from 5
-     @86:3 ShftDwL
-     @87:3 ShftUpL
-     @88:3 forward
-5.3.1: @91:42 bound from 5.3
-       @91:42 close
-5.4: @86:3 bound from 5
-     @86:3 ShftDwL
-     @87:3 ShftUpL
-     @88:3 forward
-5.4.1: @94:42 bound from 5.4
-       @94:42 output 5
-       @94:53 close
-6: @110:9 bound from 6
-   @110:9 bind
-   @111:9 bind
-   @112:9 output 4
-   @113:9 bind
-   @114:9 wait
-   @115:9 close
-6.1: @91:12 bound from 6
-     @91:12 ShftDwR
-6.2: @107:3 bound from 6
-     @107:3 input 4
-     @108:3 forward
-6.3: @86:3 bound from 6
-     @86:3 ShftDwL
-     @87:3 ShftUpL
-     @88:3 forward
-6.3.1: @91:42 bound from 6.3
-       @91:42 close
+   @100:9 close
+5.1: @82:3 bound from 5
+     @82:3 outputTy
+     @83:3 close
+5.2: @87:3 bound from 5
+     @87:3 inputTy
+     @88:3 wait
+     @89:3 close
+6: @102:9 bound from 6
+   @102:9 bind
+   @103:9 bind
+   @104:9 wait
+   @105:9 close
+6.1: @82:3 bound from 6
+     @82:3 outputTy
+     @83:3 close
+6.2: @93:3 bound from 6
+     @93:3 inputTy
+     @94:3 wait
+     @95:3 close
+7: @119:9 bound from 7
+   @119:9 bind
+   @120:9 bind
+   @121:9 bind
+   @122:9 wait
+   @123:9 bind
+   @124:9 input 5
+   @125:9 wait
+   @126:9 close
+7.1: @114:12 bound from 7
+     @114:12 ShftDwR
+7.2: @117:12 bound from 7
+     @117:12 ShftDwR
+7.3: @109:3 bound from 7
+     @109:3 ShftDwL
+     @110:3 ShftUpL
+     @111:3 forward
+7.3.1: @114:42 bound from 7.3
+       @114:42 close
+7.4: @109:3 bound from 7
+     @109:3 ShftDwL
+     @110:3 ShftUpL
+     @111:3 forward
+7.4.1: @117:42 bound from 7.4
+       @117:42 output 5
+       @117:53 close
+8: @133:9 bound from 8
+   @133:9 bind
+   @134:9 bind
+   @135:9 output 4
+   @136:9 bind
+   @137:9 wait
+   @138:9 close
+8.1: @114:12 bound from 8
+     @114:12 ShftDwR
+8.2: @130:3 bound from 8
+     @130:3 input 4
+     @131:3 forward
+8.3: @109:3 bound from 8
+     @109:3 ShftDwL
+     @110:3 ShftUpL
+     @111:3 forward
+8.3.1: @114:42 bound from 8.3
+       @114:42 close

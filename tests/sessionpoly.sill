@@ -4,6 +4,13 @@ t1 : { forall 'a. 'a -o 'a };;
   'd <- recv 'c;
   'c <- 'd;;
 
+(* Names are alpha convertable *)
+t1_ : { forall 'a. 'a -o 'a };;
+'c <- t1_ =
+  <'b> <- recv 'c;
+  'd <- recv 'c;
+  'c <- 'd;;
+
 t2 : { 1 <- forall 'a. 'a -o 'a };;
 'c <- t2 -< 'd =
   send 'd <1>;
@@ -12,6 +19,11 @@ t2 : { 1 <- forall 'a. 'a -o 'a };;
   close 'c;;
 
 'top <- 'c <- t1;
+        'd <- t2 -< 'c;
+        wait 'd;
+        close 'top;;
+
+'top <- 'c <- t1_;
         'd <- t2 -< 'c;
         wait 'd;
         close 'top;;
@@ -76,8 +88,19 @@ t6 : { 1 <- exists 'x. 1 };;
   wait 'd;
   close 'c;;
 
+t6_ : { 1 <- exists 'x. 1 };;
+'c <- t6_ -< 'd =
+  <'y> <- recv 'd;
+  wait 'd;
+  close 'c;;
+
 'top <- 'c <- t5;
         'd <- t6 -< 'c;
+        wait 'd;
+        close 'top;;
+
+'top <- 'c <- t5;
+        'd <- t6_ -< 'c;
         wait 'd;
         close 'top;;
 
