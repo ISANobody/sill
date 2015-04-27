@@ -50,6 +50,6 @@ foo: {Stream a} -> {1<-Stream a} -> {1};;
 
 'c <- 'e <- foo nats client;
       wait 'e;
-      'f <- foo <skipnats:{Stream Int}> client;
+      'f <- foo (skipnats:{Stream Int}) client;
       wait 'f;
       close 'c;;

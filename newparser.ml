@@ -524,6 +524,18 @@ let data_pattern : ((string * fvar list),'s) MParser.t =
   <?> "pattern match"
 
 let rec exp_ : (exp,'s) MParser.t Lazy.t = lazy(
+  perform
+    sloc <-- getSloc;
+    e <-- Lazy.force exp_or_;
+    (perform
+       skip_symbol ":";
+       t <-- mtype;
+       return (Cast (sloc,e,t)))
+    <|>
+    (return e)
+    <?> "expression"
+)
+and exp_or_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform 
     sloc <-- getSloc;
     e1 <-- Lazy.force exp_and_;
@@ -781,18 +793,6 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     s <-- attempt string_literal;
     return (Con (sloc,String s)))
-  <|>
-  attempt (perform
-    sloc <-- getSloc;
-    (char '<' >> not_followed_by (  char '=' 
-                                <|> char '''
-                                <|> char '@'
-                                <|> char '!') "" >> spaces);
-    e <-- Lazy.force exp_;
-    skip_symbol ":";
-    t <-- mtype;
-    skip_symbol ">";
-    return (Cast (sloc,e,t)))
   <|>
   (perform
      skip_symbol "[";

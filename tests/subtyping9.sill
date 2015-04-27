@@ -43,7 +43,7 @@ foo: {1 <- SkipStream a} -> {SkipStream a} -> {1};;
        wait 'e;
        close 'c;;
 
-'c <- 'e <- foo skipnats <client: {SkipStream Int}>;
+'c <- 'e <- foo skipnats (client: {SkipStream Int});
       wait 'e;
       'f <- foo skipnats bigclient;
       wait 'f;
