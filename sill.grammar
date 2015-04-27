@@ -87,7 +87,7 @@ expression ::= ( <expression> )
              | if <expression> then <expression> else <expression>
              | <lowercase>'<'<','-separated list of <either_type>>'>'
              | case <expression> of <' '-separated list of <case_exp>>
-             | '<' <expression> : <data_level_type> '>'
+             | <expression> : <data_level_type>
              | <anychan> <-{ <process> }
              | <anychan> <-{ <process> }-< <' '-separated list of <anychan>>
              | _ <-{ <process> }
