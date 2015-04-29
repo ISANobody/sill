@@ -1,0 +1,27 @@
+ltype HTTP1 'a = 'a;;
+ltype HTTP2 'a = 'a;;
+
+(* Wish we had exists at the data level *)
+type VersionUnion 'a = HTTP1 {HTTP1 'a}
+                     | HTTP2 {HTTP2 'a};;
+
+type Maybe v = Just v
+             | Nothing;;
+
+type Map k v = Null
+             | Elem k v (Map k v);;
+
+lookup : Map k v -> k -> Maybe v;;
+lookup m x = 
+  case m of
+  | Null -> Nothing
+  | Elem k v m' -> if k = x 
+                   then Just v 
+                   else lookup m' x;;
+
+(* Encryption 'wrapper' *)
+ltype TLS 'a = 'a;;
+
+ltype Server 'a = +{fourOhFour : Server 'a
+                   ;http1 : TLS 'a * Server 'a
+                   ;http2 : 'a * Server 'a};;
