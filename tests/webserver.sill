@@ -22,6 +22,27 @@ lookup m x =
 (* Encryption 'wrapper' *)
 ltype TLS 'a = 'a;;
 
-ltype Server 'a = +{fourOhFour : Server 'a
-                   ;http1 : TLS 'a * Server 'a
-                   ;http2 : 'a * Server 'a};;
+tlsWrapper : forall <'a> . {TLS 'a <- 'a};;
+'c <- tlsWrapper<'a> -< 'x=
+  'c <- 'x;;
+
+ltype Server 'a = String => +{fourOhFour : Server 'a
+                             ;http1 : TLS 'a * Server 'a
+                             ;http2 : 'a * Server 'a};;
+
+server : forall <'a>. Map String (VersionUnion 'a) -> {Server 'a};;
+'c <- server<'a> m =
+  req <- recv 'c;
+  case lookup m req of
+  | Nothing -> 'c.fourOhFour;
+               'c <- server<'a> m
+  | Just v -> case v of
+              | HTTP1 p -> 'c.http1;
+                           'p <- p;
+                           't <- tlsWrapper<'a> -< 'p;
+                            send 'c 't;
+                            'c <- server<'a> m
+              | HTTP2 p -> 'c.http2;
+                            'p <- p;
+                            send 'c 'p;
+                            'c <- server<'a> m;;
