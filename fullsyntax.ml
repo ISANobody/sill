@@ -26,7 +26,7 @@ type exp =
    | Monad of srcloc * cvar option * proc * cvar list
    | Cast of srcloc * exp * mtype
    | Box of srcloc * exp * mtype
-   | PolyApp of srcloc * fvar * [`A of tyapp | `M of mtype | `S of stype] list (* x<S> *)
+   | PolyApp of srcloc * fvar * stype list (* x<S> *)
 and proc =
   | Bind of srcloc * cvar * exp * cvar list * proc
   | Detached of srcloc  * exp * cvar list * proc
@@ -77,7 +77,7 @@ and proc =
            | Prime of stype
            | Bang of stype
            | Sync of stype
-and ptype = Poly of [`M of string | `S of tyvar] list * mtype (* first one is mtype
+and ptype = Poly of string list * tyvar list * mtype (* first one is mtype
 quantifier, second session *)
 with sexp, bin_io 
 
@@ -311,10 +311,26 @@ and freeSVarsSPure (tin:stype) : TS.t =
   | Prime s -> freeSVarsSPure s
   | Sync s -> freeSVarsSPure s
 
-type toplet =
-  | TopExp of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * exp
-  | TopMon of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * cvar * proc * cvar list
-  | TopDet of fvar * [`M of mtype | `P of ptype] * [`M of string | `S of tyvar] list option * fvar list * srcloc * proc * cvar list
+type toplet = (* TODO Should be a record? *)
+  | TopExp of fvar  (* name *)
+            * [`M of mtype | `P of ptype] (* Fully qualified type or not? *)
+            * tyvar list option (* Session Quantifier list *)
+            * fvar list (* argument names *)
+            * exp (* Body of definition *)
+  | TopMon of fvar (* name *)
+            * [`M of mtype | `P of ptype] (* Fully quantified type? *)
+            * tyvar list option (* Session Quantifier list *)
+            * fvar list  (* functional arguments *)
+            * cvar  (* Provided channel *)
+            * proc  (* process  body *)
+            * cvar list (* channel arguments *)
+  | TopDet of fvar (* Name *)
+            * [`M of mtype | `P of ptype] (* Fully quantified type? *)
+            * tyvar list option (* Session Quantiifer list *)
+            * fvar list (* functional arguments *)
+            * srcloc  (* src location of the binding (can't pull it from a variable name) *)
+            * proc  (* process body *)
+            * cvar list (* channel arguments *)
 
 type toplvl =
   | TopLets of (fvar * ptype * fvar list * exp)

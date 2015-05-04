@@ -261,12 +261,18 @@ let quant_list comb : ([`M of string | `S of tyvar] list, 's) MParser.t =
     | Some (`S x,s) -> fun _ ->
         Consumed_failed (unexpected_error s ("duplicate quantifier "^string_of_tyvar x))
 
-let java_quant_list : ([`M of string | `S of tyvar] list, 's) MParser.t =
+let java_quant_list : (tyvar list, 's) MParser.t =
   (perform
     skip_symbol "<";
-    qs <-- quant_list (fun x -> sep_by x (skip_symbol ","));
+    qs <-- sep_by ((perform
+                     s <-- getState;
+                     q <-- sesvar;
+                     return (q,s)) <?> "session type quantifier") (skip_symbol ",");
     skip_symbol ">";
-    return qs) <?> "quantifier list (e.g., <a,'b,@c>)"
+    match List.find_a_dup qs ~compare:(fun (x,_) (y,_) -> Pervasives.compare x y) with
+    | Some (x,s) -> fun _ -> 
+          Consumed_failed (unexpected_error s ("duplicate quantifier "^string_of_tyvar x))
+    | None -> return (List.map qs fst)) <?> "quantifier list (e.g., <'b,@c>)"
 
 let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
   perform
@@ -750,19 +756,11 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
     x <-- id_lower_ <|> id_upper_;
     (perform
       skip_char '<';
-      ts <-- (sep_by (  attempt (perform
-                                 t <--tyapp;
-                                 followed_by (skip_symbol "," <|> skip_char '>') "";
-                                 return (`A t))
-                   <|> attempt (perform
+      ts <-- (sep_by (attempt (perform
                                  t <-- stype;
                                  followed_by (skip_symbol "," <|> skip_char '>') "";
-                                 return (`S t))
-                   <|> attempt (perform
-                                 t <-- mtype;
-                                 followed_by (skip_symbol "," <|> skip_char '>') "";
-                                 return (`M t))) (skip_symbol ",")
-             <?> "','-separated lists of types");
+                                 return  t)) (skip_symbol ",")
+             <?> "','-separated lists of session types");
       skip_char '>';
       spaces;
       return (PolyApp (sloc,x,ts)))
@@ -1072,7 +1070,7 @@ let topsig =
       qs <-- java_quant_list;
       skip_symbol ".";
       t <-- mtype;
-      return (name,`P (Poly (qs,t))))
+      return (name, `P (Poly ([],qs,t))))
     <|>
     (perform
       t <-- mtype;

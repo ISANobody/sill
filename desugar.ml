@@ -67,14 +67,7 @@ let rec desugarExp (ein:Full.exp) : Core.exp =
                                 in Core.Monad (loc2ast i,None,desugarProc tmpc (CS.of_list cs) p,cs,None)
   | Full.Cast (i,e,t) -> Core.Cast (loc2ast i,desugarExp e,t)
   | Full.Box (i,e,t) -> Core.Box (loc2ast i,desugarExp e,t)
-  | Full.PolyApp (i,x,args) -> (* TODO better disambiguation/error reporting here *)
-    let args' = List.map args (function
-                              | `A (Pure.TyApp (name,a)) when SM.mem !sessionQs (snd name) -> 
-                                    `S (Pure.tyapp2stype (Pure.TyApp (name,a)))
-                              | `A a -> `M (Pure.tyapp2mtype a)
-                              | `M m -> `M m
-                              | `S s -> `S s)
-    in Core.PolyApp(loc2ast i,x,args')
+  | Full.PolyApp (i,x,args) -> Core.PolyApp(loc2ast i,x,args)
 
 (* Some of our desugaring requires knowledge of the currently provided channel and all
    those in scope. *)
@@ -143,15 +136,15 @@ and desugarProc (this:cvar) (scope:CS.t) (pin:Full.proc) : Core.proc =
    is much easier than normal *)
 let rec desugartoplet (tin:Full.toplet) : (fvar * Pure.ptype * fvar list * Full.exp) =
   match tin with
-  | Full.TopExp (x,`P p,None,pats,e)  -> (x, p,pats,e)
-  | Full.TopExp (x,`P (Pure.Poly(qs,p)),Some qs',pats,e)  -> 
+  | Full.TopExp (x,`P p,None,pats,e)  -> desugartoplet (Full.TopExp (x, `P p,Some [],pats,e))
+  | Full.TopExp (x,`P (Pure.Poly(mvs,svs,p)),Some qs',pats,e)  -> 
     (* TODO is this really the best place to check this? *)
     (* TODO add a test case to typeerrors *)
-    if not (qs = qs') then errr (fst x) ("Mismatched quantifier names.");
-    desugartoplet (Full.TopExp (x,`P (Pure.Poly(qs,p)),None,pats,e))
+    if not (qs' = svs) then errr (Full.locE e) "Mismatched session type quantifiers";
+    (* TODO Is it really safe to generalize the mtype vars here? *)
+    (x,(Pure.Poly((SS.to_list (Full.freeMVarsMPure p)),svs,p)),pats,e)
   | Full.TopExp (f1,`M m,qs,pats,e) -> desugartoplet (
-    Full.TopExp (f1,`P (Pure.Poly(List.map (SS.to_list (Full.freeMVarsMPure m))
-                                               (fun x -> `M x),m)),qs,pats,e))
+    Full.TopExp (f1,`P (Pure.Poly((SS.to_list (Full.freeMVarsMPure m)),[],m)),qs,pats,e))
   | Full.TopMon (name,tysig,qs,pats,c,proc,cs) ->
     desugartoplet (Full.TopExp (name,tysig,qs,pats,(Full.Monad ((fst c),Some c,proc,cs))))
   | Full.TopDet (name,tysig,qs,pats,loc,proc,cs) ->

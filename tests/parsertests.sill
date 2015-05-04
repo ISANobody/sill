@@ -143,5 +143,4 @@ foo : {1 * 1};; foo = ();;
 
 foo : { [a] /\ 1 };; foo = ();;
 foo : { {'a <- 'a} /\ 1 };; foo = ();;
-foo : { {'a <- 'a} /\ 1 };; foo = foo<Bool -> Bool>;;
 foo : { {'a <- 'a} /\ 1 };; foo = 5<7;;

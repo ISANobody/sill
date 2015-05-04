@@ -76,7 +76,7 @@ type exp =
    | Monad of astinfo * cvar option * proc * cvar list * procType option (* c <-{P}<- cs *)
    | Cast of astinfo * exp * Fullsyntax.mtype (* <e:t> *)
    | Box of astinfo * exp * Fullsyntax.mtype (* [e:t] *)
-   | PolyApp of astinfo * fvar * [`M of Fullsyntax.mtype | `S of Fullsyntax.stype] list (* x<S,S,...> *)
+   | PolyApp of astinfo * fvar * Fullsyntax.stype list (* x<S,S,...> *)
 and proc =
    | Bind of astinfo * cvar * exp * cvar list * proc (* c <- e -< cs; P *)
    | TailBind of astinfo * cvar * exp * cvar list (* c <- e -< cs *)
@@ -110,7 +110,9 @@ and procType = ProcType of SS.t * (proc * Fullsyntax.mtype) list * (proc * Fulls
 with sexp, bin_io (* TODO Do we use procType? *)
 
 (* TODO check these for well-formedness *)
-type toplvl = TopLet of (fvar * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype] * exp) (* let f : tau = ... ;; *)
+type toplvl = TopLet of fvar (* Name *)
+                     * [`M of Fullsyntax.mtype | `P of Fullsyntax.ptype]
+                     * exp (* let f : tau = ... ;; *)
             | TopProc of cvar * proc
             | MTypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.mtype list SM.t
             | STypeDecl of fvar * [`M of string | `S of tyvar] list * Fullsyntax.stype

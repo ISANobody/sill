@@ -17,7 +17,7 @@ open Core.Std
    no harm in having different branches. Similarly for Extern *)
 (* TODO handle modalities more implicitly *)
 type ptype = (* TODO modality for sesvars *)
-   | Poly of ([`M of string | `S of tyvar] list) * mtype (* list should only contain MVars and SVars *)
+   | Poly of string list * tyvar list * mtype
 and mtype = mtype_raw ref
 and mtype_raw =
    | MVar
@@ -187,12 +187,11 @@ and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
 let string_of_stype (tin : stype) : string = string_of_stype_raw tin []
 let  string_of_ptype (tin : ptype) : string =
   match tin with
-  | Poly(qs,m) -> if List.length qs = 0
-                   then string_of_mtype m
-                   else "forall " ^intercal (fun x -> match x with
-                                                      | `M v -> v
-                                                      | `S v -> string_of_tyvar v) " " qs
-                        ^"."^string_of_mtype m
+  | Poly(mvs,svs,m) -> 
+    if List.length mvs = 0 && List.length svs = 0
+    then string_of_mtype m
+    else "forall " ^intercal (fun x -> x) " " mvs
+         ^intercal string_of_tyvar " " svs ^"."^string_of_mtype m
 
 (* Get the modality information in each type *)
 let getMode (sin:stype) : modality =
@@ -244,7 +243,7 @@ let unittype = mkcomp "()" []
 let stringtype = mkcomp "String" []
 let mkmon s cm = ref (MonT(s,cm))
 let mkstop m = ref (Stop m)
-let poly m = ref (Poly ([],m))
+let poly m = ref (Poly ([],[],m))
 let mkoutd m p s = ref (OutD (m,p,s))
 let mkind m p s = ref (InD (m,p,s))
 let mkoutc m p s = ref (OutC (m,p,s))
@@ -441,15 +440,15 @@ let conArities_init : int SM.t =
 (* fields are: mvaru names, argument types (list) * result type *)
 (* TODO Consider adding a map from type names to quantifiers. Bidir.ml's case for 'case'
         could benefit. *)
-let conTypes : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t ref = ref SM.empty
-let conTypes_init : ([`M of string | `S of tyvar] list * mtype list * mtype) SM.t = 
+let conTypes : (string list * tyvar list * mtype list * mtype) SM.t ref = ref SM.empty
+let conTypes_init : (string list * tyvar list * mtype list * mtype) SM.t = 
   SM.of_alist_exn
-  [("True",([],[],ref (Comp("Bool",[]))));
-   ("False",([],[],ref (Comp("Bool",[]))));
-   ("()",([],[],ref (Comp("()",[]))));
-   ("::",([`M "a"],[ref (MVarU "a");ref (Comp("[]",[`M (ref (MVarU "a"))]))],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
-   ("[]",([`M "a"],[],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
-   (",",([`M "a";`M "b"],[ref (MVarU "a");ref (MVarU "b")],ref (Comp(",",[`M (ref (MVarU "a"));`M (ref (MVarU "b"))]))))]
+  [("True",([],[],[],ref (Comp("Bool",[]))));
+   ("False",([],[],[],ref (Comp("Bool",[]))));
+   ("()",([],[],[],ref (Comp("()",[]))));
+   ("::",(["a"],[],[ref (MVarU "a");ref (Comp("[]",[`M (ref (MVarU "a"))]))],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
+   ("[]",(["a"],[],[],ref (Comp("[]",[`M (ref (MVarU "a"))]))));
+   (",",(["a";"b"],[],[ref (MVarU "a");ref (MVarU "b")],ref (Comp(",",[`M (ref (MVarU "a"));`M (ref (MVarU "b"))]))))]
 
 let conTypeNames : string SM.t ref = ref SM.empty
 let conTypeNames_init : string SM.t =
@@ -473,9 +472,8 @@ let reinit () : unit =
 (* TODO the `S error message is terrible *)
 let conInstance (c : string) : (mtype list * mtype) =
   if not (SM.mem !conTypes c) then failwith ("BUG unbound constructor: "^c);
-  let (qs,args,result) = SM.find_exn !conTypes c
-  in let subM = SM.of_alist_exn (List.map qs (function
-                                             | `M v -> (v,ref MVar)
-                                             | `S _ -> failwith "BUG conInstance `S"))
+  let (mvs,svs,args,result) = SM.find_exn !conTypes c
+  in if not (svs = []) then failwith "BUG conInstance svs";
+     let subM = SM.of_alist_exn (List.map mvs (fun v -> (v,ref MVar)))
      in (List.map args (fun a -> substM a subM TM.empty)
         ,substM result subM TM.empty)

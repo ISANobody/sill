@@ -250,28 +250,8 @@ x a bl = a :: bl;;
 @3:10 Unification failure in var (a) failed solving a === b
 %%%%
 
-my_eq : forall <a>. a -> a -> Bool;;
-my_eq x y = x = y;;
-
-boom : Bool;;
-boom = my_eq<1> 6 8;;
-%%%%
-@6:8 tried to instantiate data type variable with session type 1
-%%%%
-
 foo : forall <'a>. {1};;
-'c <- foo =
-  close 'c;;
-
-'top <- 'c <- foo<Bool -> Bool>;
-        wait 'c;
-        close 'top;;
-%%%%
-@6:15 tried to instantiate session type variable with data type (Bool) -> (Bool)
-%%%%
-
-foo : forall <'a>. {1};;
-'c <- foo =
+'c <- foo<'a> =
   close 'c;;
 
 'top <- 'c <- foo;
@@ -281,13 +261,13 @@ foo : forall <'a>. {1};;
 @6:15 foo has session polymorphism in its type forall 'a.{1} Use foo<...> instead
 %%%%
 
-my_eq : forall <a>. a -> a -> Bool;;
+my_eq : a -> a -> Bool;;
 my_eq x y = x = y;;
 
 boom : Bool;;
 boom = my_eq<Float,Int> 6 8;;
 %%%%
-@6:8 my_eq has 1 quantifier(s) in its type forall a.(a)->((a)->(Bool)) but 2 type(s) were supplied
+@6:8 my_eq has 0 quantifier(s) in its type forall a.(a)->((a)->(Bool)) but 2 type(s) were supplied
 %%%%
 
 ltype Stream a = &{stop: 1; next: a /\ Stream a};;
@@ -533,12 +513,6 @@ foo : {'a};;
 'c <- foo = close 'c;;
 %%%%
 @3:7 'a is not in scope
-%%%%
-
-foo : forall <a>. a -> b -> a;;
-foo a b = a;;
-%%%%
-@3:1 b is not in scope
 %%%%
 
 x : Int;;

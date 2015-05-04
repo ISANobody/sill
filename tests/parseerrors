@@ -20,7 +20,7 @@ t:forall && ;;
 Error in line 2, column 10:
 t:forall && ;;
          ^
-Expecting quantifier list (e.g., <a,'b,@c>)
+Expecting quantifier list (e.g., <'b,@c>)
 %%%%
 
 t:forall <&&> ;;
@@ -28,7 +28,7 @@ t:forall <&&> ;;
 Error in line 2, column 11:
 t:forall <&&> ;;
           ^
-Expecting ">" or quantifier
+Expecting ">" or session type quantifier
 %%%%
 
 t:forall <>. &&;;
@@ -301,7 +301,7 @@ t && = 5;;
 Error in line 3, column 3:
 t && = 5;;
   ^
-Expecting "=", pattern variable or quantifier list (e.g., <a,'b,@c>)
+Expecting "=", pattern variable or quantifier list (e.g., <'b,@c>)
 %%%%
 
 'top <- &&;;
@@ -344,7 +344,7 @@ t:Int;;
 Error in line 3, column 9:
 'c <- t && -< 'd =
         ^
-Expecting "-<", "=", pattern variable or quantifier list (e.g., <a,'b,@c>)
+Expecting "-<", "=", pattern variable or quantifier list (e.g., <'b,@c>)
 %%%%
 
 t:Int;;
@@ -472,7 +472,7 @@ t=x<&&>;;
 Error in line 3, column 5:
 t=x<&&>;;
     ^
-Expecting ','-separated lists of types or '>'
+Expecting ','-separated lists of session types or '>'
 %%%%
 
 t:Int;;
@@ -481,7 +481,7 @@ t=x<&&,Int>;;
 Error in line 3, column 5:
 t=x<&&,Int>;;
     ^
-Expecting ','-separated lists of types or '>'
+Expecting ','-separated lists of session types or '>'
 %%%%
 
 t:Int;;
@@ -631,13 +631,13 @@ ltype Foo a a = 1;;
 Unexpected duplicate quantifier a
 %%%%
 
-f : forall <a,a,a> . Int;;
-f = ();;
+f : forall <'a,'a,'a> . Int;;
+f<'a,'a,'a> = ();;
 %%%%
 Error in line 2, column 13:
-f : forall <a,a,a> . Int;;
+f : forall <'a,'a,'a> . Int;;
             ^
-Unexpected duplicate quantifier a
+Unexpected duplicate quantifier 'a
 %%%%
 
 f : Int;;

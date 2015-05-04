@@ -105,7 +105,7 @@ t6_ : { 1 <- exists 'x. 1 };;
         close 'top;;
 
 t7 : forall <'a,'b>. { 'a <- '(!('a))};;
-'c <- t7 -< 'd =
+'c <- t7<'a,'b> -< 'd =
   !u <- recv 'd;
   'e <- send !u;
   'c <- 'e;;
@@ -125,13 +125,13 @@ t9 : { '!Int/\1 };;
         wait 'd;
         close 'top;;
 
-t10 : forall <a,'b> . { a => 'b <- 'b };;
-'c <- t10 -< 'd =
+t10 : forall<'b>. { a => 'b <- 'b };;
+'c <- t10<'b> -< 'd =
   _ <- recv 'c;
   'c <- 'd;;
 
 'top <- 'a <- t8;
-        'c <- t10<Int,'!1> -< 'a;
+        'c <- t10<'!1> -< 'a;
         send 'c 4;
         'd <- t7<1,1> -< 'c;
         wait 'd;
@@ -139,8 +139,8 @@ t10 : forall <a,'b> . { a => 'b <- 'b };;
 
 ltype List 'a = +{nil: 1; cons: 'a * List 'a};;
 
-nil : forall <'a>. {List 'a};;
-'c <- nil =
+nil : forall<'a>.{List 'a};;
+'c <- nil<'a> =
     'c.nil;
     close 'c
 ;;
@@ -150,25 +150,26 @@ type Foo 'a b = Foo b
               | Baz {'a <- 'a} b;;
 
 f0 : Foo 1 Int;;
-f0 = Foo<1,Int> 5;;
+f0 = Foo<1> 5;;
 
 f : Foo 1 Int;;
-f = Bar<1,Int> 'c <- { close 'c };;
+f = Bar<1> 'c <- { close 'c };;
 
-g : Bool;;
+
+(* g : Bool;;
 g = case f of
     | Foo _ -> True
     | Bar _ -> False
-    | Baz _ _ -> True;;
+    | Baz _ _ -> True;; *)
 
-f' : forall <a,'b> . a -> Foo 'b a;;
-f' a = Foo<'b,a> a
+f' : forall<'b>.a -> Foo 'b a;;
+f'<'b> a = Foo<'b> a
 ;;
-g' : forall <'c,x> . {'c} -> Foo 'c x;;
-g' m = Bar<'c,x> m;;
+g' : forall<'c>.{'c} -> Foo 'c x;;
+g'<'c> m = Bar<'c> m;;
 
-h : forall <a,'b> . a -> Foo 'b a;;
-h a = Foo<'b,a> a
+h : forall<'b>. a -> Foo 'b a;;
+h<'b> a = Foo<'b> a
 ;;
-k : forall <'c,a> . {'c} -> Foo 'c a;;
-k m = Bar<'c,a> m;;
+k : forall<'c>.{'c} -> Foo 'c a;;
+k<'c> m = Bar<'c> m;;
