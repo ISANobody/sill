@@ -131,19 +131,20 @@ process ::= ( <process> )
           | send <subchan> shift; <process>
           | shift <- recv <subchan>; <process>
 
-topsig ::= <lowercase> : <data_level_type> ;;
-         | forall < <' '-separated list of <any_type_var>> . <data_level_type>;;
+ses_quant_list ::= '<' <','-separated list of <anychan>> '>'
 
-topdef ::= <topsig> <lowercase> <' '-separated list of <pattern_var>> = <expression>
-         | <topsig> <subchan> <- <lowercase> <' '-separated list of <pattern_var>> = <process>
-         | <topsig> <subchan> <- <lowercase> <' '-separated list of <pattern_var>>
+topsig ::= <lowercase> : <data_level_type> ;;
+         | forall <ses_quant_list> . <data_level_type>;;
+
+topdef ::= <topsig> <lowercase> <ses_quant_list> <' '-separated list of <pattern_var>> = <expression>
+         | <topsig> <subchan> <- <lowercase> <ses_quant_list> <' '-separated list of <pattern_var>> = <process>
+         | <topsig> <subchan> <- <lowercase> <ses_quant_list> <' '-separated list of <pattern_var>>
            -< <' '-separated list of <anychan>> = <process>
-         | <topsig> _ <- <lowercase> <' '-separated list of <pattern_var>> = <process>
-         | <topsig> _ <- <lowercase> <' '-separated list of <pattern_var>>
+         | <topsig> _ <- <lowercase> <ses_quant_list> <' '-separated list of <pattern_var>> = <process>
+         | <topsig> _ <- <lowercase> <ses_quant_list> <' '-separated list of <pattern_var>>
            -< <' '-separated list of <anychan>> = <process>
 
 topproc ::= <linchan> <- <process>
 
 code ::= <typedec> ;;  
-       | <'and'-separated list of <topdef>> ;; 
        | <'and'-separated list of <topproc>> ;;
