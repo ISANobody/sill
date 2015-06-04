@@ -344,62 +344,66 @@ and mtype_ : (mtype,'s) MParser.t Lazy.t = lazy(
   <?> "data-level type"
 )
 and stype_ : (stype,'s) MParser.t Lazy.t = lazy(
+  perform 
+  sloc <-- getSloc;
   (perform
      attempt (skip_char '!' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return (Bang t))
+     return (Bang (sloc,t)))
   <|>
   (perform
      attempt (skip_char '@' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return (TyAt t))
+     return (TyAt (sloc,t)))
   <|>
   (perform
      attempt (skip_char ''' >> not_followed_by lowercase "" >> spaces);
      t <-- Lazy.force stype_;
-     return (Prime t))
+     return (Prime (sloc,t)))
   <|>
   attempt (perform
      m <-- Lazy.force mtype_;
      (perform
         skip_symbol "/\\";
         s <-- Lazy.force stype_;
-        return (TyOutD (Linear,m,s)))
+        return (TyOutD (sloc,Linear,m,s)))
      <|>
      (perform
         skip_symbol "=>";
         s <-- Lazy.force stype_;
-        return (TyInD (Linear,m,s))))
+        return (TyInD (sloc,Linear,m,s))))
   <|>
   (perform
     skip_symbol "forall";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
-    return (Forall (Linear,q,s)))
+    return (Forall (sloc,Linear,q,s)))
   <|>
   (perform
     skip_symbol "exists";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
-    return (Exists (Linear,q,s)))
+    return (Exists (sloc,Linear,q,s)))
   <|>
   Lazy.force stype_times_
   <?> "session type"
 )
 and stype_times_ : (stype,'s) MParser.t Lazy.t = lazy(
+  perform
+    sloc <-- getSloc;
   (perform
     s1 <-- Lazy.force stype_basic_;
     (perform 
       skip_symbol "*";
       s2 <-- Lazy.force stype_;
-      return (TyOutC (Linear,s1,s2)))
+      return (TyOutC (sloc,Linear,s1,s2)))
     <|>
     (perform 
       skip_symbol "-o";
       s2 <-- Lazy.force stype_;
-      return (TyInC (Linear,s1,s2)))
+      return (TyInC (sloc,Linear,s1,s2)))
     <|>
     (return s1))
   <?> "session type"
@@ -421,10 +425,12 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(fun s ->
     return (SComp (l,x,[])))
   <|>
   (perform
+     l <-- getSloc;
      skip_symbol "1";
-     return (Stop Linear))
+     return (Stop (l,Linear)))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "+{";
     ts <-- Of_alist_LM.go (fun x -> sep_by x (skip_symbol ";"))
                         ((perform
@@ -435,9 +441,10 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(fun s ->
                           <?> "mapping from label to session type (e.g., foo:1)")
                         (fun x -> "duplicate label "^snd x);
     skip_symbol "}";
-   return (Intern (Linear,ts)))
+   return (Intern (sloc,Linear,ts)))
   <|>
   (perform
+    sloc <-- getSloc;
     skip_symbol "&{";
     ts <-- Of_alist_LM.go (fun x -> sep_by x (skip_symbol ";"))
                           ((perform
@@ -448,7 +455,7 @@ and stype_atom_ : (stype,'s) MParser.t Lazy.t = lazy(fun s ->
                           <?> "mapping from label to session type (e.g., foo:1)")
                         (fun x -> "duplicate label "^snd x);
     skip_symbol "}";
-   return (Extern (Linear,ts)))
+   return (Extern (sloc,Linear,ts)))
   <|>
   parens_lazy stype_
   <?> "session type") s

@@ -59,24 +59,24 @@ and proc =
  and mtype = Comp of string * [`A of fvar | `M of mtype | `S of stype] list
            | MonT of stype option * stype list
            | MVar  of string
- and stype = TyInD  of modality * mtype * stype
-           | TyOutD of modality * mtype * stype
-           | TyInC  of modality * stype * stype
-           | TyOutC of modality * stype * stype
-           | Stop of modality
-           | Intern of modality * stype LM.t
-           | Extern of modality * stype LM.t
-           | Mu of tyvar * stype * string * [`A of fvar | `M of mtype | `S of stype] list (* Second two record data for printing *)
+ and stype = TyInD  of srcloc * modality * mtype * stype
+           | TyOutD of srcloc * modality * mtype * stype
+           | TyInC  of srcloc * modality * stype * stype
+           | TyOutC of srcloc * modality * stype * stype
+           | Stop of srcloc * modality
+           | Intern of srcloc * modality * stype LM.t
+           | Extern of srcloc * modality * stype LM.t
+           | Mu of srcloc * tyvar * stype * string * [`A of fvar | `M of mtype | `S of stype] list (* Second two record data for printing *)
            | SVar of srcloc * tyvar (* Session type variables *)
            | SComp of srcloc * string * [`A of fvar | `M of mtype | `S of stype] list
-           | Forall of modality * tyvar * stype
-           | Exists of modality * tyvar * stype
-           | ShftUp of modality * stype (* Only need the target modality explicit *)
-           | ShftDw of modality * stype (* Only need the target modality explicit *) 
-           | TyAt of stype (* TODO is this ugly name needed? *)
-           | Prime of stype
-           | Bang of stype
-           | Sync of stype
+           | Forall of srcloc * modality * tyvar * stype
+           | Exists of srcloc * modality * tyvar * stype
+           | ShftUp of srcloc * modality * stype (* Only need the target modality explicit *)
+           | ShftDw of srcloc * modality * stype (* Only need the target modality explicit *) 
+           | TyAt of srcloc * stype (* TODO is this ugly name needed? *)
+           | Prime of srcloc * stype
+           | Bang of srcloc * stype
+           | Sync of srcloc * stype
 and ptype = Poly of string list * tyvar list * mtype (* first one is mtype
 quantifier, second session *)
 with sexp, bin_io 
@@ -102,6 +102,26 @@ let locE (e:exp) : srcloc =
   | Box (i,_,_) -> i
   | PolyApp (i,_,_) -> i
 
+let rec locS : stype -> srcloc = function
+  | ShftDw (i,_,_) -> i
+  | TyInD (i,_,_,_) -> i
+  | TyOutD (i,_,_,_) -> i
+  | TyInC (i,_,_,_) -> i
+  | TyOutC (i,_,_,_) -> i
+  | Stop (i,_) -> i
+  | Intern (i,_,_) -> i
+  | Extern (i,_,_) -> i
+  | Mu (i,_,_,_,_) -> i
+  | SVar (i,_) -> i
+  | SComp (i,_,_) -> i
+  | Forall (i,_,_,_) -> i
+  | Exists (i,_,_,_) -> i
+  | ShftUp (i,_,_) -> i
+  | TyAt (i,_) -> i
+  | Prime (i,_) -> i
+  | Bang (i,_) -> i
+  | Sync (i,_) -> i
+
 (* Global map to record the mode of declared session types *)
 let declModes : modality SM.t ref = ref SM.empty
 let declPoles : [`Pos | `Neg] SM.t ref = ref SM.empty
@@ -109,26 +129,26 @@ let declPoles : [`Pos | `Neg] SM.t ref = ref SM.empty
 (* Calculate the mode of a given type *)
 let rec getmode (tin:stype) : modality =
   match tin with
-  | TyInD (m,_,_) -> m
-  | TyOutD (m,_,_) -> m
-  | TyInC (m,_,_) -> m
-  | TyOutC (m,_,_) -> m
-  | Stop m -> m
-  | Intern (m,_) -> m
-  | Extern (m,_) -> m
-  | Mu((m,_),_,_,_) -> m
+  | TyInD (_,m,_,_) -> m
+  | TyOutD (_,m,_,_) -> m
+  | TyInC (_,m,_,_) -> m
+  | TyOutC (_,m,_,_) -> m
+  | Stop (_,m) -> m
+  | Intern (_,m,_) -> m
+  | Extern (_,m,_) -> m
+  | Mu(_,(m,_),_,_,_) -> m
   | SVar (_,(m,_)) -> m
   | SComp (l,c,_) -> if SM.mem !declModes c
-                     then SM.find_exn !declModes c
-                     else errr l ("Undefined session type "^c)
-  | Forall (m,_,_) -> m
-  | Exists (m,_,_) -> m
-  | ShftUp (m,_) -> m
-  | ShftDw (m,_) -> m
-  | Bang _ -> Intuist
-  | TyAt _ -> Affine
-  | Prime _ -> Linear
-  | Sync s -> getmode s
+                       then SM.find_exn !declModes c
+                       else errr l ("Undefined session type "^c)
+  | Forall (_,m,_,_) -> m
+  | Exists (_,m,_,_) -> m
+  | ShftUp (_,m,_) -> m
+  | ShftDw (_,m,_) -> m
+  | Bang (_,_) -> Intuist
+  | TyAt (_,_) -> Affine
+  | Prime (_,_) -> Linear
+  | Sync (_,s) -> getmode s
 
 (* TODO Confirm that these 'BUG's cannot arise *)
 (* This might be more cleanly reflected by splitting stype into stype_neg and stype_pos *)
@@ -149,14 +169,14 @@ let rec polarity : stype -> [`Pos | `Neg] = function
   | Exists _ -> `Pos
   | ShftUp _ -> `Neg
   | ShftDw _ -> `Pos
-  | Bang s when getmode s < Intuist -> `Neg
-  | Bang s ->  polarity (Sync s)
-  | TyAt s when getmode s > Affine -> `Pos
-  | TyAt s when getmode s < Affine -> `Neg
-  | TyAt s -> polarity (Sync s)
-  | Prime s when getmode s > Linear -> `Pos
-  | Prime s -> polarity (Sync s)
-  | Sync s -> (match polarity s with `Pos -> `Neg | `Neg -> `Pos)
+  | Bang (_,s) when getmode s < Intuist -> `Neg
+  | Bang (l,s) ->  polarity (Sync (l,s))
+  | TyAt (_,s) when getmode s > Affine -> `Pos
+  | TyAt (_,s) when getmode s < Affine -> `Neg
+  | TyAt (l,s) -> polarity (Sync (l,s))
+  | Prime (_,s) when getmode s > Linear -> `Pos
+  | Prime (l,s) -> polarity (Sync (l,s))
+  | Sync (_,s) -> (match polarity s with `Pos -> `Neg | `Neg -> `Pos)
 
 (* Some printing functions *)
 and string_of_mtype (tin:mtype) : string =
@@ -182,14 +202,14 @@ and string_of_mtype (tin:mtype) : string =
 (* TODO Check this printing *)
 and string_of_stype (tin : stype) : string =
   match tin with
-  | TyInD (_,m,s) -> string_of_mtype m ^"=>"^string_of_stype s
-  | TyOutD (_,m,s) -> string_of_mtype m ^"/\\"^string_of_stype s
-  | TyInC (m1,s1,s2) -> modetag m1 ^ string_of_stype s1 ^"-o"^string_of_stype s2
-  | TyOutC (m1,s1,s2) -> modetag m1 ^ string_of_stype s1 ^"*"^string_of_stype s2
+  | TyInD (_,_,m,s) -> string_of_mtype m ^"=>"^string_of_stype s
+  | TyOutD (_,_,m,s) -> string_of_mtype m ^"/\\"^string_of_stype s
+  | TyInC (_,m1,s1,s2) -> modetag m1 ^ string_of_stype s1 ^"-o"^string_of_stype s2
+  | TyOutC (_,m1,s1,s2) -> modetag m1 ^ string_of_stype s1 ^"*"^string_of_stype s2
   | Stop _ -> "1"
-  | Intern (_,c) -> 
+  | Intern (_,_,c) -> 
     "+{"^intercal (fun (l,s) -> string_of_label l^": "^string_of_stype s) "; " (LM.to_alist c)^"}"
-  | Extern (_,c) ->
+  | Extern (_,_,c) ->
     "&{"^intercal (fun (l,s) -> string_of_label l^": "^string_of_stype s) "; " (LM.to_alist c)^"}"
   | SComp (_,c,args) -> if List.length args = 0
                       then c
@@ -198,16 +218,16 @@ and string_of_stype (tin : stype) : string =
                                                     | `M m -> string_of_mtype m
                                                     | `S s -> string_of_stype s)
                                            "," args^")"
-  | Mu (x,s,_,_) -> "mu $"^string_of_tyvar x^". "^string_of_stype s
+  | Mu (_,x,s,_,_) -> "mu $"^string_of_tyvar x^". "^string_of_stype s
   | SVar (_,x) -> string_of_tyvar x
-  | Forall (_,x,s) -> "forall "^string_of_tyvar x^"."^string_of_stype s
-  | Exists (_,x,s) -> "exists "^string_of_tyvar x^"."^string_of_stype s
+  | Forall (_,_,x,s) -> "forall "^string_of_tyvar x^"."^string_of_stype s
+  | Exists (_,_,x,s) -> "exists "^string_of_tyvar x^"."^string_of_stype s
   | ShftUp _ -> failwith "string_of_stype ShftUp"
   | ShftDw _ -> failwith "string_of_stype ShftDw"
-  | TyAt s -> "@"^string_of_stype s
-  | Bang s -> "!"^string_of_stype s
-  | Prime s -> "'"^string_of_stype s
-  | Sync s -> modetag (getmode s)^string_of_stype s
+  | TyAt (_,s) -> "@"^string_of_stype s
+  | Bang (_,s) -> "!"^string_of_stype s
+  | Prime (_,s) -> "'"^string_of_stype s
+  | Sync (_,s) -> modetag (getmode s)^string_of_stype s
 
 (* Free variables *)
 (* TODO Better name *)
@@ -230,16 +250,16 @@ let rec freeMVarsMPure (tin:mtype) : SS.t =
 (* TODO this name has the module name in it.... *)
 and freeMVarsSPure (tin:stype) : SS.t =
   match tin with
-  | TyInD (_,m,s) -> SS.union (freeMVarsMPure m) (freeMVarsSPure s)
-  | TyOutD (_,m,s) -> SS.union (freeMVarsMPure m) (freeMVarsSPure s)
-  | TyInC (_,s1,s2) -> SS.union (freeMVarsSPure s1) (freeMVarsSPure s2)
-  | TyOutC (_,s1,s2) -> SS.union (freeMVarsSPure s1) (freeMVarsSPure s2)
-  | Stop _ -> SS.empty
-  | Intern (_,c) -> LM.fold c ~init:SS.empty 
+  | TyInD (_,_,m,s) -> SS.union (freeMVarsMPure m) (freeMVarsSPure s)
+  | TyOutD (_,_,m,s) -> SS.union (freeMVarsMPure m) (freeMVarsSPure s)
+  | TyInC (_,_,s1,s2) -> SS.union (freeMVarsSPure s1) (freeMVarsSPure s2)
+  | TyOutC (_,_,s1,s2) -> SS.union (freeMVarsSPure s1) (freeMVarsSPure s2)
+  | Stop (_,_) -> SS.empty
+  | Intern (_,_,c) -> LM.fold c ~init:SS.empty 
                                 ~f:(fun ~key:_ ~data:s a -> SS.union a (freeMVarsSPure s))
-  | Extern (_,c) -> LM.fold c ~init:SS.empty
+  | Extern (_,_,c) -> LM.fold c ~init:SS.empty
                                  ~f:(fun ~key:_ ~data:s a -> SS.union a (freeMVarsSPure s))
-  | Mu (_,s,_,_) -> freeMVarsSPure s
+  | Mu (_,_,s,_,_) -> freeMVarsSPure s
   | SVar _ -> SS.empty
   | SComp (l,name,args) ->
     (match SM.find !sessionQs name with
@@ -256,14 +276,14 @@ and freeMVarsSPure (tin:stype) : SS.t =
                         | `S _,`S x -> SS.union s (freeMVarsSPure x)
                         | _ -> failwith "BUG freeMVarsSPure.1")
     | None -> errr l ("Undefined session type "^name))
-  | Forall (_,_,s) -> freeMVarsSPure s
-  | Exists (_,_,s) -> freeMVarsSPure s
-  | ShftUp (_,s) -> freeMVarsSPure s
-  | ShftDw (_,s) -> freeMVarsSPure s
-  | Bang s -> freeMVarsSPure s
-  | TyAt s -> freeMVarsSPure s
-  | Prime s -> freeMVarsSPure s
-  | Sync s -> freeMVarsSPure s
+  | Forall (_,_,_,s) -> freeMVarsSPure s
+  | Exists (_,_,_,s) -> freeMVarsSPure s
+  | ShftUp (_,_,s) -> freeMVarsSPure s
+  | ShftDw (_,_,s) -> freeMVarsSPure s
+  | Bang (_,s) -> freeMVarsSPure s
+  | TyAt (_,s) -> freeMVarsSPure s
+  | Prime (_,s) -> freeMVarsSPure s
+  | Sync (_,s) -> freeMVarsSPure s
 
 let rec freeSVarsMPure (tin:mtype) : TS.t =
   match tin with
@@ -285,16 +305,16 @@ let rec freeSVarsMPure (tin:mtype) : TS.t =
 (* TODO Move freevariable stuff to be closer together *)
 and freeSVarsSPure (tin:stype) : TS.t =
   match tin with
-  | TyInD (_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
-  | TyOutD (_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
-  | TyInC (_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
-  | TyOutC (_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
+  | TyInD (_,_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
+  | TyOutD (_,_,m,s) -> TS.union (freeSVarsMPure m) (freeSVarsSPure s)
+  | TyInC (_,_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
+  | TyOutC (_,_,s1,s2) -> TS.union (freeSVarsSPure s1) (freeSVarsSPure s2)
   | Stop _ -> TS.empty
-  | Intern (_,c) -> LM.fold c ~init:TS.empty 
+  | Intern (_,_,c) -> LM.fold c ~init:TS.empty 
                               ~f:(fun ~key:_ ~data:s a -> TS.union a (freeSVarsSPure s))
-  | Extern (_,c) -> LM.fold c ~init:TS.empty
+  | Extern (_,_,c) -> LM.fold c ~init:TS.empty
                               ~f:(fun ~key:_ ~data:s a -> TS.union a (freeSVarsSPure s))
-  | Mu (x,s,_,_) -> TS.remove (freeSVarsSPure s) x
+  | Mu (_,x,s,_,_) -> TS.remove (freeSVarsSPure s) x
   | SVar (_,x) -> TS.singleton x
   | SComp (_,_,args) -> List.fold_left args 
                                      ~init:TS.empty
@@ -302,14 +322,14 @@ and freeSVarsSPure (tin:stype) : TS.t =
                                                     | `A _ -> TS.empty (* TODO fix this *)
                                                     | `M x -> TS.union s (freeSVarsMPure x)
                                                     | `S x -> TS.union s (freeSVarsSPure x))
-  | Forall (_,x,s) -> TS.remove (freeSVarsSPure s) x
-  | Exists (_,x,s) -> TS.remove (freeSVarsSPure s) x
-  | ShftUp (_,s) -> freeSVarsSPure s
-  | ShftDw (_,s) -> freeSVarsSPure s
-  | Bang s -> freeSVarsSPure s
-  | TyAt s -> freeSVarsSPure s
-  | Prime s -> freeSVarsSPure s
-  | Sync s -> freeSVarsSPure s
+  | Forall (_,_,x,s) -> TS.remove (freeSVarsSPure s) x
+  | Exists (_,_,x,s) -> TS.remove (freeSVarsSPure s) x
+  | ShftUp (_,_,s) -> freeSVarsSPure s
+  | ShftDw (_,_,s) -> freeSVarsSPure s
+  | Bang (_,s) -> freeSVarsSPure s
+  | TyAt (_,s) -> freeSVarsSPure s
+  | Prime (_,s) -> freeSVarsSPure s
+  | Sync (_,s) -> freeSVarsSPure s
 
 type toplet = (* TODO Should be a record? *)
   | TopExp of fvar  (* name *)

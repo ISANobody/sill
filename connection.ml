@@ -83,11 +83,11 @@ let rec puretoptrM (tin : Pure.mtype) : Dest.mtype =
 and puretoptrS (tin_in : Pure.stype) : Dest.stype = 
   let rec go (tin : Pure.stype) (env : Dest.stype SM.t) : Dest.stype =
     match tin with
-    | Pure.TyInD (mode,m,s) -> Dest.mkind mode (puretoptrM m) (go s env)
-    | Pure.TyOutD (mode,m,s) -> Dest.mkoutd mode (puretoptrM m) (go s env)
-    | Pure.TyInC (m,s1,s2) -> Dest.mkinc m (go s1 env) (go s2 env)
-    | Pure.TyOutC (m,s1,s2) -> Dest.mkoutc m (go s1 env) (go s2 env)
-    | Pure.Stop mode -> Dest.mkstop mode
+    | Pure.TyInD (_,mode,m,s) -> Dest.mkind mode (puretoptrM m) (go s env)
+    | Pure.TyOutD (_,mode,m,s) -> Dest.mkoutd mode (puretoptrM m) (go s env)
+    | Pure.TyInC (_,m,s1,s2) -> Dest.mkinc m (go s1 env) (go s2 env)
+    | Pure.TyOutC (_,m,s1,s2) -> Dest.mkoutc m (go s1 env) (go s2 env)
+    | Pure.Stop (_,mode) -> Dest.mkstop mode
     | Pure.SComp (l,c,args) -> (* This feels like it might be best as a separate function *)
         let (qs,t) = if SM.mem !sessionDefs c
                      then SM.find_exn !sessionDefs c
@@ -112,7 +112,7 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
                  | _ -> failwith "BUG puretoptrS.go SComp"
                  )
             in Dest.substS t subM subS
-    | Pure.Mu ((l,x),s,name,args) -> 
+    | Pure.Mu (_,(l,x),s,name,args) -> 
       let qs = (if SM.mem !sessionQs name
                then SM.find_exn !sessionQs name
                else failwith ("Undefined session type "^name)) (* TODO print location *)
@@ -130,33 +130,33 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
     | Pure.SVar (l,(mode,x)) -> (match SM.find env x with
                                 | Some t -> t
                                 | None -> ref (Dest.SVarU (mode,x)))
-    | Pure.Intern (mode,c) -> Dest.mkint mode (LM.map c (fun s -> go s env))
-    | Pure.Extern (mode,c) -> Dest.mkext mode (LM.map c (fun s -> go s env))
-    | Pure.Forall (m,x,s) -> ref (Dest.Forall (m,x,go s env))
-    | Pure.Exists (m,x,s) -> ref (Dest.Exists (m,x,go s env))
-    | Pure.ShftUp (m,s) -> ref (Dest.ShftUp (m,go s env))
-    | Pure.ShftDw (m,s) -> ref (Dest.ShftDw (m,go s env))
-    | Pure.Bang s ->
+    | Pure.Intern (_,mode,c) -> Dest.mkint mode (LM.map c (fun s -> go s env))
+    | Pure.Extern (_,mode,c) -> Dest.mkext mode (LM.map c (fun s -> go s env))
+    | Pure.Forall (_,m,x,s) -> ref (Dest.Forall (m,x,go s env))
+    | Pure.Exists (_,m,x,s) -> ref (Dest.Exists (m,x,go s env))
+    | Pure.ShftUp (_,m,s) -> ref (Dest.ShftUp (m,go s env))
+    | Pure.ShftDw (_,m,s) -> ref (Dest.ShftDw (m,go s env))
+    | Pure.Bang (l,s) ->
       (match compare Intuist (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Intuist,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Intuist,puretoptrS s))
-      | 0  -> puretoptrS (Pure.Sync s)
+      | 0  -> puretoptrS (Pure.Sync (l,s))
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
-    | Pure.TyAt s ->
+    | Pure.TyAt (l,s) ->
       (match compare Affine (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Affine,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Affine,puretoptrS s))
-      | 0  -> puretoptrS (Pure.Sync s)
+      | 0  -> puretoptrS (Pure.Sync (l,s))
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
-    | Pure.Prime s ->
+    | Pure.Prime (l,s) ->
       (match compare Linear (Pure.getmode s) with
       | -1 -> ref (Dest.ShftDw (Linear,puretoptrS s))
       | 1  -> ref (Dest.ShftUp (Linear,puretoptrS s))
-      | 0  -> puretoptrS (Pure.Sync s)
+      | 0  -> puretoptrS (Pure.Sync (l,s))
       | _  -> failwith "BUG puretoptrS doesn't understand Pervasisves.compare")
-    | Pure.Sync s ->
+    | Pure.Sync (l,s) ->
       (match Pure.polarity s with
-      | `Pos -> puretoptrS (Pure.ShftUp(Pure.getmode s,s))
-      | `Neg -> puretoptrS (Pure.ShftDw(Pure.getmode s,s)))
+      | `Pos -> puretoptrS (Pure.ShftUp(l,Pure.getmode s,s))
+      | `Neg -> puretoptrS (Pure.ShftDw(l,Pure.getmode s,s)))
 
   in go tin_in SM.empty

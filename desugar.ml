@@ -104,7 +104,7 @@ and desugarProc (this:cvar) (scope:CS.t) (pin:Full.proc) : Core.proc =
                        typing work out we also need an unproductive process. *)
     desugarProc this scope 
     (let tmpc = (i,Lin ("abort_"^priv_name ()))
-    in Full.Bind(i,tmpc,Full.Let(i,`M (Full.MonT (Some (Full.Intern (Linear,LM.empty)),[]))
+    in Full.Bind(i,tmpc,Full.Let(i,`M (Full.MonT (Some (Full.Intern (i,Linear,LM.empty)),[]))
                                 ,(i,"_abort_"),[]
                                 ,Full.Monad(i,Some tmpc,Full.TailBind(i,tmpc,Full.Var(i,(i,"_abort_")),[]),[])
                                 ,Full.Var (i,(i,"_abort_"))),[]
@@ -162,7 +162,7 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
          let tmpe = (fst c,"_mix_desugar_"^priv_name ())
          and tmpc = (fst c,Lin ("_mix_desugar_"^priv_name ()))
          in Full.LetP(fst c
-                     ,`M (Pure.MonT(Some (Pure.Stop Linear),[]))
+                     ,`M (Pure.MonT(Some (Pure.Stop (fst c,Linear)),[]))
                      ,tmpe
                      ,[]
                      ,Full.Monad(fst c,Some c,p,[])
@@ -219,48 +219,48 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
                                                    | `S x -> `S (goS min x))
              in Pure.SComp (l,n,args')
            | Pure.SVar (x,y) -> Pure.SVar (x,y)
-           | Pure.Stop _ -> Pure.Stop min
-           | Pure.Mu (x,s,name,args) ->
+           | Pure.Stop (l,_) -> Pure.Stop (l,min)
+           | Pure.Mu (l,x,s,name,args) ->
              let args' = List.map args (fun arg -> match arg with
                                                    | `A x -> `A x
                                                    | `M x -> `M (goM x)
                                                    | `S x -> `S (goS min x))
-             in Pure.Mu (x,goS min s,name,args')
-           | Pure.TyInD (_,m,s) -> Pure.TyInD(min,goM m,goS min s)
-           | Pure.TyOutD (_,m,s) -> Pure.TyOutD(min,goM m,goS min s)
-           | Pure.TyInC (_,s1,s2) -> Pure.TyInC(min,goS min s1,goS min s2)
-           | Pure.TyOutC (_,s1,s2) -> Pure.TyOutC(min,goS min s1,goS min s2)
-           | Pure.Intern (_,lm) -> Pure.Intern (min,LM.map lm (goS min))
-           | Pure.Extern (_,lm) -> Pure.Extern (min,LM.map lm (goS min))
-           | Pure.Forall (_,x,s) -> Pure.Forall (min,x,goS min s)
-           | Pure.Exists (_,x,s) -> Pure.Exists (min,x,goS min s)
-           | Pure.ShftUp (m,s) -> 
+             in Pure.Mu (l,x,goS min s,name,args')
+           | Pure.TyInD (l,_,m,s) -> Pure.TyInD(l,min,goM m,goS min s)
+           | Pure.TyOutD (l,_,m,s) -> Pure.TyOutD(l,min,goM m,goS min s)
+           | Pure.TyInC (l,_,s1,s2) -> Pure.TyInC(l,min,goS min s1,goS min s2)
+           | Pure.TyOutC (l,_,s1,s2) -> Pure.TyOutC(l,min,goS min s1,goS min s2)
+           | Pure.Intern (l,_,lm) -> Pure.Intern (l,min,LM.map lm (goS min))
+           | Pure.Extern (l,_,lm) -> Pure.Extern (l,min,LM.map lm (goS min))
+           | Pure.Forall (l,_,x,s) -> Pure.Forall (l,min,x,goS min s)
+           | Pure.Exists (l,_,x,s) -> Pure.Exists (l,min,x,goS min s)
+           | Pure.ShftUp (l,m,s) -> 
              if m = min
-             then Pure.ShftUp(m,goS Linear s)
+             then Pure.ShftUp(l,m,goS Linear s)
              else failwith ("desugarer expected "^string_of_mode min^" but found "^Pure.string_of_stype s)
-           | Pure.ShftDw (m,s) -> 
+           | Pure.ShftDw (l,m,s) -> 
              if m = min
-             then Pure.ShftDw(m,goS Linear s)
+             then Pure.ShftDw(l,m,goS Linear s)
              else failwith ("desugarer expected "^string_of_mode min^" but found "^Pure.string_of_stype s)
-           | Pure.Bang s -> (* TODO examples using this *)
+           | Pure.Bang (l,s) -> (* TODO examples using this *)
              (match Pure.getmode s with
-             | Linear -> Pure.ShftUp(Intuist, goS Linear s)
-             | Affine -> Pure.ShftUp(Intuist, goS Affine s)
-             | Intuist -> goS min (Pure.Sync s))
-           | Pure.TyAt s -> (* TODO examples using this *)
+             | Linear -> Pure.ShftUp(l,Intuist, goS Linear s)
+             | Affine -> Pure.ShftUp(l,Intuist, goS Affine s)
+             | Intuist -> goS min (Pure.Sync (l,s)))
+           | Pure.TyAt (l,s) -> (* TODO examples using this *)
              (match Pure.getmode s with
-             | Linear -> Pure.ShftUp(Affine, goS Affine s)
-             | Affine -> goS min (Pure.Sync s)
-             | Intuist -> Pure.ShftDw(Affine, goS Intuist s))
-           | Pure.Prime s -> (* TODO examples using this *)
+             | Linear -> Pure.ShftUp(l,Affine, goS Affine s)
+             | Affine -> goS min (Pure.Sync (l,s))
+             | Intuist -> Pure.ShftDw(l,Affine, goS Intuist s))
+           | Pure.Prime (l,s) -> (* TODO examples using this *)
              (match Pure.getmode s with
-             | Linear -> goS min (Pure.Sync s)
-             | Affine -> Pure.ShftDw(Linear, goS Affine s)
-             | Intuist -> Pure.ShftDw(Linear, goS Intuist s))
-           | Pure.Sync s ->
+             | Linear -> goS min (Pure.Sync (l,s))
+             | Affine -> Pure.ShftDw(l,Linear, goS Affine s)
+             | Intuist -> Pure.ShftDw(l,Linear, goS Intuist s))
+           | Pure.Sync (l,s) ->
              (match Pure.polarity s with
-             | `Neg -> goS min (Pure.ShftDw(Linear, s))
-             | `Pos -> goS min (Pure.ShftUp(Linear, s)))
+             | `Neg -> goS min (Pure.ShftDw(l,Linear, s))
+             | `Pos -> goS min (Pure.ShftUp(l,Linear, s)))
        and goM (tin:Pure.mtype) : Pure.mtype =
            match tin with
            | Pure.MVar x -> Pure.MVar x
@@ -285,5 +285,5 @@ let rec desugarTop (tin:Full.toplvl) : Core.toplvl list =
               let qs' = List.map fs (fun q -> match q with 
                                               | `M x -> `M (Pure.MVar x)
                                               | `S x -> `S (Pure.SVar (fst t,x)))
-              in [Core.STypeDecl (t,fs,Pure.Mu((Linear,x),s',snd t,qs'))] (* TODO hardcoded mode *)
+              in [Core.STypeDecl (t,fs,Pure.Mu(Pure.locS s',(Linear,x),s',snd t,qs'))] (* TODO hardcoded mode *)
              | None -> [Core.STypeDecl (t,fs,s')]
