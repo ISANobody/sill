@@ -38,10 +38,11 @@ let findResidual (env:sesenv) : consumed CM.t =
                                                      then Slack
                                                      else Unconsumed)
     (* TODO Should we do something with modes here? *)
-    | "one_weaken" ->  CM.mapi env ~f:(fun ~key:k ~data:t -> if !(Types.Dest.getSType t) = Types.Dest.Stop Linear
-                                                 || not (is_lin k)
-                                               then Slack
-                                               else Unconsumed)
+    | "one_weaken" ->  CM.mapi env ~f:(fun ~key:k ~data:t ->
+        match !(Types.Dest.getSType t) with
+        | Stop _ -> Slack
+        | _ when not (is_lin k) -> Slack
+        | _ -> Unconsumed)
     | "affine" -> CM.map env (fun _ -> Slack)
     | _ -> failwith "Unknown gkind"
   in CM.filter_mapi slkmap (fun ~key:k ~data:d -> if is_shr k
@@ -201,38 +202,38 @@ let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) 
 and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
   if memq tin vs then () else
   let go (mode:modality) (s:stype) : unit =
-    errr loc ("Expected a "^string_of_mode mode^" version of "^string_of_stype s
+    errr (locS s) ("Expected a "^string_of_mode mode^" version of "^string_of_stype s
              ^" but found "^string_of_mode (getMode s)^" instead")
   in match !(getSType tin) with
   | SVar -> errr loc "BUG wfS SVar"
   | SInd _ -> errr loc "BUG wfS SInd"
   | SComp _ -> errr loc "BUG wfS SComp"
-  | SVarU x -> if not (TS.mem wfss x) then errr loc (string_of_tyvar x^" is not in scope")
+  | SVarU (_,x) -> if not (TS.mem wfss x) then errr loc (string_of_tyvar x^" is not in scope")
   | Stop _ -> ()
-  | InD (mode,m,s) -> if not (mode = getMode s) 
+  | InD (_,mode,m,s) -> if not (mode = getMode s) 
                       then go mode s 
                       else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
-  | OutD (mode,m,s) -> if not (mode = getMode s) 
+  | OutD (_,mode,m,s) -> if not (mode = getMode s) 
                        then go mode s 
                        else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
-  | InC (mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
+  | InC (_,mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
                         if not (mode = getMode s2) then go mode s2;
                         wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
-  | OutC (mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
+  | OutC (_,mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
                          if not (mode = getMode s2) then go mode s2;
                          wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
-  | Intern (mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+  | Intern (_,mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
                                                           then go mode s
                                                           else wfS_ (tin::vs) loc wfms wfss s)
-  | Extern (mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+  | Extern (_,mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
                                                           then go mode s
                                                           else wfS_ (tin::vs) loc wfms wfss s)
-  | Forall (mode,x,s) -> if not (mode = getMode s) then go mode s;
+  | Forall (_,mode,x,s) -> if not (mode = getMode s) then go mode s;
                          wfS_ (tin::vs) loc wfms (TS.add wfss x) s
-  | Exists (mode,x,s) -> if not (mode = getMode s) then go mode s;
+  | Exists (_,mode,x,s) -> if not (mode = getMode s) then go mode s;
                          wfS_ (tin::vs) loc wfms (TS.add wfss x) s
-  | ShftUp (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
-  | ShftDw (mode,s) -> wfS_ (tin::vs) loc wfms wfss s
+  | ShftUp (_,mode,s) -> wfS_ (tin::vs) loc wfms wfss s
+  | ShftDw (_,mode,s) -> wfS_ (tin::vs) loc wfms wfss s
 
 let rec polM_ (vs : stype list) (loc:srcloc) (tin:mtype) : unit =
   match !(getMType tin) with
@@ -257,18 +258,18 @@ and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
   | SComp _ -> errr loc "BUG wfS SComp"
   | Stop _ -> ()
   | SVarU _ -> ()
-  | InD (_,m,s) -> check `Neg s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
-  | OutD (_,m,s) -> check `Pos s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
-  | InC (_,s1,s2) -> check `Pos s1; check `Neg s2; 
+  | InD (_,_,m,s) -> check `Neg s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
+  | OutD (_,_,m,s) -> check `Pos s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
+  | InC (_,_,s1,s2) -> check `Pos s1; check `Neg s2; 
                      polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
-  | OutC (_,s1,s2) -> check `Pos s1; check `Pos s2; 
+  | OutC (_,_,s1,s2) -> check `Pos s1; check `Pos s2; 
                       polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
-  | Intern (_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Pos s; polS_ (tin::vs) loc s)
-  | Extern (_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Neg s; polS_ (tin::vs) loc s)
-  | Forall (_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
-  | Exists (_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
-  | ShftUp (_,s) -> check `Pos s; polS_ (tin::vs) loc s
-  | ShftDw (_,s) -> check `Neg s; polS_ (tin::vs) loc s
+  | Intern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Pos s; polS_ (tin::vs) loc s)
+  | Extern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Neg s; polS_ (tin::vs) loc s)
+  | Forall (_,_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
+  | Exists (_,_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
+  | ShftUp (_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
+  | ShftDw (_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
                  
 let infFocusWarning (vs: SS.t) (tin:stype) : unit =
   () (* TODO Stuff *)
@@ -453,7 +454,8 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
                                           ^string_of_int (List.length ts)^" got "
                                           ^string_of_int (List.length cs))
         (* TODO is Linear correct? *)
-        in let sub = checkS wfms wfss env senv p ((locE ein),Lin (priv_name ())) (mkstop Linear)
+        in let sub = checkS wfms wfss env senv p ((locE ein),Lin (priv_name ()))
+        (mkstop (locP p) Linear)
            in allconsumed "monad" sub
      | _ -> errr (locE ein) ("Expected detached monad type found "^string_of_mtype tin))
      | Cast (i,e,t) ->
@@ -709,25 +711,25 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | InputD (i,x,c,p)  ->
     if cvar_eq c cpr
     then (match !(getSType tin) with
-         | InD (_,et,pt) ->
+         | InD (_,_,et,pt) ->
            checkS wfms wfss (FM.add env x (Poly([],[],et))) senv p cpr pt
          | _ -> errr (fst c) ("=>R expected "^string_of_cvar cpr^" to have => type.  Found "
                                ^string_of_stype tin))
     else (match !(getSType (safefind "/\\L" senv c)) with
-         | OutD (_,xt,ct) -> 
+         | OutD (_,_,xt,ct) -> 
            usedhere "/\\L" (checkS wfms wfss (FM.add env x (Poly([],[],xt))) (CM.add senv c ct) p cpr tin) c [getinfoP p]
          | _ -> errr (fst c) ("/\\L expected "^string_of_cvar cpr^" to have /\\ type.  Found "
                                ^string_of_stype (safefind "/\\L" senv c)))
   | OutputD (i,c,e,p) ->
     if cvar_eq c cpr
     then (match !(getSType tin) with
-         | OutD (_,et,pt) ->
+         | OutD (_,_,et,pt) ->
            checkM wfms wfss env e et;
            checkS wfms wfss env senv p cpr pt
          | _ -> errr (fst cpr) ("/\\R expected "^string_of_cvar cpr^" to have /\\ type.  Found "
                                ^string_of_stype tin))
     else (match !(getSType (safefind "=>L" senv c)) with
-         | InD (_,et,ct) -> 
+         | InD (_,_,et,ct) -> 
            checkM wfms wfss env e et;
            usedhere "=>L" (checkS wfms wfss env (CM.add senv c ct) p cpr tin) c [getinfoP p]
          | _ -> errr (fst c) ("=>L expected "^string_of_cvar c^" to have => type.  Found "
@@ -735,7 +737,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | InputC (i,ambigref,c1,c2,p) ->
     if cvar_eq c2 cpr
     then match !(getSType tin) with
-         | InC (m,c1t,pt) -> 
+         | InC (_,m,c1t,pt) -> 
            if not (!ambigref = `Tensor)
            then errr (locP pin) ("-oR: Type of "^string_of_cvar c2^" is "^string_of_stype tin
                                 ^" but "^string_of_cvar c1^" isn't the same modality");
@@ -744,7 +746,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
               "-oR: modality mismatch";
            let sub = checkS wfms wfss env (CM.add senv c1 c1t) p cpr pt
            in boundhere "-oR/UpR" senv sub c1 [getinfoP p]
-         | ShftUp (_,t) -> 
+         | ShftUp (_,_,t) -> 
            (* We need to:
               1) confirm that c1 is a lower mode than c2? Paper has this implicit in the syntax. 
               2) Confirm that c2 is the channel we're supposed to be providing.
@@ -774,7 +776,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
            checkS wfms wfss env senv p c1 t
          | _ -> errr (ast2loc i) ("-oR/UpR: Expected -o/Up found "^string_of_stype tin)
     else (match !(getSType (safefind "*L/DowncastL" senv c2)) with
-         | OutC (m,c1t,c2t) -> 
+         | OutC (_,m,c1t,c2t) -> 
            (* Might not be needed, but confirm that our earlier disambiguation agrees here *)
            if not (!ambigref = `Tensor)
            then errr (locP pin) ("*L: Type of "^string_of_cvar c2^" is "^string_of_stype tin
@@ -787,7 +789,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
               ("*L modality mismatch");
            let sub = checkS wfms wfss env (CM.add (CM.add senv c2 c2t) c1 c1t) p cpr tin
            in boundhere "*L" senv (usedhere "*L" sub c2 [getinfoP p]) c1 [getinfoP p]
-         | ShftDw (_,t) ->
+         | ShftDw (_,_,t) ->
            (* Might not be needed, but confirm that our earlier disambiguation agrees here *)
            if not (!ambigref = `DwCastL)
            then errr (locP pin) ("DowncastL: Type of "^string_of_cvar c2^" is "^string_of_stype tin
@@ -821,7 +823,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | OutputC (i,c,d,pd,p) ->
     if cvar_eq c cpr
     then match !(getSType tin) with
-         | OutC (m,dt,pt) ->
+         | OutC (_,m,dt,pt) ->
             (* Make sure the type mode is compatible with the new proc *)
             if not (var2mode d = m) then errr (fst d) "*R modality mismatch";
             let resd =  (* Ensure that affine contexts don't use linear channels. *)
@@ -846,7 +848,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                        | Unconsumed,Unconsumed -> Unconsumed)
         | _ -> errr (ast2loc i) ("*R: expected * found "^string_of_stype tin)
     else (match !(getSType (safefind "-oL" senv c)) with
-         | InC (m,dt,ct) ->
+         | InC (_,m,dt,ct) ->
             if not (var2mode d = m) then errr (fst d) "-oL modality mismatch";
             let resd = (* Ensure that affine contexts don't use linear channels. *)
                        (* TODO This probably shouldn't be copy/pasted from *R *)
@@ -881,7 +883,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
     | _ -> errr (fst c) ("1R expected "^string_of_cvar c^" to have type 1. Found "
                         ^string_of_stype tin))
   | Exit _ -> 
-    (prettyUnifS "Exit BUG" (locP pin) tin (mkstop Linear);
+    (prettyUnifS "Exit BUG" (locP pin) tin (mkstop (locP pin) Linear);
           findResidual senv)
   | Wait (_,c,p) ->
     if cvar_eq c cpr
@@ -903,7 +905,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | External (_,c,ps) ->
     if cvar_eq c cpr
     then match !(getSType tin) with
-      | Extern (_,ts) -> (* TODO Mode *)
+      | Extern (_,_,ts) -> (* TODO Mode *)
         (* First find the residuals for each possible subprocess mentioned in the type *)
         let ress = LM.mapi ts (fun ~key:l ~data:t -> match LM.find ps l with
                                     | None -> errr (locP pin) ("&R: Expected to find "^string_of_label l) 
@@ -968,7 +970,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
       | _ -> errr (locP pin) "Expected External choice for &R"
     else (match !(getSType (safefind "+L" senv c)) with
       (* TODO Combine the residual finding of these two *)
-      | Intern (m,ts) -> (* TODO mode *)
+      | Intern (_,m,ts) -> (* TODO mode *)
         usedhere "+L" (
         (* First find the residuals for each possible subprocess mentioned in the type *)
         let ress = LM.mapi ts (fun ~key:l ~data:t -> match LM.find ps l with
@@ -1037,13 +1039,13 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | Internal (_,c,l,p) ->
     if cvar_eq c cpr
     then match !(getSType tin) with
-         | Intern (_,ts) -> if LM.mem ts l
+         | Intern (_,_,ts) -> if LM.mem ts l
                         then checkS wfms wfss env senv p cpr (LM.find_exn ts l)
                         else errr (fst l) ("label "^string_of_label l^" not in expected type "
                                             ^string_of_stype tin)
          | _ -> errr (locP pin) "Non internal choice while checking +R"
     else (match !(getSType (safefind "&L" senv c)) with
-         | Extern (_,ts) -> if LM.mem ts l
+         | Extern (_,_,ts) -> if LM.mem ts l
                         then usedhere "&L" (checkS wfms wfss env (CM.add senv c (LM.find_exn ts l)) 
                                                    p cpr tin) c [getinfoP p]
                         else errr (fst l) ("label "^string_of_label l^" not in expected type "
@@ -1053,11 +1055,11 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | InputTy (_,x,c,p) -> 
     if cvar_eq c cpr
     then (match !(getSType tin) with
-         | Forall (_,xt,pt) ->
+         | Forall (_,_,xt,pt) ->
            checkS wfms wfss env senv p cpr pt
          | _ -> errr (locP pin) ("forallR: expected forall type but found "^string_of_stype tin))
     else (match !(getSType (safefind "existsL" senv c)) with
-         | Exists (_,xt,ct) -> 
+         | Exists (_,_,xt,ct) -> 
            checkS wfms wfss env (CM.add senv c ct) p cpr tin
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype (safefind "existsL" senv c)))
   | OutputTy (_,c,st,p) ->
@@ -1065,13 +1067,13 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
     in wfS (locP pin) wfms wfss st';
     if cvar_eq c cpr
     then (match !(getSType tin) with
-         | Exists (_,x,ct) -> 
+         | Exists (_,_,x,ct) -> 
            checkS wfms wfss env senv p cpr (substS ct (SM.empty)
                                                    (TM.singleton x st'))
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype tin))
     else (* Should this have an occurs check? *)
          (match !(getSType (safefind "forallL" senv c)) with
-         | Forall (_,x,ct) ->
+         | Forall (_,_,x,ct) ->
           usedhere "forallL" (checkS wfms wfss env (CM.add senv c (substS ct (SM.empty) (TM.singleton x st'))) p cpr tin) c
                      [getinfoP p]
          | _ -> errr (fst c) ("Expected forall type. Found: "^string_of_stype (safefind "forallL" senv c)))
@@ -1106,10 +1108,10 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
      (* get the type for c1 *)
      (match !(getSType (safefind "UpL" senv c2)) with
      | SInd _ -> errr (locP pin) "BUG checkS-ShftUpL SInd after getSType"
-     | ShftUp (Intuist,t) ->
+     | ShftUp (_,Intuist,t) ->
        let r = checkS wfms wfss env (CM.add senv c1 t) p cpr tin
        in boundhere "UpL" senv r c1 [getinfoP p]
-     | ShftUp (_,t) ->
+     | ShftUp (_,_,t) ->
        let r = checkS wfms wfss env (CM.add (CM.remove senv c2) c1 t) p cpr tin
        in let r' = boundhere "UpL" (CM.remove senv c2) r c1 [getinfoP p]
           in (* TODO does this need to confirm that c2 doesn't exist? *)
@@ -1144,7 +1146,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
      in (* Get continuation type *)
         (match !(getSType tin) with
         | SInd _ -> errr (locP pin) "BUG checkS-ShftDwR SInd after getSType"
-        | ShftDw (_,t) -> 
+        | ShftDw (_,_,t) -> 
           let r = checkS wfms wfss env senv p c2 t
           in (* Combine the residual with the stuff in low *)
              CM.merge (CM.map low (fun _ -> Unconsumed)) r 
@@ -1179,7 +1181,7 @@ let gatherTopTys (ds:toplvl list) : ptype FM.t =
                                    m')
           ,ref(Comp(snd t,List.map fs (function 
                                       | `M x -> `M (ref (MVarU x))
-                                      | `S s -> `S (ref (SVarU s)))))));
+                                      | `S s -> `S (ref (SVarU (fst t,s))))))));
           env
        | STypeDecl (t,fs,s) -> 
          let s' = Connection.puretoptrS s
@@ -1198,5 +1200,6 @@ let toplevel (ds:toplvl list) : unit=
     ~f:(function
        | Pass | ServDecl _ | MTypeDecl _ | STypeDecl _ -> ()
        | TopLet (f,t,e) -> let _ = letcommon (fst f) SS.empty TS.empty env t f e in ()
-       | TopProc (c,p) -> allconsumed "top" (checkS SS.empty TS.empty env CM.empty p c (mkstop Linear))
+       | TopProc (c,p) -> allconsumed "top" (checkS SS.empty TS.empty env
+       CM.empty p c (mkstop (fst c) Linear))
        )

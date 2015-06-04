@@ -73,28 +73,28 @@ and unifyS_raw (tin1 : stype) (tin2 : stype) (mode:[`Both | `LeftOnly | `RightOn
                       | `Both | `RightOnly -> t2 := SInd t1;
                       | `LeftOnly | `Neither -> failwith "SVar Left during `LeftOnly/`Neither")
             (* TODO confirm that mode mismatches give reasonable error messages *)
-          | SVarU x1,SVarU x2 when x1 = x2 -> ()
-          | Stop mode1,Stop mode2 when mode1 = mode2 -> t1 := SInd t2
-          | InD(mode1,m1,s1),InD(mode2,m2,s2) when mode1 = mode2 -> 
+          | SVarU (_,x1),SVarU (_,x2) when x1 = x2 -> ()
+          | Stop (_,mode1),Stop (_,mode2) when mode1 = mode2 -> t1 := SInd t2
+          | InD(_,mode1,m1,s1),InD(_,mode2,m2,s2) when mode1 = mode2 -> 
             t1 := SInd t2; 
             unifyM_raw m1 m2 mode; 
             unifyS_raw s1 s2 mode
-          | OutD(mode1,m1,s1),OutD(mode2,m2,s2) when mode1 = mode2 -> 
+          | OutD(_,mode1,m1,s1),OutD(_,mode2,m2,s2) when mode1 = mode2 -> 
             t1 := SInd t2; 
             unifyM_raw m1 m2 mode; 
             unifyS_raw s1 s2 mode
-          | OutC (mode1,a1,b1),OutC (mode2,a2,b2) when mode1 = mode2 
+          | OutC (_,mode1,a1,b1),OutC (_,mode2,a2,b2) when mode1 = mode2 
                -> t1 := SInd t2; unifyS_raw a1 a2 mode; unifyS_raw b1 b2 mode
-          | InC (mode1,a1,b1),InC (mode2,a2,b2) when mode1 = mode2 
+          | InC (_,mode1,a1,b1),InC (_,mode2,a2,b2) when mode1 = mode2 
                -> t1 := SInd t2; unifyS_raw a1 a2 mode; unifyS_raw b1 b2 mode
-          | Extern (mode1,c1), Extern (mode2,c2) when mode1 = mode2 -> 
+          | Extern (_,mode1,c1), Extern (_,mode2,c2) when mode1 = mode2 -> 
             t1 := SInd t2;
             lmIter2 c1 c2 
                      (fun ~key:k ~data:d -> match d with
                           | `Both (s1,s2) -> unifyS_raw s1 s2 mode
                           | `Left _ -> failwith ("unifyS: found key "^string_of_label k^" only on the left")
                           | `Right _ -> failwith ("unifyS: found key "^string_of_label k^" only on the right"))
-          | Intern (mode1,c1), Intern (mode2,c2) when mode1 = mode2 -> 
+          | Intern (_,mode1,c1), Intern (_,mode2,c2) when mode1 = mode2 -> 
             t1 := SInd t2;
             lmIter2 c1 c2 
                      (fun ~key:k ~data:d -> match d with
@@ -102,17 +102,17 @@ and unifyS_raw (tin1 : stype) (tin2 : stype) (mode:[`Both | `LeftOnly | `RightOn
                           | `Left _ -> failwith ("unifyS: found key "^string_of_label k^" only on the left")
                           | `Right _ -> failwith ("unifyS: found key "^string_of_label k^" only on the right"))
           (* TODO alpha convert *)
-          | Forall(mode1,x1,s1),Forall(mode2,x2,s2) when mode1 = mode2 && x1 = x2 ->
+          | Forall(_,mode1,x1,s1),Forall(_,mode2,x2,s2) when mode1 = mode2 && x1 = x2 ->
             t1 := SInd t2;
             unifyS_raw s1 s2 mode
           (* TODO alpha convert *)
-          | Exists(mode1,x1,s1),Exists(mode2,x2,s2) when mode1 = mode2 && x1 = x2 ->
+          | Exists(_,mode1,x1,s1),Exists(_,mode2,x2,s2) when mode1 = mode2 && x1 = x2 ->
             t1 := SInd t2;
             unifyS_raw s1 s2 mode
-          | ShftUp(mode1,s1),ShftUp(mode2,s2) when mode1 = mode2 ->
+          | ShftUp(_,mode1,s1),ShftUp(_,mode2,s2) when mode1 = mode2 ->
             t1 := SInd t2;
             unifyS_raw s1 s2 mode
-          | ShftDw(mode1,s1),ShftDw(mode2,s2) when mode1 = mode2 ->
+          | ShftDw(_,mode1,s1),ShftDw(_,mode2,s2) when mode1 = mode2 ->
             t1 := SInd t2;
             unifyS_raw s1 s2 mode
           | _ -> failwith ("can't unify: "^string_of_stype t1^" and "^string_of_stype t2)

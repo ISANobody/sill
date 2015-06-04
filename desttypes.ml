@@ -29,19 +29,19 @@ and stype = stype_raw ref
 and stype_raw =
    | SVar
    | SInd of stype
-   | SComp of stype * string * [`M of mtype | `S of stype] list
-   | InD of modality * mtype * stype
-   | OutD of modality * mtype * stype
-   | InC of modality * stype * stype
-   | OutC of modality * stype * stype
-   | Stop of modality
-   | Intern of modality * stype LM.t
-   | Extern of modality * stype LM.t
-   | SVarU of tyvar
-   | Forall of modality * tyvar * stype
-   | Exists of modality * tyvar * stype
-   | ShftUp of modality * stype (* Only need the target modality explicit *)
-   | ShftDw of modality * stype (* Only need the target modality explicit *)
+   | SComp of srcloc * stype * string * [`M of mtype | `S of stype] list
+   | InD of srcloc * modality * mtype * stype
+   | OutD of srcloc * modality * mtype * stype
+   | InC of srcloc * modality * stype * stype
+   | OutC of srcloc * modality * stype * stype
+   | Stop of srcloc * modality
+   | Intern of srcloc * modality * stype LM.t
+   | Extern of srcloc * modality * stype LM.t
+   | SVarU of srcloc * tyvar
+   | Forall of srcloc * modality * tyvar * stype
+   | Exists of srcloc * modality * tyvar * stype
+   | ShftUp of srcloc * modality * stype (* Only need the target modality explicit *)
+   | ShftDw of srcloc * modality * stype (* Only need the target modality explicit *)
 with sexp, bin_io
 
 (* Functions that follow indirection to get the type pointed at by xtype ref. *)
@@ -59,8 +59,26 @@ let rec getSType (r : stype) : stype =
   let r' = getSType_raw r
   in match !r' with
      | SInd _ -> failwith "BUG getSType SInd"
-     | SComp (r'',_,_) -> getSType r''
+     | SComp (_,r'',_,_) -> getSType r''
      | _ -> r'
+
+let locS (s: stype) : srcloc =
+  match !(getSType s) with
+  | SInd _ -> failwith "locS: SInd after getSType"
+  | SVar -> failwith "locS: SInd after getSType"
+  | Stop (i,_) -> i
+  | SComp (i,_,_,_) -> i
+  | InD (i,_,_,_) -> i
+  | OutD (i,_,_,_) -> i
+  | InC (i,_,_,_) -> i
+  | OutC (i,_,_,_) -> i
+  | Intern (i,_,_) -> i
+  | Extern (i,_,_) -> i
+  | SVarU (i,_) -> i
+  | Forall (i,_,_,_) -> i
+  | Exists (i,_,_,_) -> i
+  | ShftUp (i,_,_) -> i
+  | ShftDw (i,_,_) -> i
 
 (* showing types *)
 let mvarNames : (mtype * string) list ref = ref []
@@ -139,50 +157,50 @@ and string_of_stype_raw (tin:stype) (vs:(stype*string ref) list): string =
      else let n = ref "" in
           match !t with
           | SInd _ -> failwith "string_of_stype: SInd after getSType"
-          | SComp (_,name,ms) -> name^" "^intercal (fun x -> match x with
+          | SComp (_,_,name,ms) -> name^" "^intercal (fun x -> match x with
                                                              | `M m -> string_of_mtype m
                                                              | `S s -> string_of_stype_raw s ((t,n)::vs)) 
                                                    " " ms
           | SVar -> "?"^svarName t
           | Stop _ -> "1"
-          | OutD(_,m,s) -> 
+          | OutD(_,_,m,s) -> 
             let s = string_of_mtype m ^ "/\\"^string_of_stype_raw s ((t,n)::vs) in
             if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | InD (_,m,s) ->
+          | InD (_,_,m,s) ->
             let s = string_of_mtype m ^ "=>"^string_of_stype_raw s ((t,n)::vs) in
             if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | OutC (m,a,b) ->
+          | OutC (_,m,a,b) ->
             let s = string_of_stype_raw a ((t,n)::vs) ^ "*"^string_of_stype_raw b ((t,n)::vs) in
             if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | InC (m,a,b) ->
+          | InC (_,m,a,b) ->
             let s = string_of_stype_raw a ((t,n)::vs) ^ "-o"^string_of_stype_raw b ((t,n)::vs) in
             if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | Intern (_,c) -> 
+          | Intern (_,_,c) -> 
             let s = "+{"^intercal (fun (l,a) -> string_of_label l^": "^string_of_stype_raw a ((t,n)::vs))
                                            "; " (LM.to_alist c)^"}"
             in if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | Extern (_,c) -> 
+          | Extern (_,_,c) -> 
             let s = "&{"^intercal (fun (l,a) -> string_of_label l^": "^string_of_stype_raw a ((t,n)::vs))
                                            "; " (LM.to_alist c)^"}"
             in if !n = ""
             then s
             else "mu "^(!n)^"."^s
-          | SVarU x -> string_of_tyvar x
-          | Forall (_,x,s) -> "forall "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
-          | Exists (_,x,s) -> "exists "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
-          | ShftUp (m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
+          | SVarU (_,x) -> string_of_tyvar x
+          | Forall (_,_,x,s) -> "forall "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
+          | Exists (_,_,x,s) -> "exists "^string_of_tyvar x^".("^string_of_stype_raw s ((t,n)::vs)^")" (* TODO modes *)
+          | ShftUp (_,m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
                             in if !n = "" then s else "mu "^(!n)^"."^s
-          | ShftDw (m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
+          | ShftDw (_,m,a) -> let s = modetag m^"(" ^ string_of_stype_raw a ((t,n)::vs)^")"
                             in if !n = "" then s else "mu "^(!n)^"."^s
 let string_of_stype (tin : stype) : string = string_of_stype_raw tin []
 let  string_of_ptype (tin : ptype) : string =
@@ -198,19 +216,19 @@ let getMode (sin:stype) : modality =
   match !(getSType sin) with
   | SInd _ -> failwith "BUG SInd after getSType destype getMode"
   | SComp _ -> failwith "BUG SComp after getSType destype getMode"
-  | Stop m -> m
+  | Stop (_,m) -> m
   | SVar -> failwith "BUG getMode SVar"
-  | SVarU (m,_) -> m
-  | InD (m,_,_) -> m
-  | OutD (m,_,_) -> m
-  | InC (m,_,_) -> m
-  | OutC (m,_,_) -> m
-  | Intern (m,_) -> m
-  | Extern (m,_) -> m
-  | Forall (m,_,_) -> m
-  | Exists (m,_,_) -> m
-  | ShftUp (m,_) -> m
-  | ShftDw (m,_) -> m
+  | SVarU (_,(m,_)) -> m
+  | InD (_,m,_,_) -> m
+  | OutD (_,m,_,_) -> m
+  | InC (_,m,_,_) -> m
+  | OutC (_,m,_,_) -> m
+  | Intern (_,m,_) -> m
+  | Extern (_,m,_) -> m
+  | Forall (_,m,_,_) -> m
+  | Exists (_,m,_,_) -> m
+  | ShftUp (_,m,_) -> m
+  | ShftDw (_,m,_) -> m
 
 let polarity (sin:stype) : [`Pos | `Neg] =
   match !(getSType sin) with
@@ -242,14 +260,14 @@ let booltype = mkcomp "Bool" []
 let unittype = mkcomp "()" []
 let stringtype = mkcomp "String" []
 let mkmon s cm = ref (MonT(s,cm))
-let mkstop m = ref (Stop m)
+let mkstop l m = ref (Stop (l,m))
 let poly m = ref (Poly ([],[],m))
-let mkoutd m p s = ref (OutD (m,p,s))
-let mkind m p s = ref (InD (m,p,s))
-let mkoutc m p s = ref (OutC (m,p,s))
-let mkinc m p s = ref (InC (m,p,s))
-let mkint m c = ref (Intern (m,c))
-let mkext m c = ref (Extern (m,c))
+let mkoutd l m p s = ref (OutD (l,m,p,s))
+let mkind l m p s = ref (InD (l,m,p,s))
+let mkoutc l m p s = ref (OutC (l,m,p,s))
+let mkinc l m p s = ref (InC (l,m,p,s))
+let mkint l m c = ref (Intern (l,m,c))
+let mkext l m c = ref (Extern (l,m,c))
 
 (* TODO Remove this? *)
 let rec freeMVars (tin : mtype) : mtype list =
@@ -270,17 +288,17 @@ and freeMVars_S (tin : stype) (vs : stype list) : mtype list =
       | SComp _ -> failwith "freeMVars_S: SComp after getSType"
       | SVar -> []
       | Stop _ -> []
-      | OutD (_,t,s) -> freeMVars t @ freeMVars_S s (tin::vs)
-      | InD (_,t,s) -> freeMVars t @ freeMVars_S s (tin::vs)
-      | InC (_,a,b) -> freeMVars_S a (tin::vs) @ freeMVars_S b (tin::vs)
-      | OutC (_,a,b) -> freeMVars_S a (tin::vs) @ freeMVars_S b (tin::vs)
-      | Intern (_,c) -> LM.fold c ~init:[] ~f:(fun ~key:_ ~data:s a -> freeMVars_S s (tin::vs) @ a)
-      | Extern (_,c) -> LM.fold c ~init:[] ~f:(fun ~key:_ ~data:s a -> freeMVars_S s (tin::vs) @ a)
+      | OutD (_,_,t,s) -> freeMVars t @ freeMVars_S s (tin::vs)
+      | InD (_,_,t,s) -> freeMVars t @ freeMVars_S s (tin::vs)
+      | InC (_,_,a,b) -> freeMVars_S a (tin::vs) @ freeMVars_S b (tin::vs)
+      | OutC (_,_,a,b) -> freeMVars_S a (tin::vs) @ freeMVars_S b (tin::vs)
+      | Intern (_,_,c) -> LM.fold c ~init:[] ~f:(fun ~key:_ ~data:s a -> freeMVars_S s (tin::vs) @ a)
+      | Extern (_,_,c) -> LM.fold c ~init:[] ~f:(fun ~key:_ ~data:s a -> freeMVars_S s (tin::vs) @ a)
       | SVarU _ -> []
-      | Forall (_,_,s) -> freeMVars_S s (tin::vs)
-      | Exists (_,_,s) -> freeMVars_S s (tin::vs)
-      | ShftUp (_,s) -> freeMVars_S s (tin::vs)
-      | ShftDw (_,s) -> freeMVars_S s (tin::vs)
+      | Forall (_,_,_,s) -> freeMVars_S s (tin::vs)
+      | Exists (_,_,_,s) -> freeMVars_S s (tin::vs)
+      | ShftUp (_,_,s) -> freeMVars_S s (tin::vs)
+      | ShftDw (_,_,s) -> freeMVars_S s (tin::vs)
 
 (* Find the free session type variables. TODO this looks incomplete. *)
 (* TODO why does this returns a list and not a set? *)
@@ -302,17 +320,17 @@ and freeSUS_ (sin:stype) (vm: mtype list) (vs: stype list) : string list =
   | SComp _ -> failwith "BUG. freeSUS_ SComp"
   | SVar -> failwith "BUG. freeSUS_ SVar"
   | Stop _ -> []
-  | SVarU (_,x) -> [x]
-  | OutD (_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
-  | InD (_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
-  | InC (_,s1,s2) -> freeSUS_ s1 vm (t::vs) @ freeSUS_ s2 vm (t::vs)
-  | OutC (_,s1,s2) -> freeSUS_ s1 vm (t::vs) @ freeSUS_ s2 vm (t::vs)
-  | Extern (_,sm) -> LM.fold sm ~init:[] ~f:(fun ~key:_ ~data:s acc -> acc @ freeSUS_ s vm (t::vs))
-  | Intern (_,sm) -> LM.fold sm ~init:[] ~f:(fun ~key:_ ~data:s acc -> acc @ freeSUS_ s vm (t::vs))
-  | Forall (_,(_,x),s) -> List.filter (freeSUS_ s vm (t::vs)) (fun y -> not (x = y))
-  | Exists (_,(_,x),s) -> List.filter (freeSUS_ s vm (t::vs)) (fun y -> not (x = y))
-  | ShftUp (_,s) -> freeSUS_ s vm (t::vs)
-  | ShftDw (_,s) -> freeSUS_ s vm (t::vs)
+  | SVarU (_,(_,x)) -> [x]
+  | OutD (_,_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
+  | InD (_,_,m,s) -> freeSUM_ m vm (t::vs) @ freeSUS_ s vm (t::vs)
+  | InC (_,_,s1,s2) -> freeSUS_ s1 vm (t::vs) @ freeSUS_ s2 vm (t::vs)
+  | OutC (_,_,s1,s2) -> freeSUS_ s1 vm (t::vs) @ freeSUS_ s2 vm (t::vs)
+  | Extern (_,_,sm) -> LM.fold sm ~init:[] ~f:(fun ~key:_ ~data:s acc -> acc @ freeSUS_ s vm (t::vs))
+  | Intern (_,_,sm) -> LM.fold sm ~init:[] ~f:(fun ~key:_ ~data:s acc -> acc @ freeSUS_ s vm (t::vs))
+  | Forall (_,_,(_,x),s) -> List.filter (freeSUS_ s vm (t::vs)) (fun y -> not (x = y))
+  | Exists (_,_,(_,x),s) -> List.filter (freeSUS_ s vm (t::vs)) (fun y -> not (x = y))
+  | ShftUp (_,_,s) -> freeSUS_ s vm (t::vs)
+  | ShftDw (_,_,s) -> freeSUS_ s vm (t::vs)
 
 let freeSUM m = List.dedup (freeSUM_ m [] [])
 let freeSUS s = List.dedup (freeSUS_ s [] [])
@@ -339,66 +357,66 @@ and substS_ (sin:stype) (subM:mtype SM.t) (subS:stype TM.t)
   match !t with
   | SInd _ -> failwith "BUG. substS SInd"
   | SVar -> failwith "BUG substS_ SVar" (* sin *)(* TODO This might be questionable *)
-  | SComp (s,name,args) -> 
+  | SComp (l,s,name,args) -> 
     let a = mksvar ()
-    in a := SInd (ref (SComp (substS_ s subM subS vm ((t,a)::vs)
+    in a := SInd (ref (SComp (l,substS_ s subM subS vm ((t,a)::vs)
                              ,name
                              ,List.map args (fun x -> match x with
                                                       | `M y -> `M (substM_ y subM subS vm ((t,a)::vs))
                                                       | `S y -> `S (substS_ y subM subS vm ((t,a)::vs))))));
        a
-  | Stop m -> mkstop m
-  | SVarU x ->
+  | Stop (l,m) -> mkstop l m
+  | SVarU (_,x) ->
     (match TM.find subS x with
     | Some s' -> s'
     | None -> sin)
-  | InD (mode,m,s) -> 
+  | InD (l,mode,m,s) -> 
     let a = mksvar ()
-    in let b = mkind mode (substM_ m subM subS vm vs) a
+    in let b = mkind l mode (substM_ m subM subS vm vs) a
        in a := SInd (substS_ s subM subS vm ([t,b]@vs));
           b
-  | OutD (mode,m,s) -> 
+  | OutD (l,mode,m,s) -> 
     let a = mksvar ()
-    in let b = mkoutd mode (substM_ m subM subS vm vs) a
+    in let b = mkoutd l mode (substM_ m subM subS vm vs) a
        in a := SInd (substS_ s subM subS vm ([t,b]@vs));
           b
-  | InC (m,s1,s2) -> 
+  | InC (l,m,s1,s2) -> 
     let a,b = mksvar(),mksvar()
-    in b := SInd (mkinc m (substS_ s1 subM subS vm ([t,b]@vs)) a);
+    in b := SInd (mkinc l m (substS_ s1 subM subS vm ([t,b]@vs)) a);
        a := SInd (substS_ s2 subM subS vm ([t,b]@vs));
        b
-  | OutC (m,s1,s2) -> 
+  | OutC (l,m,s1,s2) -> 
     let a,b = mksvar(),mksvar()
-    in b := SInd (mkoutc m (substS_ s1 subM subS vm ([t,b]@vs)) a);
+    in b := SInd (mkoutc l m (substS_ s1 subM subS vm ([t,b]@vs)) a);
        a := SInd (substS_ s2 subM subS vm ([t,b]@vs));
        b
-  | Forall (m,x,s) ->
+  | Forall (l,m,x,s) ->
     (* TODO be capture avoiding *)
     let subS' = if TM.mem subS x then TM.remove subS x else subS
     in let a = mksvar()
-       in a := SInd (ref (Forall (m,x,substS_ s subM subS' vm ([t,a]@vs))));
+       in a := SInd (ref (Forall (l,m,x,substS_ s subM subS' vm ([t,a]@vs))));
           a
-  | Exists (m,x,s) ->
+  | Exists (l,m,x,s) ->
     (* TODO be capture avoiding *)
     let subS' = if TM.mem subS x then TM.remove subS x else subS
     in let a = mksvar()
-       in a := SInd (ref (Exists (m,x,substS_ s subM subS' vm ([t,a]@vs))));
+       in a := SInd (ref (Exists (l,m,x,substS_ s subM subS' vm ([t,a]@vs))));
           a
-  | Intern (m,c) -> 
+  | Intern (l,m,c) -> 
     let b = mksvar()
-    in b := SInd (mkint m (LM.map c (fun s -> substS_ s subM subS vm ([t,b]@vs))));
+    in b := SInd (mkint l m (LM.map c (fun s -> substS_ s subM subS vm ([t,b]@vs))));
        b
-  | Extern (m,c) -> 
+  | Extern (l,m,c) -> 
     let b = mksvar()
-    in b := SInd (mkext m (LM.map c (fun s -> substS_ s subM subS vm ([t,b]@vs))));
+    in b := SInd (mkext l m (LM.map c (fun s -> substS_ s subM subS vm ([t,b]@vs))));
        b
-  | ShftUp (m,s) ->
+  | ShftUp (l,m,s) ->
     let a = mksvar()
-    in a := SInd (ref (ShftUp (m,substS_ s subM subS vm ([t,a]@vs))));
+    in a := SInd (ref (ShftUp (l,m,substS_ s subM subS vm ([t,a]@vs))));
        a
-  | ShftDw (m,s) ->
+  | ShftDw (l,m,s) ->
     let a = mksvar()
-    in a := SInd (ref (ShftDw (m,substS_ s subM subS vm ([t,a]@vs))));
+    in a := SInd (ref (ShftDw (l,m,substS_ s subM subS vm ([t,a]@vs))));
        a
 
 let substM m subM subS = substM_ m subM subS [] []
@@ -412,17 +430,17 @@ let contType (tin:stype) : stype option = match !(getSType tin) with
   | SVar -> failwith "BUG conType SVar"
   | SVarU _ -> failwith "BUG conType SVarU"
   | SComp _ -> failwith "BUG conType SComp"
-  | InD (_,_,s) -> Some s
-  | OutD (_,_,s) -> Some s
-  | InC (_,_,s) -> Some s
-  | OutC (_,_,s) -> Some s
+  | InD (_,_,_,s) -> Some s
+  | OutD (_,_,_,s) -> Some s
+  | InC (_,_,_,s) -> Some s
+  | OutC (_,_,_,s) -> Some s
   | Intern _ -> None
   | Extern _ -> None
   | Stop _ -> None
-  | Forall (_,_,s) -> Some s
-  | Exists (_,_,s) -> Some s
-  | ShftUp (_,s) -> None
-  | ShftDw (_,s) -> None
+  | Forall (_,_,_,s) -> Some s
+  | Exists (_,_,_,s) -> Some s
+  | ShftUp (_,_,s) -> None
+  | ShftDw (_,_,s) -> None
 
 (* type decl bookeepking *)
 let typeNames : SS.t ref = ref (SS.of_list ["()";"Bool";"Int"])
