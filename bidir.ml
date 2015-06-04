@@ -248,7 +248,7 @@ let rec polM_ (vs : stype list) (loc:srcloc) (tin:mtype) : unit =
 and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
   if memq tin vs then () else
   let check p s = if polarity s = p then () else
-    errr loc ("Expected the "^string_of_stype s^" subterm of type "
+    errr (locS s) ("Expected the "^string_of_stype s^" subterm of type "
              ^string_of_stype tin^" to be "^(match polarity s with
                                             | `Neg -> "positive."
                                             | `Pos -> "negative.")) in
