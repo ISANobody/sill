@@ -1164,18 +1164,32 @@ let gatherTopTys (ds:toplvl list) : ptype FM.t =
          else FM.add env f (letcommon_ (fst f) SS.empty TS.empty env t f None)
        | ServDecl (f,s) -> sessions := FM.add !sessions f (Connection.puretoptrS s); env
        | MTypeDecl (t,fs,cm) -> SM.iter cm (fun ~key:c ~data:a -> 
+         let (wfms,wfss) = List.fold_left fs ~init:(SS.empty,TS.empty)
+               ~f:(fun (accm,accs) -> function
+                       | `S x -> (accm,TS.add accs x)
+                       | `M x -> (SS.add accm x,accs)) in
            Types.Dest.conTypeNames := SM.add !Types.Dest.conTypeNames c (snd t);
            Types.Dest.conArities := SM.add !Types.Dest.conArities c (List.length a);
            Types.Dest.conTypes := SM.add !Types.Dest.conTypes c 
           (List.filter_map fs (function `M v -> Some v | `S _ -> None)
           ,List.filter_map fs (function `M _ -> None | `S v -> Some v)
-          ,List.map a Connection.puretoptrM,ref(Comp(snd t,List.map fs (function 
-                                                                       | `M x -> `M (ref (MVarU x))
-                                                                       | `S s -> `S (ref (SVarU s)))))));
+          ,List.map a (fun m -> let m' = Connection.puretoptrM m
+                                in (* TODO add pragmas to test *)
+                                   wfM (fst t) wfms wfss m';
+                                   m')
+          ,ref(Comp(snd t,List.map fs (function 
+                                      | `M x -> `M (ref (MVarU x))
+                                      | `S s -> `S (ref (SVarU s)))))));
           env
        | STypeDecl (t,fs,s) -> 
          let s' = Connection.puretoptrS s
-         in Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) (fs,s');
+         in let (wfms,wfss) = List.fold_left fs ~init:(SS.empty,TS.empty)
+               ~f:(fun (accm,accs) -> function
+                       | `S x -> (accm,TS.add accs x)
+                       | `M x -> (SS.add accm x,accs))
+            in wfS (fst t) wfms wfss s';
+               Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) 
+                                                                        (fs,s');
             env)
 
 let toplevel (ds:toplvl list) : unit=
