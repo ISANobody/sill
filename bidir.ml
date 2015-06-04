@@ -967,7 +967,8 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
          
         (* Return the merged residual *)
         resmerged
-      | _ -> errr (locP pin) "Expected External choice for &R"
+      | _ -> errr (locP pin) ("Expected External choice for &R. Found "
+                             ^string_of_stype tin^" instead.")
     else (match !(getSType (safefind "+L" senv c)) with
       (* TODO Combine the residual finding of these two *)
       | Intern (_,m,ts) -> (* TODO mode *)
@@ -1043,7 +1044,8 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                         then checkS wfms wfss env senv p cpr (LM.find_exn ts l)
                         else errr (fst l) ("label "^string_of_label l^" not in expected type "
                                             ^string_of_stype tin)
-         | _ -> errr (locP pin) "Non internal choice while checking +R"
+         | _ -> errr (locP pin) ("Non internal choice while checking +R. Found "
+                                ^ string_of_stype tin^" instead.")
     else (match !(getSType (safefind "&L" senv c)) with
          | Extern (_,_,ts) -> if LM.mem ts l
                         then usedhere "&L" (checkS wfms wfss env (CM.add senv c (LM.find_exn ts l)) 

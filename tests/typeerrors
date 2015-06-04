@@ -523,3 +523,18 @@ x = 58.0;;
 %%%%
 @6:1 Duplicate defintion of x
 %%%%
+
+foo : {1};;
+'c <- foo =
+  'c.blue; close 'c;;
+%%%%
+@4:3 Non internal choice while checking +R. Found 1 instead.
+%%%%
+
+foo : {1};;
+'c <- foo =
+  case 'c of
+  | blue -> close 'c;;
+%%%%
+@4:3 Expected External choice for &R. Found 1 instead.
+%%%%
