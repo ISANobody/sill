@@ -107,7 +107,7 @@ let rec eval_exp (exp:exp) (m:memory) : value =
           | "i2s" -> monfun IToS
           | "sexp2s" -> monfun SexpToS
           | _ -> failwith ("BUG eval_exp: var not found "^string_of_fvar x^" at "
-                          ^loc2string (locE exp) 
+                          ^loc2str (locE exp) 
                           ^" this should have been caught by typechecking")))))
   | Bin(_,binop, e1, e2) -> binApply binop (eval_exp e1 m, eval_exp e2 m) 
   | Mon(_,monop, e1) -> monApply monop (eval_exp e1 m)

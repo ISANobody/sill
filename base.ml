@@ -98,15 +98,11 @@ let remove_all_wrt (es : 'a list) (l : 'a list) (f:('a -> 'b)) : 'a list =
 
 (* Dependency circularity means these need to be here instead of lex.mll *)
 open Core.Std
-type srcloc = { lnum : int; cnum : int } with sexp, bin_io
-let curloc : srcloc ref = ref {lnum = 1; cnum = 1}
+type srcloc = Known of int * int | Unknown with sexp, bin_io
 
-let loc2string (loc:srcloc) : string =
-  "line "^string_of_int loc.lnum
-  ^" character "^string_of_int loc.cnum
-
-let loc2str (loc:srcloc) : string =
-  "@"^string_of_int loc.lnum^":"^string_of_int loc.cnum
+let loc2str : srcloc -> string = function
+  | Unknown -> "???"
+  | Known (l,c) -> "@"^string_of_int l^":"^string_of_int c
 
 let errr (loc:srcloc) (s:string) : 'a =
   prerr_endline ((loc2str loc)^" "^s);

@@ -137,7 +137,7 @@ let parens_lazy p = between_lazy '(' ')' p
 let getSloc =
   perform
     (_,l,c) <-- get_pos;
-    return ({lnum = l; cnum = c})
+    return (Known (l,c))
 
 (* To report better error messages sometimes we'll want to grab the parser state.
    This feels like it should already be in the library, but I can't find it. *)
@@ -284,35 +284,36 @@ let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
     return (TyApp (name,args))
 )
 and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
+ (getSloc >>= fun sloc ->
   (perform
     (_,x) <-- datavar;
-    return (MVar x))
+    return (MVar (sloc,x)))
   <|>
   (perform
     (_,x) <-- id_upper;
-    return (Comp (x,[])))
+    return (Comp (sloc,x,[])))
   <|>
-  (skip_symbol "()" >> return (Comp ("()",[])))
+  (skip_symbol "()" >> return (Comp (sloc,"()",[])))
   <|>
   (perform
     skip_symbol "[";
     t <-- Lazy.force mtype_;
     skip_symbol "]";
-    return (Comp ("[]",[`M t])))
+    return (Comp (sloc,"[]",[`M t])))
   <|>
   (perform
      skip_symbol "{";
-     (skip_symbol "}" >> return (MonT(None,[])))
+     (skip_symbol "}" >> return (MonT(sloc,None,[])))
      <|>
      (perform
        t <-- Lazy.force stype_;
-       (skip_symbol "}" >> return (MonT(Some t,[])))
+       (skip_symbol "}" >> return (MonT(sloc,Some t,[])))
        <|>
        (perform
          skip_symbol "<-";
          ts <-- sep_by1_lazy (skip_symbol ";") stype_;
          skip_symbol "}";
-         return (MonT(Some t,ts)))))
+         return (MonT(sloc,Some t,ts)))))
   <|>
   (perform
     skip_symbol "(";
@@ -321,9 +322,9 @@ and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
        skip_symbol ",";
        t2 <-- Lazy.force mtype_;
        skip_symbol ")";
-       return (Comp(",",[`M t1;`M t2])))
+       return (Comp(sloc,",",[`M t1;`M t2])))
     <|>
-     (skip_symbol ")" >> return t1))
+     (skip_symbol ")" >> return t1)))
   <?> "data-level type"
 )
 and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
@@ -334,12 +335,13 @@ and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
 )
 and mtype_ : (mtype,'s) MParser.t Lazy.t = lazy(
   (perform
+     sloc <-- getSloc;
      t1 <-- Lazy.force mtype_basic_;
      arr <-- try_skip (skip_symbol "->");
      if arr
      then perform
             t2 <-- Lazy.force mtype_;
-            return (Comp("->",[`M t1;`M t2]))
+            return (Comp(sloc,"->",[`M t1;`M t2]))
      else return t1)
   <?> "data-level type"
 )

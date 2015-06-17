@@ -56,9 +56,9 @@ and proc =
   | SendSync of srcloc * cvar * proc (* send c shift; P *)
   | RecvSync of srcloc * cvar * proc (* shift <- recv c; P *)
  and tyapp = TyApp of fvar * [`A of fvar | `M of mtype | `S of stype] list
- and mtype = Comp of string * [`A of fvar | `M of mtype | `S of stype] list
-           | MonT of stype option * stype list
-           | MVar  of string
+ and mtype = Comp of srcloc * string * [`A of fvar | `M of mtype | `S of stype] list
+           | MonT of srcloc * stype option * stype list
+           | MVar  of srcloc * string
  and stype = TyInD  of srcloc * modality * mtype * stype
            | TyOutD of srcloc * modality * mtype * stype
            | TyInC  of srcloc * modality * stype * stype
@@ -81,7 +81,7 @@ and ptype = Poly of string list * tyvar list * mtype (* first one is mtype
 quantifier, second session *)
 with sexp, bin_io 
 
-let tyapp2mtype (TyApp (name,args)) : mtype = Comp (snd name,args)
+let tyapp2mtype (TyApp (name,args)) : mtype = Comp (fst name,snd name,args)
 
 (* TODO Disambiguate more intelligently *)
 let tyapp2stype (TyApp (name,args)) : stype = SComp (fst name,snd name,args)
@@ -181,21 +181,21 @@ let rec polarity : stype -> [`Pos | `Neg] = function
 (* Some printing functions *)
 and string_of_mtype (tin:mtype) : string =
   match tin with
-  | MVar x -> x
-  | Comp ("[]",[`M a]) -> "["^string_of_mtype a^"]"
-  | Comp (",",[`M a;`M b]) -> "("^string_of_mtype a^", "^string_of_mtype b^")"
-  | Comp ("->",[`M a;`M b]) -> "("^string_of_mtype a^") -> ("^string_of_mtype b^")"
-  | Comp (c,args) -> if List.length args = 0
+  | MVar (_,x) -> x
+  | Comp (_,"[]",[`M a]) -> "["^string_of_mtype a^"]"
+  | Comp (_,",",[`M a;`M b]) -> "("^string_of_mtype a^", "^string_of_mtype b^")"
+  | Comp (_,"->",[`M a;`M b]) -> "("^string_of_mtype a^") -> ("^string_of_mtype b^")"
+  | Comp (_,c,args) -> if List.length args = 0
                      then c
                      else c^"("^intercal (function
                                          | `A a -> snd a
                                          | `M m -> string_of_mtype m
                                          | `S s -> string_of_stype s) "," args^")"
-  | MonT (Some s,ss) -> let go sx = string_of_stype sx
+  | MonT (_,Some s,ss) -> let go sx = string_of_stype sx
                         in if List.length ss = 0 
                            then "{"^go s^"}"
                            else "{"^go s ^ " <- " ^intercal go " " ss^"}"
-  | MonT (None,ss) ->   let go sx = string_of_stype sx
+  | MonT (_,None,ss) ->   let go sx = string_of_stype sx
                         in if List.length ss = 0 
                            then "{ }"
                            else "{ <- " ^intercal go " " ss^"}"
@@ -233,18 +233,18 @@ and string_of_stype (tin : stype) : string =
 (* TODO Better name *)
 let rec freeMVarsMPure (tin:mtype) : SS.t =
   match tin with
-  | MVar x -> SS.singleton x
-  | Comp (_,args) -> List.fold_left args 
+  | MVar (_,x) -> SS.singleton x
+  | Comp (_,_,args) -> List.fold_left args 
                                         ~init:SS.empty
                                         ~f:(fun s -> (function
                                                      | `A _ -> s
                                                      | `M a -> SS.union s (freeMVarsMPure a)
                                                      | `S a -> SS.union s (freeMVarsSPure a)))
-  | MonT (Some s,ss) -> SS.union (freeMVarsSPure s)
+  | MonT (_,Some s,ss) -> SS.union (freeMVarsSPure s)
                                      (List.fold_left ss
                                         ~init:SS.empty
                                         ~f:(fun acc a -> SS.union acc (freeMVarsSPure a)))
-  | MonT (None,ss) -> (List.fold_left ss
+  | MonT (_,None,ss) -> (List.fold_left ss
                                       ~init:SS.empty
                                       ~f:(fun acc a -> SS.union acc (freeMVarsSPure a)))
 (* TODO this name has the module name in it.... *)
@@ -288,17 +288,17 @@ and freeMVarsSPure (tin:stype) : SS.t =
 let rec freeSVarsMPure (tin:mtype) : TS.t =
   match tin with
   | MVar _ -> TS.empty
-  | Comp (_,args) -> List.fold_left args
+  | Comp (_,_,args) -> List.fold_left args
                                     ~init:TS.empty
                                     ~f:(fun m -> function
                                                  | `A _ -> TS.empty
                                                  | `M a -> TS.union m (freeSVarsMPure a)
                                                  | `S a -> TS.union m (freeSVarsSPure a))
-  | MonT (Some s,ss) -> TS.union (freeSVarsSPure s)
+  | MonT (_,Some s,ss) -> TS.union (freeSVarsSPure s)
                                      (List.fold_left ss
                                         ~init:TS.empty
                                         ~f:(fun acc a -> TS.union acc (freeSVarsSPure a)))
-  | MonT (None,ss) -> (List.fold_left ss
+  | MonT (_,None,ss) -> (List.fold_left ss
                                       ~init:TS.empty
                                       ~f:(fun acc a -> TS.union acc (freeSVarsSPure a)))
 (* TODO decide if overloading type variables by modality is ok *)

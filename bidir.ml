@@ -189,65 +189,70 @@ let modeCompatable (m1:modality) (m2:modality) : bool =
 (* Check that a type is well formed wrt a set of mtype variables and session type
    variables. Should this be in destypes.ml? *)
 (* TODO better error locations *)
-let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit =
+let rec wfM_ (vs:stype list) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit =
   match !(getMType tin) with
-  | MInd _ -> errr loc "BUG wfM_ MInd"
-  | MVar -> errr loc "BUG wfM_ MVar"
-  | MVarU x -> if not (SS.mem wfms x) then errr loc (x^" is not in scope")
-  | MonT (Some s,args) -> wfS_ vs loc wfms wfss s; List.iter args (wfS_ vs loc wfms wfss)
-  | MonT (None,args) -> List.iter args (wfS_ vs loc wfms wfss)
-  | Comp (name,args) -> if not (SS.mem !typeNames name)
-                        then errr loc ("Unknown type "^name);
+  | MInd _ -> errr (locM tin) "BUG wfM_ MInd"
+  | MVar -> errr (locM tin) "BUG wfM_ MVar"
+  | MVarU (_,x) -> if not (SS.mem wfms x) then errr (locM tin) (x^" is not in scope")
+  | MonT (_,Some s,args) -> wfS_ vs wfms wfss s; List.iter args (wfS_ vs wfms wfss)
+  | MonT (_,None,args) -> List.iter args (wfS_ vs wfms wfss)
+  | Comp (_,name,args) -> if not (SS.mem !typeNames name)
+                        then errr (locM tin) ("Unknown type "^name);
                         List.iter args (function
-                                    | `M m -> wfM_ vs loc wfms wfss m
-                                    | `S s -> wfS_ vs loc wfms wfss s)
-and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
+                                    | `M m -> wfM_ vs wfms wfss m
+                                    | `S s -> wfS_ vs wfms wfss s)
+and wfS_ (vs:stype list) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
   if memq tin vs then () else
   let go (mode:modality) (s:stype) : unit =
     errr (locS s) ("Expected a "^string_of_mode mode^" version of "^string_of_stype s
              ^" but found "^string_of_mode (getMode s)^" instead")
   in match !(getSType tin) with
-  | SVar -> errr loc "BUG wfS SVar"
-  | SInd _ -> errr loc "BUG wfS SInd"
-  | SComp _ -> errr loc "BUG wfS SComp"
-  | SVarU (_,x) -> if not (TS.mem wfss x) then errr loc (string_of_tyvar x^" is not in scope")
+  | SVar -> errr (locS tin) "BUG wfS SVar"
+  | SInd _ -> errr (locS tin) "BUG wfS SInd"
+  | SComp _ -> errr (locS tin) "BUG wfS SComp"
+  | SVarU (_,x) -> if not (TS.mem wfss x) 
+                   then errr (locS tin) (string_of_tyvar x^" is not in scope")
   | Stop _ -> ()
   | InD (_,mode,m,s) -> if not (mode = getMode s) 
                       then go mode s 
-                      else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
+                      else wfM_ (tin::vs) wfms wfss m; wfS_ (tin::vs) wfms wfss s
   | OutD (_,mode,m,s) -> if not (mode = getMode s) 
                        then go mode s 
-                       else wfM_ (tin::vs) loc wfms wfss m; wfS_ (tin::vs) loc wfms wfss s
-  | InC (_,mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
-                        if not (mode = getMode s2) then go mode s2;
-                        wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
-  | OutC (_,mode,s1,s2) -> if not (mode = getMode s1) then go mode s1;
-                         if not (mode = getMode s2) then go mode s2;
-                         wfS_ (tin::vs) loc wfms wfss s1; wfS_ (tin::vs) loc wfms wfss s2
-  | Intern (_,mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
-                                                          then go mode s
-                                                          else wfS_ (tin::vs) loc wfms wfss s)
-  | Extern (_,mode,lm) -> LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
-                                                          then go mode s
-                                                          else wfS_ (tin::vs) loc wfms wfss s)
+                       else wfM_ (tin::vs) wfms wfss m; wfS_ (tin::vs) wfms wfss s
+  | InC (_,mode,s1,s2) ->
+      if not (mode = getMode s1) then go mode s1;
+      if not (mode = getMode s2) then go mode s2;
+      wfS_ (tin::vs) wfms wfss s1; wfS_ (tin::vs) wfms wfss s2
+  | OutC (_,mode,s1,s2) -> 
+      if not (mode = getMode s1) then go mode s1;
+      if not (mode = getMode s2) then go mode s2;
+      wfS_ (tin::vs) wfms wfss s1; wfS_ (tin::vs) wfms wfss s2
+  | Intern (_,mode,lm) -> 
+      LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+                                        then go mode s
+                                        else wfS_ (tin::vs) wfms wfss s)
+  | Extern (_,mode,lm) -> 
+      LM.iter lm (fun ~key:l ~data:s -> if not (mode = getMode s)
+                                        then go mode s
+                                        else wfS_ (tin::vs) wfms wfss s)
   | Forall (_,mode,x,s) -> if not (mode = getMode s) then go mode s;
-                         wfS_ (tin::vs) loc wfms (TS.add wfss x) s
+                         wfS_ (tin::vs) wfms (TS.add wfss x) s
   | Exists (_,mode,x,s) -> if not (mode = getMode s) then go mode s;
-                         wfS_ (tin::vs) loc wfms (TS.add wfss x) s
-  | ShftUp (_,mode,s) -> wfS_ (tin::vs) loc wfms wfss s
-  | ShftDw (_,mode,s) -> wfS_ (tin::vs) loc wfms wfss s
+                         wfS_ (tin::vs) wfms (TS.add wfss x) s
+  | ShftUp (_,mode,s) -> wfS_ (tin::vs) wfms wfss s
+  | ShftDw (_,mode,s) -> wfS_ (tin::vs) wfms wfss s
 
-let rec polM_ (vs : stype list) (loc:srcloc) (tin:mtype) : unit =
+let rec polM_ (vs : stype list) (tin:mtype) : unit =
   match !(getMType tin) with
-  | MInd _ -> errr loc "BUG wfM_ MInd"
-  | MVar -> errr loc "BUG wfM_ MVar"
+  | MInd _ -> errr (locM tin) "BUG wfM_ MInd"
+  | MVar -> errr (locM tin) "BUG wfM_ MVar"
   | MVarU _ -> ()
-  | Comp (_,args) -> List.iter args (function
-                                    | `M x -> polM_ vs loc x
-                                    | `S x -> polS_ vs loc x)
-  | MonT (None,args) -> List.iter args (polS_ vs loc)
-  | MonT (Some x,args) -> polS_ vs loc x; List.iter args (polS_ vs loc)
-and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
+  | Comp (_,_,args) -> List.iter args (function
+                                    | `M x -> polM_ vs x
+                                    | `S x -> polS_ vs x)
+  | MonT (_,None,args) -> List.iter args (polS_ vs)
+  | MonT (_,Some x,args) -> polS_ vs x; List.iter args (polS_ vs)
+and polS_ (vs : stype list) (tin:stype) : unit =
   if memq tin vs then () else
   let check p s = if polarity s = p then () else
     errr (locS s) ("Expected the "^string_of_stype s^" subterm of type "
@@ -255,33 +260,33 @@ and polS_ (vs : stype list) (loc:srcloc) (tin:stype) : unit =
                                             | `Neg -> "positive."
                                             | `Pos -> "negative.")) in
   match !(getSType tin) with
-  | SVar -> errr loc "BUG wfS SVar"
-  | SInd _ -> errr loc "BUG wfS SInd"
-  | SComp _ -> errr loc "BUG wfS SComp"
+  | SVar -> errr (locS tin) "BUG wfS SVar"
+  | SInd _ -> errr (locS tin) "BUG wfS SInd"
+  | SComp _ -> errr (locS tin) "BUG wfS SComp"
   | Stop _ -> ()
   | SVarU _ -> ()
-  | InD (_,_,m,s) -> check `Neg s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
-  | OutD (_,_,m,s) -> check `Pos s; polM_ (tin::vs) loc m; polS_ (tin::vs) loc s
+  | InD (_,_,m,s) -> check `Neg s; polM_ (tin::vs) m; polS_ (tin::vs) s
+  | OutD (_,_,m,s) -> check `Pos s; polM_ (tin::vs) m; polS_ (tin::vs) s
   | InC (_,_,s1,s2) -> check `Pos s1; check `Neg s2; 
-                     polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
+                     polS_ (tin::vs) s1; polS_ (tin::vs) s2
   | OutC (_,_,s1,s2) -> check `Pos s1; check `Pos s2; 
-                      polS_ (tin::vs) loc s1; polS_ (tin::vs) loc s2
-  | Intern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Pos s; polS_ (tin::vs) loc s)
-  | Extern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Neg s; polS_ (tin::vs) loc s)
-  | Forall (_,_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
-  | Exists (_,_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
-  | ShftUp (_,_,s) -> check `Pos s; polS_ (tin::vs) loc s
-  | ShftDw (_,_,s) -> check `Neg s; polS_ (tin::vs) loc s
+                      polS_ (tin::vs) s1; polS_ (tin::vs) s2
+  | Intern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Pos s; polS_ (tin::vs) s)
+  | Extern (_,_,lm) -> LM.iter lm (fun ~key:_ ~data:s -> check `Neg s; polS_ (tin::vs) s)
+  | Forall (_,_,_,s) -> check `Neg s; polS_ (tin::vs) s
+  | Exists (_,_,_,s) -> check `Pos s; polS_ (tin::vs) s
+  | ShftUp (_,_,s) -> check `Pos s; polS_ (tin::vs) s
+  | ShftDw (_,_,s) -> check `Neg s; polS_ (tin::vs) s
                  
 let infFocusWarning (vs: SS.t) (tin:stype) : unit =
   () (* TODO Stuff *)
 
-let wfM (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = 
-  if !polarity_flag then polM_ [] loc tin;
-  wfM_ [] loc wfms wfss tin
-let wfS (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = 
-  if !polarity_flag then polS_ [] loc tin;
-  wfS_ [] loc wfms wfss tin
+let wfM (wfms: SS.t) (wfss: TS.t) (tin:mtype) : unit = 
+  if !polarity_flag then polM_ [] tin;
+  wfM_ [] wfms wfss tin
+let wfS (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit = 
+  if !polarity_flag then polS_ [] tin;
+  wfS_ [] wfms wfss tin
 
 (* We use unit since, we won't branch on failure, merely return an error to the user *)
 (* We should use a specialized subtype at some point, the general one probably isn't so
@@ -302,7 +307,7 @@ and letcommon_ (sloc:srcloc) (wfms: SS.t) (wfss: TS.t) (env:funenv)
       let wfms' = SS.of_list mvs
       and wfss' = TS.of_list svs
       and t' = puretoptrM t
-      in wfM sloc wfms' wfss' t';
+      in wfM wfms' wfss' t';
          (match e with
          | Some e' -> checkM wfms' wfss' (FM.add env y (Poly(mvs,svs,t'))) e' t'
          | None -> ());
@@ -318,26 +323,43 @@ and lookupcommon (env:funenv) (x:fvar) : ptype =
   | Some t -> t
   | None -> 
    (match SM.find !conTypes (snd x) with
-   | Some (mvs,svs,args,t) -> Poly(mvs,svs,List.fold_right args ~init:t ~f:(fun xt et -> mkfun xt et))
+   | Some (mvs,svs,args,t) -> Poly(mvs,svs,List.fold_right args ~init:t ~f:(fun
+           xt et -> mkfun (locM xt) xt et))
    | None ->
      (match snd x with
-     | "assert" -> Poly ([],[],mkfun booltype unittype)
-     | "sleep" -> Poly ([],[],mkfun inttype unittype)
-     | "print" -> Poly ([],[],mkfun inttype unittype)
-     | "print_str" -> Poly ([],[],mkfun stringtype unittype)
-     | "flush" -> Poly ([],[],mkfun unittype unittype)
-     | "i2s" -> Poly ([],[],mkfun inttype stringtype)
-     | "sexp2s" -> Poly (["a"],[],mkfun (ref (MVarU "a")) stringtype)
-     | "newkey" -> Poly ([],[],mkfun unittype (mkcomp "," [`M (mkcomp "Key" []);`M (mkcomp "Key" [])]))
+     | "assert" -> Poly ([],[],mkfun Unknown (booltype Unknown) 
+                                             (unittype Unknown))
+     | "sleep" -> Poly ([],[],mkfun Unknown (inttype Unknown)
+                                            (unittype Unknown))
+     | "print" -> Poly ([],[],mkfun Unknown (inttype Unknown) 
+                                            (unittype Unknown))
+     | "print_str" -> Poly ([],[],mkfun Unknown (stringtype Unknown) 
+                                                (unittype Unknown))
+     | "flush" -> Poly ([],[],mkfun Unknown (unittype Unknown) 
+                                            (unittype Unknown))
+     | "i2s" -> Poly ([],[],mkfun Unknown (inttype Unknown)
+                                          (stringtype Unknown))
+     | "sexp2s" -> Poly (["a"],[],mkfun Unknown (ref (MVarU (Unknown,"a"))) 
+                                                (stringtype Unknown))
+     | "newkey" -> Poly ([],[],mkfun Unknown
+                                     (unittype Unknown)
+                                     (mkcomp Unknown "," 
+                                             [`M (mkcomp Unknown "Key" []);
+                                              `M (mkcomp Unknown "Key" [])]))
      | "encrypt" -> Poly (["a"],[],
-       mkfun (mkcomp "Key" []) (mkfun (ref (MVarU "a")) (mkcomp "<>" [`M (ref (MVarU "a"))])))
+       mkfun Unknown (mkcomp Unknown "Key" []) (mkfun Unknown (ref (MVarU
+       (Unknown,"a"))) (mkcomp Unknown "<>" [`M (ref (MVarU (Unknown,"a")))])))
      | "decrypt" -> Poly (["a"],[],
-       mkfun (mkcomp "Key" []) (mkfun (mkcomp "<>" [`M (ref (MVarU "a"))]) (ref (MVarU "a"))))
+       mkfun Unknown (mkcomp Unknown "Key" []) (mkfun Unknown (mkcomp Unknown
+       "<>" [`M (ref (MVarU (Unknown,"a")))]) (ref (MVarU (Unknown,"a")))))
      | "aesenc" -> Poly (["a"],[],
-       (mkfun (ref (MVarU "a")) (mkfun (mkcomp "AESKey" []) stringtype)))
+       (mkfun Unknown (ref (MVarU (Unknown,"a"))) (mkfun Unknown (mkcomp Unknown
+       "AESKey" []) (stringtype Unknown))))
      | "aesdec" -> Poly (["a"],[],
-       mkfun stringtype (mkfun (mkcomp "AESKey" []) (ref (MVarU "a"))))
-     | "aeskey" -> Poly([],[],mkfun unittype (mkcomp "AESKey" []))
+       mkfun Unknown (stringtype Unknown) (mkfun Unknown (mkcomp Unknown
+       "AESKey" []) (ref (MVarU (Unknown,"a")))))
+     | "aeskey" -> Poly([],[],mkfun Unknown (unittype Unknown) 
+                                            (mkcomp Unknown "AESKey" []))
      | _ when string_of_fvar x = String.lowercase (string_of_fvar x) -> 
            errr (fst x) ("Variable "^string_of_fvar x^" not found")
      | _ -> errr (fst x) ("Constructor "^string_of_fvar x^" not found")))
@@ -359,7 +381,7 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
    | Mon _ -> failwith "BUG checkM MonExp"
    | Sat (_,c,args) ->
      (match !(getMType tin) with
-     | Comp (name,argts) ->
+     | Comp (_,name,argts) ->
        (match SM.find !conTypeNames c with
        | Some name' -> if not (name = name')
                        then errr (locE ein) ("Expected a conctructor for "^name
@@ -392,16 +414,18 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
        | None -> errr (locE ein) ("Unbound constructor "^c))
      | _ -> errr (locE ein) "Fully applied constructor doesn't have a data type type")
    | Fun (_,x,e) ->
-     let a,b = mkvar(),mkvar()
-     in prettyUnifM "fun" (locE ein) (mkfun a b) (tin);
-        checkM wfms wfss (FM.add env x (Poly ([],[],a))) e b
+     (match !(getMType tin) with
+     | Comp (_,"->",[`M a;`M b]) -> 
+                checkM wfms wfss (FM.add env x (Poly ([],[],a))) e b
+     | _ -> errr (locE ein) ("Expected a function type but found "
+                            ^string_of_mtype tin))
    | App _ -> subsumeM "app" wfms wfss env ein tin
    | Let (_,t,x,e1,e2) ->
        checkM wfms wfss (FM.add env x (letcommon (locE ein) wfms wfss env t x e1)) e2 tin
    | Cas (_,eb,es) -> 
      (* TODO confirm that types here don't have any anonymous session type variables? *)
      (match !(getMType (synthM wfms wfss env eb)) with
-     | Comp (name,argts) ->
+     | Comp (_,name,argts) ->
        SM.iter es (fun ~key:c ~data:(vs,e) ->
          (* TODO Confirm that this is a constructor for the right type *)
          match SM.find !conTypes c with
@@ -430,7 +454,7 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
             errr (locE ein) "Expected data typed expression argument to case.")
    | Monad (_,Some c,p,cs,_) -> (* TODO More tests where providing shared service *)
      (match !(getMType tin) with
-     | MonT (Some t,ts) -> 
+     | MonT (_,Some t,ts) -> 
         if not (var2mode c = getMode t)
         then errr (fst c) ("Modality problem "^string_of_cvar c
                           ^" type is "^string_of_mode (getMode t)
@@ -448,7 +472,7 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
      | _ -> errr (locE ein) ("Expected monad type found "^string_of_mtype tin))
    | Monad (_,None,p,cs,_) -> (* Copy/pasted from above. Sorry *)
      (match !(getMType tin) with
-     | MonT (None,ts) -> 
+     | MonT (_,None,ts) -> 
         let senv : sesenv = 
                    match List.zip cs ts with
                    | Some x -> CM.of_alist_exn x
@@ -463,11 +487,11 @@ and checkM (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) (tin:mtype) : unit =
      | Cast (i,e,t) ->
          let t_ref = puretoptrM t
          and et    = synthM wfms wfss env e
-         in wfM (locE ein) wfms wfss t_ref;
+         in wfM wfms wfss t_ref;
             (* Might as well do this, this unification might be unneeded *)
             prettyUnifM "Cast" (locE ein) t_ref tin;
             (match !(getMType et),!(getMType t_ref) with
-            | MonT(Some s1,ss1),MonT(Some s2,ss2) -> (* TODO do we still want this? *)
+            | MonT(_,Some s1,ss1),MonT(_,Some s2,ss2) -> (* TODO do we still want this? *)
               if not (List.length ss1 = List.length ss2)
               then failwith ("SubtypeM: mismatched monadic argument length");
               prettySubS "cast1" (locE ein) s1 s2;
@@ -496,36 +520,36 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
         let subM = SM.of_alist_exn (List.map mvs (fun x -> (x,mkvar ())))
         and subS = List.fold2_exn svs ss ~init:TM.empty
           ~f:(fun acc q s -> let s' = puretoptrS s
-                             in wfS (locE ein) wfms wfss s'; 
+                             in wfS wfms wfss s'; 
                                 TM.add acc q s')
         in substM t subM subS
    | Var (_,x) -> varcommon env x
    | Con (_,c) -> 
      (match c with
-     | Int _ -> inttype
-     | Float _ -> floattype
-     | String _ -> stringtype)
+     | Int _ -> inttype (locE ein)
+     | Float _ -> floattype (locE ein)
+     | String _ -> stringtype (locE ein))
    | Bin (_,b,e1,e2) ->
      (match b with
      | Add | Mul | Sub | Div ->
-       checkM wfms wfss env e1 inttype;
-       checkM wfms wfss env e2 inttype;
-       inttype
+       checkM wfms wfss env e1 (inttype (locE e1));
+       checkM wfms wfss env e2 (inttype (locE e2));
+       (inttype (locE ein))
      | FAdd | FSub | FMul | FDiv | Exp ->
-       checkM wfms wfss env e1 floattype;
-       checkM wfms wfss env e2 floattype;
-       floattype
+       checkM wfms wfss env e1 (floattype (locE e1));
+       checkM wfms wfss env e2 (floattype (locE e2));
+       (floattype (locE ein))
      | Syntax.Core.Less ->
-       checkM wfms wfss env e1 inttype;
-       checkM wfms wfss env e2 inttype;
-       booltype
+       checkM wfms wfss env e1 (inttype (locE e1));
+       checkM wfms wfss env e2 (inttype (locE e2));
+       (booltype (locE ein))
      | Concat ->
-       checkM wfms wfss env e1 stringtype;
-       checkM wfms wfss env e2 stringtype;
-       stringtype
+       checkM wfms wfss env e1 (stringtype (locE e1));
+       checkM wfms wfss env e2 (stringtype (locE e2));
+       (stringtype (locE ein))
      | Eq ->
        prettyUnifM "bin-eq" (locE ein) (synthM wfms wfss env e1) (synthM wfms wfss env e2);
-       booltype)
+       (booltype (locE ein)))
    | Mon _ -> failwith "synthM MonExp"
    | Sat (i,c,args) -> 
      let argts,t = conInstance c
@@ -539,7 +563,7 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
      errr (locE ein) "Tried to synthesize type of anonymous function"
    | App (_,e1,e2) ->
      let a,b = mkvar(),mkvar()
-     in prettyUnifM "app" (locE e1) (synthM wfms wfss env e1) (mkfun a b);
+     in prettyUnifM "app" (locE e1) (synthM wfms wfss env e1) (mkfun (locE ein) a b);
         checkM wfms wfss env e2 a;
         b
    | Let (_,t,x,e1,e2) ->
@@ -558,7 +582,7 @@ and synthM_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (ein:exp) : mtype =
    | Monad _ -> errr (locE ein) "Tried to synthesise type for monad"
    | Cast (_,e,t) -> (* Unsure if this should be an error. *)
      let t' = puretoptrM t
-     in wfM (locE ein) wfms wfss t';
+     in wfM wfms wfss t';
         checkM wfms wfss env e t';
         t'
    | Box _ -> failwith "synthM Box"
@@ -601,7 +625,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
 
 
     (* Actually check the monadic expression after guessing its type *)
-    let et = mkmon (Some tin) (List.map cs (fun x -> safefind "tail-bind" senv x))
+    let et = mkmon (locP pin) (Some tin) (List.map cs (fun x -> safefind "tail-bind" senv x))
     in checkM wfms wfss env e et;
  
     (* Find the residual and mark the channels consumed here as consumed, ignoring
@@ -618,7 +642,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
   | Bind (_,c,e,cs,p)  ->
     let mont = getMType (synthM wfms wfss env e) in
     (match !mont with
-    | MonT (Some ct,cts) ->
+    | MonT (_,Some ct,cts) ->
 
       (* Check for wrong number of args *)
       if not (List.length cs = List.length cts)
@@ -656,7 +680,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                                  | Unconsumed | Slack -> CM.add acc x Consumed
                                  | Consumed -> errr (fst x) ("Duplication of channel "
                                                                        ^string_of_cvar x))
-    | MonT (None,cts) ->
+    | MonT (_,None,cts) ->
 
       (* Check for wrong number of args *)
       if not (List.length cs = List.length cts)
@@ -693,7 +717,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
     | _ -> errr (locE e) ("Bind of non monad type: "^string_of_mtype mont))
   | Service (i,c,s,p) ->
     if cvar_eq c cpr
-    then errr (ast2loc i) "Bound service to yourself?!"
+    then errr (i.astloc) "Bound service to yourself?!"
     else let sub = checkS wfms wfss env (CM.add senv c 
                                       (match FM.find !sessions s with
                                       | None -> errr (fst s) ("Unknown session name: " 
@@ -703,7 +727,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
          in boundhere "service" senv sub c [getinfoP p]
   | Register (i,s,c,p) ->
     if cvar_eq c cpr
-    then errr (ast2loc i) "Registered yourself?!"
+    then errr (i.astloc) "Registered yourself?!"
     else prettySubS "register" (fst c) (safefind "register" senv c)
                                         (match FM.find !sessions s with
                                         | None -> errr (fst s) ("Unknown session name: "
@@ -776,7 +800,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
 
            (* get the continuation residual *)
            checkS wfms wfss env senv p c1 t
-         | _ -> errr (ast2loc i) ("-oR/UpR: Expected -o/Up found "^string_of_stype tin)
+         | _ -> errr (i.astloc) ("-oR/UpR: Expected -o/Up found "^string_of_stype tin)
     else (match !(getSType (safefind "*L/DowncastL" senv c2)) with
          | OutC (_,m,c1t,c2t) -> 
            (* Might not be needed, but confirm that our earlier disambiguation agrees here *)
@@ -848,7 +872,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                        | Slack,_ -> Slack
                        | _,Slack -> Slack
                        | Unconsumed,Unconsumed -> Unconsumed)
-        | _ -> errr (ast2loc i) ("*R: expected * found "^string_of_stype tin)
+        | _ -> errr (i.astloc) ("*R: expected * found "^string_of_stype tin)
     else (match !(getSType (safefind "-oL" senv c)) with
          | InC (_,m,dt,ct) ->
             if not (var2mode d = m) then errr (fst d) "-oL modality mismatch";
@@ -1068,7 +1092,7 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
          | _ -> errr (fst c) ("Expected exists type. Found: "^string_of_stype (safefind "existsL" senv c)))
   | OutputTy (_,c,st,p) ->
     let st' = puretoptrS st
-    in wfS (locP pin) wfms wfss st';
+    in wfS wfms wfss st';
     if cvar_eq c cpr
     then (match !(getSType tin) with
          | Exists (_,_,x,ct) -> 
@@ -1183,10 +1207,10 @@ let gatherTopTys (ds:toplvl list) : ptype FM.t =
           ,List.filter_map fs (function `M _ -> None | `S v -> Some v)
           ,List.map a (fun m -> let m' = Connection.puretoptrM m
                                 in (* TODO add pragmas to test *)
-                                   wfM (fst t) wfms wfss m';
+                                   wfM wfms wfss m';
                                    m')
-          ,ref(Comp(snd t,List.map fs (function 
-                                      | `M x -> `M (ref (MVarU x))
+          ,ref(Comp(fst t,snd t,List.map fs (function 
+                                      | `M x -> `M (ref (MVarU (fst t,x)))
                                       | `S s -> `S (ref (SVarU (fst t,s))))))));
           env
        | STypeDecl (t,fs,s) -> 
@@ -1195,7 +1219,7 @@ let gatherTopTys (ds:toplvl list) : ptype FM.t =
                ~f:(fun (accm,accs) -> function
                        | `S x -> (accm,TS.add accs x)
                        | `M x -> (SS.add accm x,accs))
-            in wfS (fst t) wfms wfss s';
+            in wfS wfms wfss s';
                Connection.sessionDefs := SM.add !Connection.sessionDefs (snd t) 
                                                                         (fs,s');
             env)
