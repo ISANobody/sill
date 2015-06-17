@@ -443,7 +443,9 @@ let contType (tin:stype) : stype option = match !(getSType tin) with
   | ShftDw (_,_,s) -> None
 
 (* type decl bookeepking *)
-let typeNames : SS.t ref = ref (SS.of_list ["()";"Bool";"Int"])
+let typeNames : SS.t ref = 
+        ref (SS.of_list ["()";"Bool";"Int";"Float";"String"
+                        ;"[]";"->";","])
 
 let conArities : int SM.t ref = ref SM.empty
 let conArities_init : int SM.t = 

@@ -196,7 +196,9 @@ let rec wfM_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:mtype) 
   | MVarU x -> if not (SS.mem wfms x) then errr loc (x^" is not in scope")
   | MonT (Some s,args) -> wfS_ vs loc wfms wfss s; List.iter args (wfS_ vs loc wfms wfss)
   | MonT (None,args) -> List.iter args (wfS_ vs loc wfms wfss)
-  | Comp (_,args) -> List.iter args (function
+  | Comp (name,args) -> if not (SS.mem !typeNames name)
+                        then errr loc ("Unknown type "^name);
+                        List.iter args (function
                                     | `M m -> wfM_ vs loc wfms wfss m
                                     | `S s -> wfS_ vs loc wfms wfss s)
 and wfS_ (vs:stype list) (loc:srcloc) (wfms: SS.t) (wfss: TS.t) (tin:stype) : unit =
@@ -1167,7 +1169,9 @@ let gatherTopTys (ds:toplvl list) : ptype FM.t =
          then errr (fst f) ("Duplicate defintion of "^string_of_fvar f)
          else FM.add env f (letcommon_ (fst f) SS.empty TS.empty env t f None)
        | ServDecl (f,s) -> sessions := FM.add !sessions f (Connection.puretoptrS s); env
-       | MTypeDecl (t,fs,cm) -> SM.iter cm (fun ~key:c ~data:a -> 
+       | MTypeDecl (t,fs,cm) -> 
+         typeNames := SS.add !typeNames (snd t);
+         SM.iter cm (fun ~key:c ~data:a -> 
          let (wfms,wfss) = List.fold_left fs ~init:(SS.empty,TS.empty)
                ~f:(fun (accm,accs) -> function
                        | `S x -> (accm,TS.add accs x)
