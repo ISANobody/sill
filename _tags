@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: d695d5b4b387816b01ebcc0210658b58)
+# DO NOT EDIT (digest: ab24c69488f3dc259841d80ffceaecb7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -35,15 +36,15 @@
 "sshstub.byte": package(sexplib.syntax)
 "sshstub.byte": package(threads)
 "sshstub.byte": package(unix)
-<*.ml{,i}>: package(bin_prot)
-<*.ml{,i}>: package(bin_prot.syntax)
-<*.ml{,i}>: package(core)
-<*.ml{,i}>: package(monad-custom)
-<*.ml{,i}>: package(mparser)
-<*.ml{,i}>: package(mparser.re)
-<*.ml{,i}>: package(sexplib)
-<*.ml{,i}>: package(sexplib.syntax)
-<*.ml{,i}>: package(threads)
-<*.ml{,i}>: package(unix)
+<*.ml{,i,y}>: package(bin_prot)
+<*.ml{,i,y}>: package(bin_prot.syntax)
+<*.ml{,i,y}>: package(core)
+<*.ml{,i,y}>: package(monad-custom)
+<*.ml{,i,y}>: package(mparser)
+<*.ml{,i,y}>: package(mparser.re)
+<*.ml{,i,y}>: package(sexplib)
+<*.ml{,i,y}>: package(sexplib.syntax)
+<*.ml{,i,y}>: package(threads)
+<*.ml{,i,y}>: package(unix)
 # OASIS_STOP
 <*.ml>: syntax_camlp4o

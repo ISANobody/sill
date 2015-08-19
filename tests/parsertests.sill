@@ -144,3 +144,7 @@ foo : {1 * 1};; foo = ();;
 foo : { [a] /\ 1 };; foo = ();;
 foo : { {'a <- 'a} /\ 1 };; foo = ();;
 foo : { {'a <- 'a} /\ 1 };; foo = 5<7;;
+
+t0' : {&{red:1}};;
+'c <- t0' =
+  'c <- 'c <-{ case 'c of | red -> close 'c | blue -> close 'c };;

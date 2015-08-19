@@ -1023,13 +1023,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
             | None -> errr sloc "Cannot end a process with an internal choice")))
       <|>
       (perform
-        c2 <-- subchan;
-        return (function
-          | None -> Fwd (sloc,c1,c2)
-          | Some cont -> errr (locP cont) "Forwarding must end its process"))
-      <|>
-      (perform
-        e <-- Lazy.force exp_;
+        e <-- attempt (Lazy.force exp_);
         (perform
           skip_symbol "-<";
           cs <-- many anychan;
@@ -1040,6 +1034,12 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
         (return (function
            | Some cont -> Bind (sloc,c1,e,[],cont)
            | None -> TailBind (sloc,c1,e,[]))))
+      <|>
+      (perform
+        c2 <-- subchan;
+        return (function
+          | None -> Fwd (sloc,c1,c2)
+          | Some cont -> errr (locP cont) "Forwarding must end its process"))
       <|>
       (perform
         skip_symbol "send";
