@@ -605,7 +605,7 @@ and checkS (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
 and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv) 
                (pin:proc) (cpr:cvar) (tin:stype) : consumed CM.t =
   match pin with
-  | TailBind (_,c,e,cs) -> 
+  | TailBind (_,c,e,cs) when not (synthable e) -> 
     (* This is separate to enable desugaring to be type based *)
     (* Specifically, desugaring creates a large number of anonymous monads and tail binds
        them. This means that we can't synthesise their types. Instead we assert that they
@@ -639,6 +639,11 @@ and checkS_raw (wfms: SS.t) (wfss: TS.t) (env:funenv) (senv:sesenv)
                               | Consumed -> errr (fst x) ("Channel Duplication "
                                                          ^string_of_cvar x))
 
+  | TailBind (l,c,e,cs) -> 
+      let tmpc = (fst c,(match c with (* TODO make a library function *)
+                        | (_,Lin _) -> Lin (priv_name ())
+                        | (_,Aff _) -> Aff (priv_name ())))
+      in checkS_raw wfms wfss env senv (Bind (l,tmpc,e,cs,(Fwd (l,cpr,tmpc)))) cpr tin
   | Bind (_,c,e,cs,p)  ->
     let mont = getMType (synthM wfms wfss env e) in
     (match !mont with

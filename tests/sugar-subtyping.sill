@@ -1,0 +1,93 @@
+(* First some definitions that let us use subtyping. *)
+foo : {&{red:1}};;
+'c <- foo =
+  case 'c of
+  | red -> close 'c;;
+
+bar : {&{red:1; blue:1}};;
+'c <- bar =
+  case 'c of
+  | red -> close 'c
+  | blue -> close 'c;;
+
+t0 : {&{red:1}};;
+'c <- t0 =
+  'c <- bar;;
+
+t0' : {&{red:1}};;
+'c <- t0' =
+  'c <- ('c <-{ case 'c of | red -> close 'c | blue -> close 'c });;
+
+t0'' : {&{red:1}};;
+'c <- t0'' =
+  'd <- bar;
+  'c <- 'd;;
+
+(* t1 : {&{red:1}};;
+'c <- t1 =
+  if True
+   then 'c <- foo
+   else 'c <- bar;; *)
+
+t1' : {&{red:1}};;
+'c <- t1' =
+  if True
+   then 'c <- foo
+   else 'c <- ('c <-{ case 'c of | red -> close 'c | blue -> close 'c });;
+
+t1'' : {&{red:1}};;
+'c <- t1'' =
+  if True
+   then 'c <- foo
+   else 'd <- bar;
+        'c <- 'd;;
+
+t2 : {&{red:1}};;
+'c <- t2 =
+  case True of
+  | True -> 'c <- foo
+  | False -> 'c <- bar;;
+
+t2' : {&{red:1}};;
+'c <- t2' =
+  case True of
+  | True -> 'c <- foo
+  | False -> 'c <- ('c <-{ case 'c of | red -> close 'c | blue -> close 'c });;
+
+t2'' : {&{red:1}};;
+'c <- t2'' =
+  case True of
+  | True -> 'c <- foo
+  | False -> 'd <- bar; 'c <- 'd;;
+
+t3 : {&{red:1}};;
+'c <- t3 =
+ let x : Int = 5;
+ 'c <- bar;;
+
+t3' : {&{red:1}};;
+'c <- t3' =
+ let x : Int = 5;
+ 'c <- ('c <-{ case 'c of | red -> close 'c | blue -> close 'c });;
+
+t3'' : {&{red:1}};;
+'c <- t3'' =
+ let x : Int = 5;
+ 'd <- bar;
+ 'c <- 'd;;
+
+t4 : {&{red:1}};;
+'c <- t4 =
+  print 8;
+  'c <- bar;;
+
+t4' : {&{red:1}};;
+'c <- t4' =
+  print 8;
+  'c <- ('c <-{ case 'c of | red -> close 'c | blue -> close 'c });;
+
+t4'' : {&{red:1}};;
+'c <- t4'' =
+  print 8;
+  'd <- bar;
+  'c <- 'd;;

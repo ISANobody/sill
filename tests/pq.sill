@@ -8,9 +8,8 @@ case 'c of
 | ins -> x <- recv 'c ;
          'e <- empty () ;
          'c <- elem x -< 'e
-| del -> 'c.none ; close 'c
+| del -> 'c.none ; close 'c;;
 
-and 
 
 elem : Int -> {PQ <- PQ};;
 'c <- elem x -< 'd =
