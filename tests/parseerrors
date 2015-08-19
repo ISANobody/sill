@@ -12,7 +12,7 @@ t = ();;
 Error in line 2, column 3:
 t:&&;;
   ^
-Expecting "forall" or data-level type
+Expecting data-level type or keyword 'forall'
 %%%%
 
 t:forall && ;;

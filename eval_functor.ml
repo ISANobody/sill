@@ -193,10 +193,10 @@ struct
            | None -> errr (fst cc) " found non-Chan. BUG."))
   | External (i,c,ps) ->
     if LM.is_empty ps
-    then errr (ast2loc i) "Empty Case Abort"
+    then errr (i.astloc) "Empty Case Abort"
     else (match I.getLab (I.read_comm state (chanfind "External" c)) with
          | Some l -> if not (LM.mem ps l)
-                    then errr (ast2loc i) ("External choice, no branch for "
+                    then errr (i.astloc) ("External choice, no branch for "
                                           ^string_of_label l^" BUG.")
                     else eval_trace ("external "^string_of_label l);
                          eval_proc env senv cenv (LM.find_exn ps l) state

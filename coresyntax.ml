@@ -2,20 +2,16 @@ open Base
 open Core.Std
 open Vars
 
-type astinfo = { linenum : int; (* These first two should probably just be a srcloc *)
-                 charnum : int; 
+type astinfo = { astloc : srcloc; (* These first two should probably just be a srcloc *)
                  affineFrees : CS.t ref; (* Represent free instructions inserted right
                                            before this one. Since we don't actually
                                            perform transformations, this is easier. *)
                }
 with sexp, bin_io
 
-(* Should these be in syntax.ml? *)
-let ast2loc (a : astinfo) : srcloc =
-    {lnum = a.linenum; cnum = a.charnum}
-
-let nullloc = { lnum = 0; cnum = 0}
-let nullinfo = { linenum = 0; charnum = 0; affineFrees = ref CS.empty; }
+(* TODO Remove this *)
+let nullloc = Unknown
+let nullinfo = { astloc = Unknown; affineFrees = ref CS.empty; }
 
 (* constants for PicoML *)
 type const = Int of int | Float of float | String of string with sexp, bin_io
@@ -155,8 +151,8 @@ let getinfoP (p:proc) : astinfo =
   | ShftUpL (i,_,_,_) -> i
   | ShftDwR (i,_,_,_) -> i
   
-let locE (e:exp) : srcloc = ast2loc (getinfoE e)
-let locP (p:proc) : srcloc = ast2loc (getinfoP p)
+let locE (e:exp) : srcloc = (getinfoE e).astloc
+let locP (p:proc) : srcloc = (getinfoP p).astloc
 
 (* Each process statement has at most one channel it communicates along. This returns it. *)
 let focusedChan : proc -> cvar option = function

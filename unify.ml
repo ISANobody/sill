@@ -38,8 +38,8 @@ let rec unifyM_raw (tin1 : mtype) (tin2 : mtype) (mode:[`Both | `LeftOnly | `Rig
                                  then raise (Infinite "right var")
                                  else t2 := MInd t1)
                       | `LeftOnly | `Neither -> failwith "Unify right var")
-          | MVarU x1, MVarU x2 when x1 = x2 -> ()
-          | Comp(c1,as1),Comp(c2,as2) ->
+          | MVarU (_,x1), MVarU (_,x2) when x1 = x2 -> ()
+          | Comp(_,c1,as1),Comp(_,c2,as2) ->
             if not (c1 = c2 && List.length as1 = List.length as2) then raise (MismatchedM "Comp");
             t1 := MInd t2; (* TODO iter2 here? *)
             List.fold_left2 (fun () a1 a2 -> 
@@ -47,7 +47,7 @@ let rec unifyM_raw (tin1 : mtype) (tin2 : mtype) (mode:[`Both | `LeftOnly | `Rig
               | `M x,`M y -> unifyM_raw x y mode
               | `S x,`S y -> unifyS_raw x y mode
               | _ -> raise (MismatchedM "Comp")) () as1 as2
-          | MonT(Some s1,sm1),MonT(Some s2,sm2) ->
+          | MonT(_,Some s1,sm1),MonT(_,Some s2,sm2) ->
             if not (List.length sm1 = List.length sm2)
             then failwith ("Can't unify "^string_of_mtype t1^" and "^string_of_mtype t2
                           ^" mismatch argument number");

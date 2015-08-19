@@ -137,7 +137,7 @@ let parens_lazy p = between_lazy '(' ')' p
 let getSloc =
   perform
     (_,l,c) <-- get_pos;
-    return ({lnum = l; cnum = c})
+    return (Known (l,c))
 
 (* To report better error messages sometimes we'll want to grab the parser state.
    This feels like it should already be in the library, but I can't find it. *)
@@ -178,6 +178,13 @@ let id_lower_ : (fvar,'s) MParser.t =
   <?> "lowercase identifier"
 
 let id_lower = id_lower_ >>= fun s -> spaces >> return s
+
+let keyword s : (unit,'s) MParser.t =
+  attempt (perform
+     skip_string s;
+     not_followed_by (alphanum <|> char '_' <|> char ''') "";
+     spaces)
+  <?> ("keyword '"^s^"'")
 
 let id_upper_ : (fvar,'s) MParser.t =
   attempt (perform
@@ -284,35 +291,36 @@ let rec tyapp_ : (tyapp,'s) MParser.t Lazy.t = lazy (
     return (TyApp (name,args))
 )
 and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
+ (getSloc >>= fun sloc ->
   (perform
     (_,x) <-- datavar;
-    return (MVar x))
+    return (MVar (sloc,x)))
   <|>
   (perform
     (_,x) <-- id_upper;
-    return (Comp (x,[])))
+    return (Comp (sloc,x,[])))
   <|>
-  (skip_symbol "()" >> return (Comp ("()",[])))
+  (skip_symbol "()" >> return (Comp (sloc,"()",[])))
   <|>
   (perform
     skip_symbol "[";
     t <-- Lazy.force mtype_;
     skip_symbol "]";
-    return (Comp ("[]",[`M t])))
+    return (Comp (sloc,"[]",[`M t])))
   <|>
   (perform
      skip_symbol "{";
-     (skip_symbol "}" >> return (MonT(None,[])))
+     (skip_symbol "}" >> return (MonT(sloc,None,[])))
      <|>
      (perform
        t <-- Lazy.force stype_;
-       (skip_symbol "}" >> return (MonT(Some t,[])))
+       (skip_symbol "}" >> return (MonT(sloc,Some t,[])))
        <|>
        (perform
          skip_symbol "<-";
          ts <-- sep_by1_lazy (skip_symbol ";") stype_;
          skip_symbol "}";
-         return (MonT(Some t,ts)))))
+         return (MonT(sloc,Some t,ts)))))
   <|>
   (perform
     skip_symbol "(";
@@ -321,9 +329,9 @@ and mtype_atom_ : (mtype,'s) MParser.t Lazy.t = lazy(
        skip_symbol ",";
        t2 <-- Lazy.force mtype_;
        skip_symbol ")";
-       return (Comp(",",[`M t1;`M t2])))
+       return (Comp(sloc,",",[`M t1;`M t2])))
     <|>
-     (skip_symbol ")" >> return t1))
+     (skip_symbol ")" >> return t1)))
   <?> "data-level type"
 )
 and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
@@ -334,12 +342,13 @@ and mtype_basic_ : (mtype,'s) MParser.t Lazy.t = lazy(
 )
 and mtype_ : (mtype,'s) MParser.t Lazy.t = lazy(
   (perform
+     sloc <-- getSloc;
      t1 <-- Lazy.force mtype_basic_;
      arr <-- try_skip (skip_symbol "->");
      if arr
      then perform
             t2 <-- Lazy.force mtype_;
-            return (Comp("->",[`M t1;`M t2]))
+            return (Comp(sloc,"->",[`M t1;`M t2]))
      else return t1)
   <?> "data-level type"
 )
@@ -374,14 +383,14 @@ and stype_ : (stype,'s) MParser.t Lazy.t = lazy(
         return (TyInD (sloc,Linear,m,s))))
   <|>
   (perform
-    skip_symbol "forall";
+    keyword "forall";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
     return (Forall (sloc,Linear,q,s)))
   <|>
   (perform
-    skip_symbol "exists";
+    keyword "exists";
     q <-- sesvar;
     skip_symbol ".";
     s <-- Lazy.force stype_;
@@ -475,7 +484,7 @@ let constructor =
 let mtypedec : (toplvl,'s) MParser.t =
   (perform
     sloc <-- getSloc;
-    skip_symbol "type";
+    keyword "type";
     id <-- id_upper;
     qs <-- quant_list many;
     skip_symbol "=";
@@ -487,9 +496,9 @@ let mtypedec : (toplvl,'s) MParser.t =
 
 let stypedec : (toplvl,'s) MParser.t =
   (perform
-    mode <-- (  (skip_symbol "ltype" >> return Linear)
-            <|> (skip_symbol "atype" >> return Affine)
-            <|> (skip_symbol "utype" >> return Intuist));
+    mode <-- (  (keyword "ltype" >> return Linear)
+            <|> (keyword "atype" >> return Affine)
+            <|> (keyword "utype" >> return Intuist));
     id <-- id_upper;
     qs <-- quant_list many;
     skip_symbol "=";
@@ -698,7 +707,7 @@ and exp_app_ : (exp,'s) MParser.t Lazy.t = lazy(
 and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
   (perform
     sloc <-- getSloc;
-    skip_symbol "fun";
+    keyword "fun";
     (x::xs) <-- patvar_list many1;
     skip_symbol "->";
     e <-- Lazy.force exp_;
@@ -706,32 +715,32 @@ and exp_basic_ : (exp,'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "let";
+    keyword "let";
     name <-- id_lower;
     pats <-- patvar_list many;
     skip_symbol ":";
     t <-- mtype;
     skip_symbol "=";
     e1 <-- Lazy.force exp_;
-    skip_symbol "in";
+    keyword "in";
     e2 <-- Lazy.force exp_;
     return (Let (sloc,`M t,name,pats,e1,e2)))
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "if";
+    keyword "if";
     ec <-- Lazy.force exp_;
-    skip_symbol "then";
+    keyword "then";
     et <-- Lazy.force exp_;
-    skip_symbol "else";
+    keyword "else";
     ef <-- Lazy.force exp_;
     return (If (sloc,ec,et,ef)))
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "case";
+    keyword "case";
     e <-- Lazy.force exp_;
-    skip_symbol "of";
+    keyword "of";
     es <-- Of_alist_SM.go many1 (perform
                                   (c,pat) <-- data_pattern;
                                   ep <-- Lazy.force exp_;
@@ -823,18 +832,18 @@ and exp_atom_ : (exp,'s) MParser.t Lazy.t = lazy(
 and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   (perform
     sloc <-- getSloc;
-    skip_symbol "abort";
+    keyword "abort";
     return (function
       | None -> Abort sloc
       | Some cont -> errr (locP cont) "'abort' must end its process"))
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "if";
+    keyword "if";
     ec <-- Lazy.force exp_;
-    skip_symbol "then";
+    keyword "then";
     pt <-- Lazy.force proc_;
-    skip_symbol "else";
+    keyword "else";
     pf <-- Lazy.force proc_;
     return (function
       | None -> IfP (sloc,ec,pt,pf)
@@ -842,10 +851,10 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "case";
+    keyword "case";
     (perform
       c <-- subchan;
-      skip_symbol "of";
+      keyword "of";
       cases <-- Of_alist_LM.go many (perform 
                                       skip_symbol "|";
                                       l <-- id_lower;
@@ -859,7 +868,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     <|>
     (perform
       e <-- Lazy.force exp_;
-      skip_symbol "of";
+      keyword "of";
       cases <-- Of_alist_SM.go many1 (perform
                                        (c,pat) <-- data_pattern;
                                        p <-- Lazy.force proc_;
@@ -882,7 +891,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     x <-- sesvar;
     skip_symbol ">";
     skip_symbol "<-";
-    skip_symbol "recv";
+    keyword "recv";
     c <-- subchan;
     return (function
       | Some cont -> InTy(sloc,x,c,cont)
@@ -890,7 +899,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform 
     sloc <-- getSloc;
-    skip_symbol "close";
+    keyword "close";
     c <-- subchan;
     return (function
       | None -> Close (sloc,c)
@@ -898,7 +907,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform 
     sloc <-- getSloc;
-    skip_symbol "wait";
+    keyword "wait";
     c <-- subchan;
     return (function
       | Some cont -> Wait(sloc,c,cont)
@@ -906,7 +915,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "let";
+    keyword "let";
     name <-- id_lower;
     pats <-- patvar_list many;
     skip_symbol ":";
@@ -919,7 +928,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform 
     sloc <-- getSloc;
-    skip_symbol "send";
+    keyword "send";
     c <-- subchan;
     (perform
       e <-- attempt (Lazy.force exp_);
@@ -934,7 +943,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
         | None -> errr sloc "Cannot end a process by sending a channel"))
     <|>
     (perform
-      skip_symbol "shift";
+      keyword "shift";
       return (function
         | Some cont -> SendSync (sloc,c,cont)
         | None -> errr sloc "Cannot end a process by sending a shift"))
@@ -962,7 +971,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     sloc <-- getSloc;
     x <-- id_lower;
     skip_symbol "<-";
-    skip_symbol "recv";
+    keyword "recv";
     c <-- subchan;
     return (function
       | Some cont -> InD (sloc,x,c,cont)
@@ -973,7 +982,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     skip_symbol "_";
     skip_symbol "<-";
     (perform
-      skip_symbol "recv";
+      keyword "recv";
       c <-- subchan;
       return (function
         | Some cont -> InD (sloc,(sloc,priv_name ()),c,cont)
@@ -994,15 +1003,15 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
   <|>
   (perform
     sloc <-- getSloc;
-    skip_symbol "shift";
+    keyword "shift";
     skip_symbol "<-";
-    skip_symbol "recv";
+    keyword "recv";
     c <-- anychan;
     return (function
       | Some cont -> RecvSync (sloc,c,cont)
       | None -> errr sloc "Cannot end a process with a shift"))
   <|>
-  (perform
+  attempt (perform
     sloc <-- getSloc;
     c1 <-- anychan_;
     (perform
@@ -1015,7 +1024,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
     (perform
       spaces;
       skip_symbol "<-";
-      (skip_symbol "recv" >>
+      (keyword "recv" >>
         (perform
           c2 <-- anychan;
           return (function
@@ -1042,7 +1051,7 @@ and proc_inst_ : ((proc option -> proc),'s) MParser.t Lazy.t = lazy(
           | Some cont -> errr (locP cont) "Forwarding must end its process"))
       <|>
       (perform
-        skip_symbol "send";
+        keyword "send";
         c2 <-- anychan;
         return (function
           | Some cont -> ShftUpL (sloc,c1,c2,cont)
@@ -1073,7 +1082,7 @@ let topsig =
     name <-- id_lower;
     skip_symbol ":";
     (perform
-      skip_symbol "forall";
+      keyword "forall";
       qs <-- java_quant_list;
       skip_symbol ".";
       t <-- mtype;
@@ -1155,7 +1164,7 @@ let topproc_ =
 
 let topproc : (toplvl,'s) MParser.t =
   (perform
-    procs <-- sep_by1 topproc_ (skip_symbol "and");
+    procs <-- sep_by1 topproc_ (keyword "and");
     skip_symbol ";;";
     return (TopProc procs))
   <?> "top level process"

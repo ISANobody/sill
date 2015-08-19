@@ -24,7 +24,7 @@ let vartoptr (x:string) : Dest.mtype =
     match SM.find !vartoptr_map x with
     | Some m -> m
     | None ->
-      let a = ref (Dest.MVarU x)
+      let a = ref (Dest.MVarU (Unknown,x)) (* TODO Unknown? *)
       in vartoptr_map := SM.add !vartoptr_map x a;
          a
 
@@ -69,18 +69,19 @@ let sessionDefs : ([`M of string | `S of tyvar] list * Dest.stype) SM.t ref = re
 
 let rec puretoptrM (tin : Pure.mtype) : Dest.mtype =
   match tin with
-  | Pure.MVar x -> ref (Dest.MVarU x)
-  | Pure.Comp (c,args) -> Dest.mkcomp c (List.map args 
+  | Pure.MVar (l,x) -> ref (Dest.MVarU (l,x))
+  | Pure.Comp (l,c,args) -> Dest.mkcomp l c (List.map args 
                                                   (function
                                                   | `A a -> 
                                                     if SM.mem !sessionQs (snd a)
                                                     then `S (puretoptrS (Pure.SComp(fst a,snd a,[])))
-                                                    else `M (puretoptrM (Pure.Comp(snd a,[])))
+                                                    else `M (puretoptrM
+                                                    (Pure.Comp(fst a,snd a,[])))
                                                   | `M m -> `M (puretoptrM m)
                                                   | `S s -> `S (puretoptrS s)))
-  | Pure.MonT (Some sx,ss) -> Dest.mkmon (Some (puretoptrS sx))
+  | Pure.MonT (l,Some sx,ss) -> Dest.mkmon l (Some (puretoptrS sx))
                                               (List.map ss (fun x -> puretoptrS x))
-  | Pure.MonT (None,ss) -> Dest.mkmon (None) (List.map ss (fun x -> puretoptrS x))
+  | Pure.MonT (l,None,ss) -> Dest.mkmon l None (List.map ss (fun x -> puretoptrS x))
 and puretoptrS (tin_in : Pure.stype) : Dest.stype = 
   let rec go (tin : Pure.stype) (env : Dest.stype SM.t) : Dest.stype =
     match tin with
@@ -103,7 +104,7 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
                                 in (accm,TM.add accs x s')
                  | `S x,`A a -> let s' = puretoptrS (Pure.SComp (fst a,snd a,[]))
                                 in (accm,TM.add accs x s')
-                 | `M x,`A a -> let m' = (puretoptrM (Pure.Comp (snd a,[])))
+                 | `M x,`A a -> let m' = (puretoptrM (Pure.Comp (fst a,snd a,[])))
                                 in (SM.add accm x m',accs)
                  | `M x,`M m -> let m' = (puretoptrM m)
                                 in (SM.add accm x m',accs)
@@ -122,7 +123,8 @@ and puretoptrS (tin_in : Pure.stype) : Dest.stype =
          in let args' = List.map2_exn qs args
                         ~f:(fun q arg -> match q,arg with
                                          | `M _,`M x -> `M (puretoptrM x)
-                                         | `M _,`A x -> `M (puretoptrM (Pure.Comp (snd x,[])))
+                                         | `M _,`A x -> `M (puretoptrM
+                                         (Pure.Comp (fst x,snd x,[])))
                                          | `S _,`A x -> `S (puretoptrS (Pure.SComp (fst x,snd x,[])))
                                          | `S _,`S x -> `S (puretoptrS x)
                                          | _ -> failwith "BUG puretoptrS.go Mu")

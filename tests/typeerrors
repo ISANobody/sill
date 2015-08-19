@@ -331,7 +331,7 @@ foo: {1 <- SkipStream a} -> {SkipStream a} -> {1};;
       wait 'f;
       close 'c;;
 %%%%
-@29:17 Unification failure in var (nats) failed solving {1 <- +{next: Int=>Stream Int; stop: 1}} === {1 <- +{next: ?x10=>SkipStream ?x10; skip: SkipStream ?x10; stop: 1}}
+@29:17 Unification failure in var (nats) failed solving {1 <- +{next: Int=>Stream Int; stop: 1}} === {1 <- +{next: ?x4=>SkipStream ?x4; skip: SkipStream ?x4; stop: 1}}
 %%%%
 
 foo : {&{a:1; b:1}};;
@@ -512,7 +512,7 @@ foot = A;;
 foo : {'a};;
 'c <- foo = close 'c;;
 %%%%
-@3:7 'a is not in scope
+@2:8 'a is not in scope
 %%%%
 
 x : Int;;
@@ -537,4 +537,16 @@ foo : {1};;
   | blue -> close 'c;;
 %%%%
 @4:3 Expected External choice for &R. Found 1 instead.
+%%%%
+
+foo : ASDFA;;
+foo = 1;;
+%%%%
+@2:7 Unknown type ASDFA
+%%%%
+
+foo : Int;;
+foo = fun x -> 4;;
+%%%%
+@3:7 Expected a function type but found Int
 %%%%
