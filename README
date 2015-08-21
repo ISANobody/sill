@@ -18,6 +18,9 @@ last step is optional):
 
 After this "sill [options] <file>.sill"  should be usable for your programs.
 
+See sill.grammar (https://github.com/ISANobody/sill/blob/master/sill.grammar) for SILL's
+syntax.
+
 Options are passed to sill via the following flags:
 
 -help    prints out a short usage description

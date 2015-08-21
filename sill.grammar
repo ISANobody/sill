@@ -57,6 +57,7 @@ expression ::= ( <expression> )
              | <integer literal>
              | <float literal>
              | <string literal>
+             | <built_in>
              | ()
              | [ <';'-separated list of <expression>> ]
              | <lowercase>
@@ -102,6 +103,14 @@ case_exp ::= '|' <uppercase> <' '-separated list of <pattern_var>> -> <process>
            | '|' [ ] -> <process>
            | '|' <pattern_var> :: <pattern_var> -> <process>
            | '|' ( <pattern_var> , <pattern_var> ) -> <process>
+
+built_in ::= assert          /* Bool -> () */
+           | sleep           /* Int -> () */
+           | print           /* Int -> () */
+           | print_str       /* String -> () */
+           | flush           /* () -> () */
+           | i2s             /* Int -> String */
+           | sexp2s          /* a -> String */
 
 branch ::= '|' <lowercase> -> <process>
 
