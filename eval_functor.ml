@@ -29,7 +29,8 @@ struct
       ; I.focusCache       = ref None
       ; I.focusCounter     = ref 0
       ; I.unfocusCounter   = ref 0
-      ; I.numTailbinds = ref 0 }
+      ; I.numTailbinds     = ref 0
+      ; I.vecClock         = ref (Vector_clock.VectorClock.create ([!newstateCounter])) }
 
 (* Given a local state compute the state its child should start with.
    Maybe this should return a mutated parent state instead of assuming references *)
@@ -40,8 +41,9 @@ struct
     ; I.focusCache = ref None
     ; I.focusCounter = ref 0
     ; I.unfocusCounter = ref 0
-    ; I.numTailbinds = ref 0 }
-
+    ; I.numTailbinds = ref 0
+    ; I.vecClock  = ref !(s.I.vecClock) }
+                        
   
   module Exp = MkExpEvaluator(I)
 

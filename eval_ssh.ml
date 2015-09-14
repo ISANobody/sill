@@ -54,6 +54,7 @@ struct
                       focusCounter : int ref;
                       unfocusCounter : int ref;
                       numTailbinds : int ref;
+                      vecClock : Vector_clock.VectorClock.t ref;
                     }
   (* Channels aren't serializeable so we can't just directly wrap with redirection info *)
   type commWrapper = WrapTerm of int

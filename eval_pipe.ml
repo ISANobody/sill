@@ -106,6 +106,7 @@ struct
                       focusCounter : int ref;
                       unfocusCounter : int ref;
                       numTailbinds : int ref;
+                      vecClock : Vector_clock.VectorClock.t ref;
                     }
   let procExit _ = Pervasives.exit 0
   let abort _ = failwith "pipe-abort unimplemented"
